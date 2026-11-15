@@ -5,6 +5,8 @@ with your project files and MCP servers. It supports modes (Code, Architect, Ask
 and custom modes), many LLM providers (Anthropic, OpenAI, OpenRouter, Bedrock, Vertex, Ollama,
 LM Studio and more), checkpoints, and auto-approval of actions.
 
+**[Install from the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=benjy-the-bear.bear-code)**
+
 ## About the project
 
 BearCode is a fork of [Roo Code](https://github.com/RooCodeInc/Roo-Code) (Apache-2.0), which itself
@@ -27,14 +29,17 @@ Bug reports and feature requests: [issues](https://github.com/veniaminlunyov/bea
 
 ## Installation
 
-Download the VSIX from the [latest release](https://github.com/veniaminlunyov/bear-code/releases/latest)
-(current: [BearCode 0.1.0](https://github.com/veniaminlunyov/bear-code/releases/tag/v0.1.0),
-[`bear-code-0.1.0.vsix`](https://github.com/veniaminlunyov/bear-code/releases/download/v0.1.0/bear-code-0.1.0.vsix))
-and install it via `Extensions → … → Install from VSIX…` or from the command line:
+Install BearCode from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=benjy-the-bear.bear-code): search for **BearCode** in the Extensions view,
+or run:
 
 ```sh
-code --install-extension bear-code-0.1.0.vsix
+code --install-extension benjy-the-bear.bear-code
 ```
+
+Alternatively, download the VSIX from the [latest GitHub release](https://github.com/veniaminlunyov/bear-code/releases/latest)
+(current: [BearCode 0.1.0](https://github.com/veniaminlunyov/bear-code/releases/tag/v0.1.0),
+[`bear-code-0.1.0.vsix`](https://github.com/veniaminlunyov/bear-code/releases/download/v0.1.0/bear-code-0.1.0.vsix))
+and install it via `Extensions → … → Install from VSIX…` or `code --install-extension bear-code-0.1.0.vsix`.
 
 To build the VSIX yourself, see [Building](#building).
 
