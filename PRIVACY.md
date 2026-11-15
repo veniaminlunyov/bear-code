@@ -1,37 +1,35 @@
-# Roo Code Privacy Policy
+# BearCode Privacy Policy
 
-**Last Updated: September 11th, 2025**
+**Last Updated: November 15th, 2026**
 
-Roo Code respects your privacy and is committed to transparency about how we handle your data. Below is a simple breakdown of where key pieces of data go—and, importantly, where they don’t.
+BearCode runs locally in your editor. The BearCode project does not operate any servers that receive
+your data. Below is a breakdown of where data goes — and where it doesn't.
 
-### **Where Your Data Goes (And Where It Doesn’t)**
+### Where your data goes (and where it doesn't)
 
-- **Code & Files**: Roo Code accesses files on your local machine when needed for AI-assisted features. When you send commands to Roo Code, relevant files may be transmitted to your chosen AI model provider (e.g., OpenAI, Anthropic, OpenRouter) to generate responses. AI providers may store data per their privacy policies.
-- **Commands**: Any commands executed through Roo Code happen on your local environment. However, when you use AI-powered features, the relevant code and context from your commands may be transmitted to your chosen AI model provider (e.g., OpenAI, Anthropic, OpenRouter) to generate responses. We do not have access to or store this data, but AI providers may process it per their privacy policies.
-- **Prompts & AI Requests**: When you use AI-powered features, your prompts and relevant project context are sent to your chosen AI model provider (e.g., OpenAI, Anthropic, OpenRouter) to generate responses. We do not store or process this data. These AI providers have their own privacy policies and may store data per their terms of service.
-- **API Keys & Credentials**: If you enter an API key (e.g., to connect an AI model), it is stored locally on your device and never sent to us or any third party, except the provider you have chosen.
-- **Telemetry (Usage Data)**: We collect anonymous feature usage and error data to help us improve Roo Code. This telemetry is powered by PostHog and includes your VS Code machine ID, feature usage patterns, and exception reports. This telemetry does **not** collect personally identifiable information, your code, or AI prompts. You can opt out of this telemetry at any time through the settings.
+- **Code & files**: BearCode reads files on your machine when needed. When you send a request, the relevant
+  files and context are transmitted to the AI model provider you have configured (e.g. Anthropic, OpenAI,
+  OpenRouter, or a local model). Providers may store and process this data according to their own privacy
+  policies.
+- **Commands**: Commands run by BearCode are executed in your local environment. Their output may be sent to
+  your configured AI provider as part of the conversation context.
+- **Prompts & AI requests**: Prompts and project context are sent only to the AI provider you have configured.
+- **API keys & credentials**: API keys are stored locally in VS Code's secret storage and are sent only to the
+  provider they belong to.
+- **MCP servers & integrations**: Data sent to MCP servers, embedding providers, or vector databases that you
+  configure is governed by those services.
+- **Telemetry**: BearCode does **not** collect telemetry, usage analytics, or crash reports.
 
-### **How We Use Your Data (If Collected)**
+### Your choices & control
 
-- We use telemetry to understand feature usage and improve Roo Code.
-- We do **not** sell or share your data.
-- We do **not** train any models on your data.
+- Use a local model (e.g. Ollama or LM Studio) to keep prompts and code on your machine.
+- Use `.bearignore` to prevent BearCode from reading specific files.
+- Settings and task history are stored locally in VS Code's extension storage on your machine.
 
-### **Your Choices & Control**
+### Changes
 
-- You can run models locally to prevent data being sent to third-parties.
-- Telemetry collection is enabled by default to help us improve Roo Code, but you can opt out at any time through the settings.
-- You can delete Roo Code to stop all data collection.
+Changes to this policy are published in this repository.
 
-### **Security & Updates**
+### Contact
 
-We take reasonable measures to secure your data, but no system is 100% secure. If our privacy policy changes, we will notify you within the extension.
-
-### **Contact Us**
-
-For any privacy-related questions, reach out to us at support@roocode.com.
-
----
-
-By using Roo Code, you agree to this Privacy Policy.
+Privacy questions: open an issue at https://github.com/veniaminlunyov/bear-code/issues.
