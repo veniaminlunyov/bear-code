@@ -27,12 +27,16 @@ Bug reports and feature requests: [issues](https://github.com/veniaminlunyov/bea
 
 ## Installation
 
-Build the VSIX (see below) and install it via `Extensions → … → Install from VSIX…`
-or from the command line:
+Download the VSIX from the [latest release](https://github.com/veniaminlunyov/bear-code/releases/latest)
+(current: [BearCode 0.1.0](https://github.com/veniaminlunyov/bear-code/releases/tag/v0.1.0),
+[`bear-code-0.1.0.vsix`](https://github.com/veniaminlunyov/bear-code/releases/download/v0.1.0/bear-code-0.1.0.vsix))
+and install it via `Extensions → … → Install from VSIX…` or from the command line:
 
 ```sh
-code --install-extension bin/bear-code-<version>.vsix
+code --install-extension bear-code-0.1.0.vsix
 ```
+
+To build the VSIX yourself, see [Building](#building).
 
 BearCode has its own extension ID (`bearcode.bear-code`) and can be installed side by side with Roo Code.
 
