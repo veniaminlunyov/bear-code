@@ -755,6 +755,61 @@ describe("useMcpToolTool", () => {
 			expect(mockPushToolResult).toHaveBeenCalledWith(expect.stringContaining("with 1 image(s)"))
 		})
 
+		it("should include resource_link content in the tool result", async () => {
+			const block: ToolUse = {
+				type: "tool_use",
+				name: "use_mcp_tool",
+				params: {
+					server_name: "docs-server",
+					tool_name: "find_doc",
+					arguments: '{"query": "setup"}',
+				},
+				nativeArgs: {
+					server_name: "docs-server",
+					tool_name: "find_doc",
+					arguments: { query: "setup" },
+				},
+				partial: false,
+			}
+
+			mockAskApproval.mockResolvedValue(true)
+
+			const mockToolResult = {
+				content: [
+					{ type: "text", text: "Found 1 document" },
+					{
+						type: "resource_link",
+						uri: "file:///docs/setup.md",
+						name: "setup.md",
+						description: "Setup guide",
+						mimeType: "text/markdown",
+					},
+				],
+				isError: false,
+			}
+
+			mockProviderRef.deref.mockReturnValue({
+				getMcpHub: () => ({
+					callTool: vi.fn().mockResolvedValue(mockToolResult),
+					getAllServers: vi
+						.fn()
+						.mockReturnValue([
+							{ name: "docs-server", tools: [{ name: "find_doc", description: "Find doc" }] },
+						]),
+				}),
+				postMessageToWebview: vi.fn(),
+			})
+
+			await useMcpToolTool.handle(mockTask as Task, block as any, {
+				askApproval: mockAskApproval,
+				handleError: mockHandleError,
+				pushToolResult: mockPushToolResult,
+			})
+
+			expect(mockPushToolResult).toHaveBeenCalledWith(expect.stringContaining("file:///docs/setup.md"))
+			expect(mockPushToolResult).toHaveBeenCalledWith(expect.stringContaining('"name": "setup.md"'))
+		})
+
 		it("should handle image with data URL already formatted", async () => {
 			const block: ToolUse = {
 				type: "tool_use",

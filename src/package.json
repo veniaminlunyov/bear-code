@@ -492,7 +492,7 @@
 		"semver-compare": "^1.0.0",
 		"serialize-error": "^12.0.0",
 		"shell-quote": "^1.8.2",
-		"simple-git": "^3.27.0",
+		"simple-git": "^4.0.2",
 		"sound-play": "^1.1.0",
 		"stream-json": "^1.8.0",
 		"string-similarity": "^4.0.4",
@@ -549,7 +549,7 @@
 		"rimraf": "^6.0.1",
 		"tsup": "^8.4.0",
 		"tsx": "^4.19.3",
-		"vitest": "^3.2.3",
+		"vitest": "^3.2.6",
 		"zod-to-ts": "^1.2.0"
 	}
 }

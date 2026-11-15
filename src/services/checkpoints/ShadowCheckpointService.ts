@@ -4,7 +4,7 @@ import * as path from "path"
 import crypto from "crypto"
 import EventEmitter from "events"
 
-import simpleGit, { SimpleGit, SimpleGitOptions } from "simple-git"
+import { simpleGit, SimpleGit, SimpleGitOptions } from "simple-git"
 import pWaitFor from "p-wait-for"
 import * as vscode from "vscode"
 
@@ -24,6 +24,36 @@ import { getExcludePatterns } from "./excludes"
  * @param baseDir - The directory where git operations should be executed
  * @returns A SimpleGit instance with sanitized environment
  */
+/**
+ * Environment variables that make git run external programs (editors, pagers, ssh,
+ * askpass helpers, diff drivers) or load extra configuration. The shadow checkpoint
+ * repository is local and non-interactive and never needs them; simple-git v4 also
+ * refuses to run while they are set (blockUnsafeOperationsPlugin). Compared case-insensitively.
+ */
+const UNSAFE_GIT_ENV_VARS = new Set([
+	"editor",
+	"visual",
+	"pager",
+	"prefix",
+	"ssh_askpass",
+	"git_askpass",
+	"git_editor",
+	"git_sequence_editor",
+	"git_pager",
+	"git_ssh",
+	"git_ssh_command",
+	"git_proxy_command",
+	"git_external_diff",
+	"git_exec_path",
+	"git_template_dir",
+])
+
+function isUnsafeGitEnvVar(key: string): boolean {
+	const name = key.toLowerCase()
+	// GIT_CONFIG, GIT_CONFIG_GLOBAL/SYSTEM/COUNT/PARAMETERS and GIT_CONFIG_KEY_n/VALUE_n
+	return UNSAFE_GIT_ENV_VARS.has(name) || name.startsWith("git_config")
+}
+
 function createSanitizedGit(baseDir: string): SimpleGit {
 	// Create a clean environment by explicitly unsetting git-related environment variables
 	// that could interfere with checkpoint operations
@@ -40,9 +70,10 @@ function createSanitizedGit(baseDir: string): SimpleGit {
 			key === "GIT_OBJECT_DIRECTORY" ||
 			key === "GIT_ALTERNATE_OBJECT_DIRECTORIES" ||
 			key === "GIT_CEILING_DIRECTORIES" ||
-			key === "GIT_TEMPLATE_DIR"
+			key === "GIT_TEMPLATE_DIR" ||
+			isUnsafeGitEnvVar(key)
 		) {
-			removedVars.push(`${key}=${value}`)
+			removedVars.push(key) // names only: values may contain credentials
 			continue
 		}
 
@@ -62,6 +93,12 @@ function createSanitizedGit(baseDir: string): SimpleGit {
 	const options: Partial<SimpleGitOptions> = {
 		baseDir,
 		config: [],
+		unsafe: {
+			// The shadow repo is created with `git init --template=` (empty, hard-coded) so that
+			// no user templates/hooks are copied into it. simple-git v4 blocks any --template
+			// argument unless explicitly allowed.
+			allowUnsafeTemplateDir: true,
+		},
 	}
 
 	// Create git instance and set the sanitized environment
