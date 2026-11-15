@@ -1,0 +1,7 @@
+{
+	"name": "@bear-code/config-typescript",
+	"private": true,
+	"publishConfig": {
+		"access": "public"
+	}
+}

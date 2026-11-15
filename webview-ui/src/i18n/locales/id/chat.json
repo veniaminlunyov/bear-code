@@ -1,0 +1,478 @@
+{
+	"greeting": "Selamat datang di BearCode",
+	"task": {
+		"title": "Tugas",
+		"expand": "Perluas tugas",
+		"collapse": "Ciutkan tugas",
+		"seeMore": "Lihat lebih banyak",
+		"seeLess": "Lihat lebih sedikit",
+		"tokens": "Token",
+		"cache": "Cache",
+		"apiCost": "Biaya API",
+		"size": "Ukuran",
+		"condenseContext": "Kondensasi konteks secara cerdas",
+		"contextWindow": "Panjang Konteks",
+		"closeAndStart": "Tutup tugas dan mulai yang baru",
+		"export": "Ekspor riwayat tugas",
+		"share": "Bagikan tugas",
+		"delete": "Hapus Tugas (Shift + Klik untuk lewati konfirmasi)",
+		"shareSuccessPublic": "Tautan publik disalin ke clipboard",
+		"openApiHistory": "Buka Riwayat API",
+		"openUiHistory": "Buka Riwayat UI",
+		"backToParentTask": "Tugas Induk"
+	},
+	"history": {
+		"title": "Riwayat"
+	},
+	"unpin": "Lepas Pin",
+	"pin": "Pin",
+	"fileChangesInConversation": {
+		"header": "{{count}} file diubah dalam percakapan ini"
+	},
+	"retry": {
+		"title": "Coba Lagi",
+		"tooltip": "Coba operasi lagi"
+	},
+	"startNewTask": {
+		"title": "Mulai Tugas Baru",
+		"tooltip": "Mulai tugas baru"
+	},
+	"reportBug": {
+		"title": "Laporkan Bug"
+	},
+	"proceedAnyways": {
+		"title": "Lanjutkan Saja",
+		"tooltip": "Lanjutkan saat perintah dijalankan"
+	},
+	"save": {
+		"title": "Simpan",
+		"tooltip": "Simpan perubahan pesan"
+	},
+	"tokenProgress": {
+		"availableSpace": "Ruang tersedia: {{amount}} token",
+		"tokensUsed": "Token digunakan: {{used}} dari {{total}}",
+		"reservedForResponse": "Dicadangkan untuk respons model: {{amount}} token",
+		"tokensUsedLabel": "Token digunakan",
+		"reservedForResponseLabel": "Dicadangkan untuk respons",
+		"availableSpaceLabel": "Ruang tersedia"
+	},
+	"reject": {
+		"title": "Tolak",
+		"tooltip": "Tolak aksi ini"
+	},
+	"completeSubtaskAndReturn": "Selesaikan Subtugas dan Kembali",
+	"approve": {
+		"title": "Setujui",
+		"tooltip": "Setujui aksi ini"
+	},
+	"read-batch": {
+		"approve": {
+			"title": "Setujui Semua"
+		},
+		"deny": {
+			"title": "Tolak Semua"
+		}
+	},
+	"list-batch": {
+		"approve": {
+			"title": "Setujui Semua"
+		},
+		"deny": {
+			"title": "Tolak Semua"
+		}
+	},
+	"edit-batch": {
+		"approve": {
+			"title": "Simpan Semua"
+		},
+		"deny": {
+			"title": "Tolak Semua"
+		}
+	},
+	"runCommand": {
+		"title": "Perintah",
+		"tooltip": "Jalankan perintah ini"
+	},
+	"proceedWhileRunning": {
+		"title": "Lanjutkan Saat Berjalan",
+		"tooltip": "Lanjutkan meskipun ada peringatan"
+	},
+	"killCommand": {
+		"title": "Hentikan Perintah",
+		"tooltip": "Hentikan perintah saat ini"
+	},
+	"resumeTask": {
+		"title": "Lanjutkan Tugas",
+		"tooltip": "Lanjutkan tugas saat ini"
+	},
+	"terminate": {
+		"title": "Hentikan",
+		"tooltip": "Akhiri tugas saat ini"
+	},
+	"stop": {
+		"title": "Stop",
+		"tooltip": "Hentikan tugas saat ini"
+	},
+	"cancel": {
+		"title": "Batal",
+		"tooltip": "Batalkan operasi saat ini"
+	},
+	"enqueueMessage": "Tambahkan pesan ke antrean (akan dikirim setelah tugas saat ini selesai)",
+	"scrollToBottom": "Gulir ke bawah chat",
+	"scrollToLatestCheckpoint": "Gulir ke checkpoint sebelumnya",
+	"about": "BearCode adalah seluruh tim pengembang AI di editor Anda.",
+	"docs": "Lihat <DocsLink>dokumentasi</DocsLink> kami untuk mempelajari lebih lanjut.",
+	"onboarding": "Daftar tugas Anda di ruang kerja ini kosong.",
+	"bearTips": {
+		"customizableModes": {
+			"title": "Mode yang dapat disesuaikan",
+			"description": "Persona khusus yang tetap mengerjakan tugas dan memberikan hasil."
+		},
+		"modelAgnostic": {
+			"title": "Bawa model Anda sendiri",
+			"description": "Gunakan kunci penyedia Anda sendiri atau bahkan jalankan inferensi lokal — tanpa markup, tanpa lock-in, tanpa batasan"
+		}
+	},
+	"selectMode": "Pilih mode untuk interaksi",
+	"selectApiConfig": "Pilih konfigurasi API",
+	"lockApiConfigAcrossModes": "Kunci konfigurasi API di semua mode dalam workspace ini",
+	"unlockApiConfigAcrossModes": "Konfigurasi API terkunci di semua mode dalam workspace ini (klik untuk membuka kunci)",
+	"enhancePrompt": "Tingkatkan prompt dengan konteks tambahan",
+	"enhancePromptDescription": "Tombol 'Tingkatkan Prompt' membantu memperbaiki prompt kamu dengan memberikan konteks tambahan, klarifikasi, atau penyusunan ulang. Coba ketik prompt di sini dan klik tombol lagi untuk melihat cara kerjanya.",
+	"modeSelector": {
+		"title": "Mode",
+		"settings": "Pengaturan Mode",
+		"description": "Persona khusus yang menyesuaikan perilaku Bear.",
+		"searchPlaceholder": "Cari mode...",
+		"noResults": "Tidak ada hasil yang ditemukan"
+	},
+	"addImages": "Tambahkan gambar ke pesan",
+	"sendMessage": "Kirim pesan",
+	"pressToSend": "Tekan {{keyCombination}} untuk mengirim",
+	"stopTts": "Hentikan text-to-speech",
+	"typeMessage": "Ketik pesan...",
+	"typeTask": "Bangun, cari, tanya sesuatu",
+	"addContext": "@ untuk menambah konteks, / untuk perintah",
+	"dragFiles": "tahan shift untuk drag file",
+	"dragFilesImages": "tahan shift untuk drag file/gambar",
+	"errorReadingFile": "Error membaca file",
+	"noValidImages": "Tidak ada gambar valid yang diproses",
+	"separator": "Pemisah",
+	"edit": "Edit...",
+	"forNextMode": "untuk mode selanjutnya",
+	"forPreviousMode": "untuk mode sebelumnya",
+	"apiRequest": {
+		"title": "Permintaan API",
+		"failed": "Permintaan API Gagal",
+		"streaming": "Permintaan API...",
+		"cancelled": "Permintaan API Dibatalkan",
+		"streamingFailed": "Streaming API Gagal",
+		"rateLimitWait": "Pembatasan rate",
+		"errorTitle": "Kesalahan Penyedia {{code}}",
+		"errorMessage": {
+			"400": "Penyedia tidak dapat memproses permintaan seperti yang dibuat. Hentikan tugas dan coba pendekatan berbeda.",
+			"401": "Tidak dapat mengautentikasi dengan penyedia. Harap periksa konfigurasi kunci API Anda.",
+			"402": "Tampaknya Anda telah kehabisan dana/kredit di akun Anda. Pergi ke penyedia Anda dan tambahkan lebih banyak untuk melanjutkan.",
+			"403": "Tidak sah. Kunci API Anda valid, tetapi penyedia menolak untuk menyelesaikan permintaan ini.",
+			"429": "Terlalu banyak permintaan. Anda dibatasi tingkat oleh penyedia. Harap tunggu sebentar sebelum panggilan API berikutnya Anda.",
+			"500": "Kesalahan server penyedia. Ada yang salah di sisi penyedia, tidak ada yang salah dengan permintaan Anda.",
+			"docs": "Dokumentasi",
+			"goToSettings": "Pengaturan",
+			"unknown": "Unknown API error. Please report this on GitHub.",
+			"connection": "Kesalahan koneksi. Pastikan Anda memiliki koneksi internet yang berfungsi.",
+			"claudeCodeNotAuthenticated": "Anda perlu masuk untuk menggunakan Claude Code. Buka Pengaturan dan klik \"Masuk ke Claude Code\" untuk mengautentikasi."
+		}
+	},
+	"checkpoint": {
+		"regular": "Checkpoint",
+		"initializingWarning": "Masih menginisialisasi checkpoint... Jika ini terlalu lama, kamu bisa menonaktifkan checkpoint di <settingsLink>pengaturan</settingsLink> dan restart tugas.",
+		"menu": {
+			"viewDiff": "Lihat Diff",
+			"more": "Opsi lainnya",
+			"viewDiffFromInit": "Lihat Semua Perubahan",
+			"viewDiffWithCurrent": "Lihat Perubahan Sejak Checkpoint Ini",
+			"restore": "Pulihkan Checkpoint",
+			"restoreFiles": "Pulihkan File",
+			"restoreFilesDescription": "Mengembalikan file proyek kamu ke snapshot yang diambil pada titik ini.",
+			"restoreFilesAndTask": "Pulihkan File & Tugas",
+			"confirm": "Konfirmasi",
+			"cancel": "Batal",
+			"cannotUndo": "Aksi ini tidak dapat dibatalkan.",
+			"restoreFilesAndTaskDescription": "Mengembalikan file proyek kamu ke snapshot yang diambil pada titik ini dan menghapus semua pesan setelah titik ini."
+		},
+		"current": "Saat Ini"
+	},
+	"contextManagement": {
+		"tokens": "token",
+		"condensation": {
+			"title": "Konteks Dikondensasi",
+			"inProgress": "Mengondensasi konteks...",
+			"errorHeader": "Gagal mengondensasi konteks"
+		},
+		"truncation": {
+			"title": "Konteks Dipotong",
+			"inProgress": "Memotong konteks...",
+			"messagesRemoved": "{{count}} pesan dihapus",
+			"messagesRemoved_other": "{{count}} pesan dihapus",
+			"description": "Pesan lama telah dihapus dari percakapan untuk tetap dalam batas jendela konteks. Ini adalah pendekatan yang cepat tetapi kurang mempertahankan konteks dibandingkan dengan kondensasi."
+		}
+	},
+	"skill": {
+		"wantsToLoad": "Bear ingin memuat keterampilan",
+		"didLoad": "Bear telah memuat keterampilan"
+	},
+	"instructions": {
+		"wantsToFetch": "Bear ingin mengambil instruksi detail untuk membantu tugas saat ini"
+	},
+	"fileOperations": {
+		"wantsToRead": "Bear ingin membaca file ini",
+		"wantsToReadMultiple": "Bear ingin membaca beberapa file",
+		"wantsToReadAndXMore": "Bear ingin membaca file ini dan {{count}} lainnya",
+		"wantsToReadOutsideWorkspace": "Bear ingin membaca file ini di luar workspace",
+		"didRead": "Bear membaca file ini",
+		"wantsToEdit": "Bear ingin mengedit file ini",
+		"wantsToEditOutsideWorkspace": "Bear ingin mengedit file ini di luar workspace",
+		"wantsToEditProtected": "Bear ingin mengedit file konfigurasi yang dilindungi",
+		"wantsToApplyBatchChanges": "Bear ingin menerapkan perubahan ke beberapa file",
+		"wantsToGenerateImage": "Bear ingin menghasilkan gambar",
+		"wantsToGenerateImageOutsideWorkspace": "Bear ingin menghasilkan gambar di luar workspace",
+		"wantsToGenerateImageProtected": "Bear ingin menghasilkan gambar di lokasi yang dilindungi",
+		"didGenerateImage": "Bear telah menghasilkan gambar",
+		"wantsToCreate": "Bear ingin membuat file baru",
+		"wantsToSearchReplace": "Bear ingin mencari dan mengganti di file ini",
+		"didSearchReplace": "Bear melakukan pencarian dan penggantian pada file ini",
+		"wantsToInsert": "Bear ingin menyisipkan konten ke file ini",
+		"wantsToInsertWithLineNumber": "Bear ingin menyisipkan konten ke file ini di baris {{lineNumber}}",
+		"wantsToInsertAtEnd": "Bear ingin menambahkan konten ke akhir file ini"
+	},
+	"directoryOperations": {
+		"wantsToViewTopLevel": "Bear ingin melihat file tingkat atas di direktori ini",
+		"didViewTopLevel": "Bear melihat file tingkat atas di direktori ini",
+		"wantsToViewRecursive": "Bear ingin melihat semua file secara rekursif di direktori ini",
+		"didViewRecursive": "Bear melihat semua file secara rekursif di direktori ini",
+		"wantsToSearch": "Bear ingin mencari direktori ini untuk <code>{{regex}}</code>",
+		"didSearch": "Bear mencari direktori ini untuk <code>{{regex}}</code>",
+		"wantsToSearchOutsideWorkspace": "Bear ingin mencari direktori ini (di luar workspace) untuk <code>{{regex}}</code>",
+		"didSearchOutsideWorkspace": "Bear mencari direktori ini (di luar workspace) untuk <code>{{regex}}</code>",
+		"wantsToViewTopLevelOutsideWorkspace": "Bear ingin melihat file tingkat atas di direktori ini (di luar workspace)",
+		"didViewTopLevelOutsideWorkspace": "Bear melihat file tingkat atas di direktori ini (di luar workspace)",
+		"wantsToViewRecursiveOutsideWorkspace": "Bear ingin melihat semua file secara rekursif di direktori ini (di luar workspace)",
+		"didViewRecursiveOutsideWorkspace": "Bear melihat semua file secara rekursif di direktori ini (di luar workspace)",
+		"wantsToViewMultipleDirectories": "Bear ingin melihat beberapa direktori"
+	},
+	"codebaseSearch": {
+		"wantsToSearch": "Bear ingin mencari codebase untuk <code>{{query}}</code>",
+		"wantsToSearchWithPath": "Bear ingin mencari codebase untuk <code>{{query}}</code> di <code>{{path}}</code>",
+		"didSearch_one": "Ditemukan 1 hasil",
+		"didSearch_other": "Ditemukan {{count}} hasil",
+		"resultTooltip": "Skor kemiripan: {{score}} (klik untuk membuka file)"
+	},
+	"commandOutput": "Keluaran Perintah",
+	"commandExecution": {
+		"abort": "Batalkan",
+		"running": "Menjalankan",
+		"pid": "PID: {{pid}}",
+		"exitStatus": "Keluar dengan status {{exitCode}}",
+		"manageCommands": "Perintah yang disetujui secara otomatis",
+		"addToAllowed": "Tambahkan ke daftar yang diizinkan",
+		"removeFromAllowed": "Hapus dari daftar yang diizinkan",
+		"addToDenied": "Tambahkan ke daftar yang ditolak",
+		"removeFromDenied": "Hapus dari daftar yang ditolak",
+		"abortCommand": "Batalkan eksekusi perintah",
+		"expandOutput": "Perluas keluaran",
+		"collapseOutput": "Ciutkan keluaran",
+		"expandManagement": "Perluas bagian manajemen perintah",
+		"collapseManagement": "Ciutkan bagian manajemen perintah"
+	},
+	"response": "Respons",
+	"arguments": "Argumen",
+	"text": {
+		"bearSaid": "Bear berkata"
+	},
+	"feedback": {
+		"youSaid": "Anda bilang"
+	},
+	"mcp": {
+		"wantsToUseTool": "Bear ingin menggunakan tool di server MCP {{serverName}}",
+		"wantsToAccessResource": "Bear ingin mengakses resource di server MCP {{serverName}}"
+	},
+	"modes": {
+		"wantsToSwitch": "Bear ingin beralih ke mode {{mode}}",
+		"wantsToSwitchWithReason": "Bear ingin beralih ke mode {{mode}} karena: {{reason}}",
+		"didSwitch": "Bear beralih ke mode {{mode}}",
+		"didSwitchWithReason": "Bear beralih ke mode {{mode}} karena: {{reason}}"
+	},
+	"subtasks": {
+		"wantsToCreate": "Bear ingin membuat subtugas baru dalam mode {{mode}}",
+		"wantsToFinish": "Bear ingin menyelesaikan subtugas ini",
+		"newTaskContent": "Instruksi Subtugas",
+		"completionContent": "Subtugas Selesai",
+		"resultContent": "Hasil Subtugas",
+		"defaultResult": "Silakan lanjutkan ke tugas berikutnya.",
+		"completionInstructions": "Subtugas selesai! Kamu bisa meninjau hasilnya dan menyarankan koreksi atau langkah selanjutnya. Jika semuanya terlihat baik, konfirmasi untuk mengembalikan hasil ke tugas induk.",
+		"goToSubtask": "Lihat tugas"
+	},
+	"questions": {
+		"hasQuestion": "Bear punya pertanyaan"
+	},
+	"taskCompleted": "Tugas Selesai",
+	"error": "Error",
+	"modelResponseIncomplete": "Respons Model Tidak Lengkap",
+	"modelResponseErrors": {
+		"noToolsUsed": "Model gagal menggunakan alat apa pun dalam responsnya. Ini biasanya terjadi ketika model hanya memberikan teks/penalaran tanpa memanggil alat yang diperlukan untuk menyelesaikan tugas.",
+		"noToolsUsedDetails": "Model memberikan teks/penalaran tetapi tidak memanggil alat yang diperlukan. Ini biasanya menunjukkan bahwa model salah memahami tugas atau mengalami kesulitan menentukan alat mana yang akan digunakan. Model telah secara otomatis diminta untuk mencoba lagi dengan penggunaan alat yang tepat.",
+		"noAssistantMessages": "Model tidak memberikan konten respons apa pun. Ini mungkin menunjukkan masalah dengan API atau output model.",
+		"noAssistantMessagesDetails": "Model bahasa mengembalikan respons kosong tanpa teks atau panggilan alat apa pun. Ini dapat terjadi karena masalah API, pembatasan laju, atau masalah khusus model. Model telah secara otomatis diminta untuk mencoba lagi."
+	},
+	"diffError": {
+		"title": "Edit Tidak Berhasil"
+	},
+	"troubleMessage": "Bear mengalami masalah...",
+	"errorDetails": {
+		"link": "Details",
+		"title": "Detail Kesalahan",
+		"copyToClipboard": "Salin ke Clipboard",
+		"copied": "Disalin!",
+		"diagnostics": "Dapatkan informasi kesalahan terperinci",
+		"proxyProvider": "Tampaknya kamu menggunakan penyedia berbasis proxy. Pastikan untuk memeriksa log-nya dan memastikan tidak menulis ulang permintaan Bear."
+	},
+	"powershell": {
+		"issues": "Sepertinya kamu mengalami masalah Windows PowerShell, silakan lihat ini"
+	},
+	"autoApprove": {
+		"tooltipManage": "Kelola pengaturan persetujuan otomatis",
+		"tooltipStatus": "Persetujuan otomatis diaktifkan untuk: {{toggles}}",
+		"title": "Setujui Otomatis",
+		"toggle": "Beralih persetujuan otomatis",
+		"all": "Semua",
+		"none": "Tidak ada",
+		"description": "Jalankan tindakan ini tanpa meminta izin. Hanya aktifkan untuk tindakan yang Anda percayai sepenuhnya.",
+		"selectOptionsFirst": "Pilih setidaknya satu opsi di bawah ini untuk mengaktifkan persetujuan otomatis",
+		"toggleAriaLabel": "Beralih persetujuan otomatis",
+		"disabledAriaLabel": "Persetujuan otomatis dinonaktifkan - pilih opsi terlebih dahulu",
+		"triggerLabelOff": "Persetujuan otomatis mati",
+		"triggerLabelOffShort": "Mati",
+		"triggerLabel_zero": "0 disetujui otomatis",
+		"triggerLabel_one": "1 disetujui otomatis",
+		"triggerLabel_other": "{{count}} disetujui otomatis",
+		"triggerLabelAll": "BRRR"
+	},
+	"announcement": {
+		"title": "BearCode {{version}} Dirilis",
+		"support": "Dukung BearCode dengan memberi kami bintang di <githubLink>GitHub</githubLink>."
+	},
+	"reasoning": {
+		"thinking": "Berpikir",
+		"seconds": "{{count}}d"
+	},
+	"followUpSuggest": {
+		"copyToInput": "Salin ke input (sama dengan shift + klik)",
+		"timerPrefix": "Persetujuan otomatis diaktifkan. Memilih dalam {{seconds}}s…"
+	},
+	"costs": {
+		"totalWithSubtasks": "Total Biaya (termasuk subtugas): ${{cost}}",
+		"total": "Total Biaya: ${{cost}}",
+		"includesSubtasks": "Termasuk biaya subtugas"
+	},
+	"codeblock": {
+		"tooltips": {
+			"expand": "Perluas blok kode",
+			"collapse": "Tutup blok kode",
+			"copy_code": "Salin kode"
+		}
+	},
+	"profileViolationWarning": "Profil saat ini tidak kompatibel dengan pengaturan organisasi kamu",
+	"shellIntegration": {
+		"title": "Peringatan Eksekusi Perintah",
+		"description": "Perintah kamu dijalankan tanpa integrasi shell terminal VSCode. Untuk menekan peringatan ini kamu bisa menonaktifkan integrasi shell di bagian <strong>Terminal</strong> dari <settingsLink>pengaturan BearCode</settingsLink> atau troubleshoot integrasi terminal VSCode menggunakan link di bawah.",
+		"troubleshooting": "Klik di sini untuk dokumentasi integrasi shell."
+	},
+	"ask": {
+		"autoApprovedRequestLimitReached": {
+			"title": "Batas Permintaan yang Disetujui Otomatis Tercapai",
+			"description": "Bear telah mencapai batas {{count}} permintaan API yang disetujui otomatis. Apakah Anda ingin mengatur ulang hitungan dan melanjutkan tugas?",
+			"button": "Setel Ulang dan Lanjutkan"
+		},
+		"autoApprovedCostLimitReached": {
+			"title": "Batas Biaya yang Disetujui Otomatis Tercapai",
+			"description": "Bear telah mencapai batas biaya yang disetujui otomatis sebesar ${{count}}. Apakah Anda ingin mengatur ulang biaya dan melanjutkan tugas?",
+			"button": "Setel Ulang dan Lanjutkan"
+		}
+	},
+	"indexingStatus": {
+		"ready": "Indeks siap",
+		"indexing": "Mengindeks {{percentage}}%",
+		"indexed": "Terindeks",
+		"error": "Error indeks",
+		"status": "Status indeks",
+		"stopping": "Menghentikan pengindeksan..."
+	},
+	"versionIndicator": {
+		"ariaLabel": "Versi {{version}} - Klik untuk melihat catatan rilis"
+	},
+	"editMessage": {
+		"placeholder": "Edit pesan Anda..."
+	},
+	"command": {
+		"triggerDescription": "Jalankan perintah {{name}}"
+	},
+	"slashCommands": {
+		"tooltip": "Kelola perintah slash",
+		"title": "Perintah Slash",
+		"description": "Gunakan perintah slash bawaan atau buat kustom untuk akses cepat ke prompt dan alur kerja yang sering digunakan. <DocsLink>Dokumentasi</DocsLink>",
+		"manageCommands": "Kelola perintah slash di pengaturan",
+		"builtInCommands": "Perintah Bawaan",
+		"globalCommands": "Perintah Global",
+		"workspaceCommands": "Perintah Workspace",
+		"globalCommand": "Perintah global",
+		"editCommand": "Edit perintah",
+		"deleteCommand": "Hapus perintah",
+		"newGlobalCommandPlaceholder": "Perintah global baru...",
+		"newWorkspaceCommandPlaceholder": "Perintah workspace baru...",
+		"deleteDialog": {
+			"title": "Hapus Perintah",
+			"description": "Apakah Anda yakin ingin menghapus perintah \"{{name}}\"? Tindakan ini tidak dapat dibatalkan.",
+			"cancel": "Batal",
+			"confirm": "Hapus"
+		}
+	},
+	"contextMenu": {
+		"noResults": "Tidak ada hasil",
+		"problems": "Masalah",
+		"terminal": "Terminal",
+		"url": "Tempel URL untuk mengambil konten"
+	},
+	"queuedMessages": {
+		"title": "Pesan Antrian",
+		"clickToEdit": "Klik untuk mengedit pesan"
+	},
+	"slashCommand": {
+		"wantsToRun": "Bear ingin menjalankan perintah slash",
+		"didRun": "Bear telah menjalankan perintah slash"
+	},
+	"todo": {
+		"partial": "{{completed}} dari {{total}} to-do selesai",
+		"complete": "{{total}} to-do selesai",
+		"updated": "Memperbarui daftar to-do",
+		"completed": "Selesai",
+		"started": "Dimulai"
+	},
+	"tooManyTools": {
+		"title": "Terlalu banyak alat diaktifkan",
+		"toolsPart_one": "{{count}} alat",
+		"toolsPart_other": "{{count}} alat",
+		"serversPart_one": "{{count}} server MCP",
+		"serversPart_other": "{{count}} server MCP",
+		"messageTemplate": "Anda memiliki {{tools}} diaktifkan melalui {{servers}}. Jumlah yang begitu besar dapat membingungkan model dan menyebabkan kesalahan. Cobalah untuk menjaganya di bawah {{threshold}}.",
+		"openMcpSettings": "Buka Pengaturan MCP"
+	},
+	"readCommandOutput": {
+		"title": "Bear read command output"
+	},
+	"retiredProvider": {
+		"title": "Penyedia tidak lagi didukung",
+		"message": "This provider is no longer supported. Please select a different provider in your API profile settings.",
+		"openSettings": "Buka Pengaturan",
+		"rooMessage": "As part of our decision to sunset the Roo Code extension, we also ended the Roo Code Router, which only existed to support the extension. Sorry about the hassle."
+	}
+}
