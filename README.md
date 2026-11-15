@@ -5,7 +5,25 @@ BearCode — AI-агент для разработки прямо в VS Code: п
 Orchestrator и пользовательские), подключение к разным LLM-провайдерам (Anthropic, OpenAI,
 OpenRouter, Bedrock, Vertex, Ollama, LM Studio и др.), чекпоинты и автоодобрение действий.
 
-BearCode — форк [Roo Code](https://github.com/RooCodeInc/Roo-Code) (Apache-2.0).
+## О проекте
+
+BearCode — форк [Roo Code](https://github.com/RooCodeInc/Roo-Code) (Apache-2.0), который, в свою очередь,
+вырос из [Cline](https://github.com/cline/cline). В мае 2026 года авторы Roo Code выпустили последнюю
+версию расширения (3.53) и прекратили его развитие: оно продолжает работать, но больше не получает
+исправлений, новых возможностей и поддержки новых моделей.
+
+Цель BearCode — продолжить развитие и поддержку этого проекта:
+
+- исправлять ошибки и проблемы безопасности;
+- поддерживать новые модели и LLM-провайдеров;
+- развивать новые возможности;
+- сохранять совместимость с конфигурацией Roo Code (`.roo/`, `.roomodes`, `.rooignore`, `.roorules`),
+  чтобы переход был безболезненным.
+
+BearCode основан на коде Roo Code 3.53.0 (commit [`b867ec9`](https://github.com/RooCodeInc/Roo-Code/commit/b867ec9)).
+Спасибо командам Roo Code и Cline за их работу.
+
+Ошибки и предложения — в [issues](https://github.com/veniaminlunyov/bear-code/issues).
 
 ## Установка
 
@@ -17,6 +35,13 @@ code --install-extension bin/bear-code-<версия>.vsix
 ```
 
 BearCode имеет собственный ID (`bearcode.bear-code`) и может стоять рядом с Roo Code.
+
+### Переход с Roo Code
+
+Файлы конфигурации проекта (`.roo/`, `.roomodes` и т.д.) BearCode читает как есть. Настройки расширения
+и API-ключи хранятся отдельно и автоматически не переносятся: в Roo Code откройте
+Settings → About → Export, затем в BearCode — Settings → About → Import.
+Файл экспорта содержит API-ключи — не публикуйте его и удалите после импорта.
 
 ## Файлы конфигурации проекта
 
