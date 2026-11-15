@@ -1,5 +1,5 @@
 {
-	"greeting": "Selamat datang di Roo Code",
+	"greeting": "Selamat datang di BearCode",
 	"task": {
 		"title": "Tugas",
 		"expand": "Perluas tugas",
@@ -120,7 +120,7 @@
 	"enqueueMessage": "Tambahkan pesan ke antrean (akan dikirim setelah tugas saat ini selesai)",
 	"scrollToBottom": "Gulir ke bawah chat",
 	"scrollToLatestCheckpoint": "Gulir ke checkpoint sebelumnya",
-	"about": "Roo Code adalah seluruh tim pengembang AI di editor Anda.",
+	"about": "BearCode adalah seluruh tim pengembang AI di editor Anda.",
 	"docs": "Lihat <DocsLink>dokumentasi</DocsLink> kami untuk mempelajari lebih lanjut.",
 	"onboarding": "Daftar tugas Anda di ruang kerja ini kosong.",
 	"rooTips": {
@@ -142,7 +142,7 @@
 	"modeSelector": {
 		"title": "Mode",
 		"settings": "Pengaturan Mode",
-		"description": "Persona khusus yang menyesuaikan perilaku Roo.",
+		"description": "Persona khusus yang menyesuaikan perilaku Bear.",
 		"searchPlaceholder": "Cari mode...",
 		"noResults": "Tidak ada hasil yang ditemukan"
 	},
@@ -218,51 +218,51 @@
 		}
 	},
 	"skill": {
-		"wantsToLoad": "Roo ingin memuat keterampilan",
-		"didLoad": "Roo telah memuat keterampilan"
+		"wantsToLoad": "Bear ingin memuat keterampilan",
+		"didLoad": "Bear telah memuat keterampilan"
 	},
 	"instructions": {
-		"wantsToFetch": "Roo ingin mengambil instruksi detail untuk membantu tugas saat ini"
+		"wantsToFetch": "Bear ingin mengambil instruksi detail untuk membantu tugas saat ini"
 	},
 	"fileOperations": {
-		"wantsToRead": "Roo ingin membaca file ini",
-		"wantsToReadMultiple": "Roo ingin membaca beberapa file",
-		"wantsToReadAndXMore": "Roo ingin membaca file ini dan {{count}} lainnya",
-		"wantsToReadOutsideWorkspace": "Roo ingin membaca file ini di luar workspace",
-		"didRead": "Roo membaca file ini",
-		"wantsToEdit": "Roo ingin mengedit file ini",
-		"wantsToEditOutsideWorkspace": "Roo ingin mengedit file ini di luar workspace",
-		"wantsToEditProtected": "Roo ingin mengedit file konfigurasi yang dilindungi",
-		"wantsToApplyBatchChanges": "Roo ingin menerapkan perubahan ke beberapa file",
-		"wantsToGenerateImage": "Roo ingin menghasilkan gambar",
-		"wantsToGenerateImageOutsideWorkspace": "Roo ingin menghasilkan gambar di luar workspace",
-		"wantsToGenerateImageProtected": "Roo ingin menghasilkan gambar di lokasi yang dilindungi",
-		"didGenerateImage": "Roo telah menghasilkan gambar",
-		"wantsToCreate": "Roo ingin membuat file baru",
-		"wantsToSearchReplace": "Roo ingin mencari dan mengganti di file ini",
-		"didSearchReplace": "Roo melakukan pencarian dan penggantian pada file ini",
-		"wantsToInsert": "Roo ingin menyisipkan konten ke file ini",
-		"wantsToInsertWithLineNumber": "Roo ingin menyisipkan konten ke file ini di baris {{lineNumber}}",
-		"wantsToInsertAtEnd": "Roo ingin menambahkan konten ke akhir file ini"
+		"wantsToRead": "Bear ingin membaca file ini",
+		"wantsToReadMultiple": "Bear ingin membaca beberapa file",
+		"wantsToReadAndXMore": "Bear ingin membaca file ini dan {{count}} lainnya",
+		"wantsToReadOutsideWorkspace": "Bear ingin membaca file ini di luar workspace",
+		"didRead": "Bear membaca file ini",
+		"wantsToEdit": "Bear ingin mengedit file ini",
+		"wantsToEditOutsideWorkspace": "Bear ingin mengedit file ini di luar workspace",
+		"wantsToEditProtected": "Bear ingin mengedit file konfigurasi yang dilindungi",
+		"wantsToApplyBatchChanges": "Bear ingin menerapkan perubahan ke beberapa file",
+		"wantsToGenerateImage": "Bear ingin menghasilkan gambar",
+		"wantsToGenerateImageOutsideWorkspace": "Bear ingin menghasilkan gambar di luar workspace",
+		"wantsToGenerateImageProtected": "Bear ingin menghasilkan gambar di lokasi yang dilindungi",
+		"didGenerateImage": "Bear telah menghasilkan gambar",
+		"wantsToCreate": "Bear ingin membuat file baru",
+		"wantsToSearchReplace": "Bear ingin mencari dan mengganti di file ini",
+		"didSearchReplace": "Bear melakukan pencarian dan penggantian pada file ini",
+		"wantsToInsert": "Bear ingin menyisipkan konten ke file ini",
+		"wantsToInsertWithLineNumber": "Bear ingin menyisipkan konten ke file ini di baris {{lineNumber}}",
+		"wantsToInsertAtEnd": "Bear ingin menambahkan konten ke akhir file ini"
 	},
 	"directoryOperations": {
-		"wantsToViewTopLevel": "Roo ingin melihat file tingkat atas di direktori ini",
-		"didViewTopLevel": "Roo melihat file tingkat atas di direktori ini",
-		"wantsToViewRecursive": "Roo ingin melihat semua file secara rekursif di direktori ini",
-		"didViewRecursive": "Roo melihat semua file secara rekursif di direktori ini",
-		"wantsToSearch": "Roo ingin mencari direktori ini untuk <code>{{regex}}</code>",
-		"didSearch": "Roo mencari direktori ini untuk <code>{{regex}}</code>",
-		"wantsToSearchOutsideWorkspace": "Roo ingin mencari direktori ini (di luar workspace) untuk <code>{{regex}}</code>",
-		"didSearchOutsideWorkspace": "Roo mencari direktori ini (di luar workspace) untuk <code>{{regex}}</code>",
-		"wantsToViewTopLevelOutsideWorkspace": "Roo ingin melihat file tingkat atas di direktori ini (di luar workspace)",
-		"didViewTopLevelOutsideWorkspace": "Roo melihat file tingkat atas di direktori ini (di luar workspace)",
-		"wantsToViewRecursiveOutsideWorkspace": "Roo ingin melihat semua file secara rekursif di direktori ini (di luar workspace)",
-		"didViewRecursiveOutsideWorkspace": "Roo melihat semua file secara rekursif di direktori ini (di luar workspace)",
-		"wantsToViewMultipleDirectories": "Roo ingin melihat beberapa direktori"
+		"wantsToViewTopLevel": "Bear ingin melihat file tingkat atas di direktori ini",
+		"didViewTopLevel": "Bear melihat file tingkat atas di direktori ini",
+		"wantsToViewRecursive": "Bear ingin melihat semua file secara rekursif di direktori ini",
+		"didViewRecursive": "Bear melihat semua file secara rekursif di direktori ini",
+		"wantsToSearch": "Bear ingin mencari direktori ini untuk <code>{{regex}}</code>",
+		"didSearch": "Bear mencari direktori ini untuk <code>{{regex}}</code>",
+		"wantsToSearchOutsideWorkspace": "Bear ingin mencari direktori ini (di luar workspace) untuk <code>{{regex}}</code>",
+		"didSearchOutsideWorkspace": "Bear mencari direktori ini (di luar workspace) untuk <code>{{regex}}</code>",
+		"wantsToViewTopLevelOutsideWorkspace": "Bear ingin melihat file tingkat atas di direktori ini (di luar workspace)",
+		"didViewTopLevelOutsideWorkspace": "Bear melihat file tingkat atas di direktori ini (di luar workspace)",
+		"wantsToViewRecursiveOutsideWorkspace": "Bear ingin melihat semua file secara rekursif di direktori ini (di luar workspace)",
+		"didViewRecursiveOutsideWorkspace": "Bear melihat semua file secara rekursif di direktori ini (di luar workspace)",
+		"wantsToViewMultipleDirectories": "Bear ingin melihat beberapa direktori"
 	},
 	"codebaseSearch": {
-		"wantsToSearch": "Roo ingin mencari codebase untuk <code>{{query}}</code>",
-		"wantsToSearchWithPath": "Roo ingin mencari codebase untuk <code>{{query}}</code> di <code>{{path}}</code>",
+		"wantsToSearch": "Bear ingin mencari codebase untuk <code>{{query}}</code>",
+		"wantsToSearchWithPath": "Bear ingin mencari codebase untuk <code>{{query}}</code> di <code>{{path}}</code>",
 		"didSearch_one": "Ditemukan 1 hasil",
 		"didSearch_other": "Ditemukan {{count}} hasil",
 		"resultTooltip": "Skor kemiripan: {{score}} (klik untuk membuka file)"
@@ -287,24 +287,24 @@
 	"response": "Respons",
 	"arguments": "Argumen",
 	"text": {
-		"rooSaid": "Roo berkata"
+		"rooSaid": "Bear berkata"
 	},
 	"feedback": {
 		"youSaid": "Anda bilang"
 	},
 	"mcp": {
-		"wantsToUseTool": "Roo ingin menggunakan tool di server MCP {{serverName}}",
-		"wantsToAccessResource": "Roo ingin mengakses resource di server MCP {{serverName}}"
+		"wantsToUseTool": "Bear ingin menggunakan tool di server MCP {{serverName}}",
+		"wantsToAccessResource": "Bear ingin mengakses resource di server MCP {{serverName}}"
 	},
 	"modes": {
-		"wantsToSwitch": "Roo ingin beralih ke mode {{mode}}",
-		"wantsToSwitchWithReason": "Roo ingin beralih ke mode {{mode}} karena: {{reason}}",
-		"didSwitch": "Roo beralih ke mode {{mode}}",
-		"didSwitchWithReason": "Roo beralih ke mode {{mode}} karena: {{reason}}"
+		"wantsToSwitch": "Bear ingin beralih ke mode {{mode}}",
+		"wantsToSwitchWithReason": "Bear ingin beralih ke mode {{mode}} karena: {{reason}}",
+		"didSwitch": "Bear beralih ke mode {{mode}}",
+		"didSwitchWithReason": "Bear beralih ke mode {{mode}} karena: {{reason}}"
 	},
 	"subtasks": {
-		"wantsToCreate": "Roo ingin membuat subtugas baru dalam mode {{mode}}",
-		"wantsToFinish": "Roo ingin menyelesaikan subtugas ini",
+		"wantsToCreate": "Bear ingin membuat subtugas baru dalam mode {{mode}}",
+		"wantsToFinish": "Bear ingin menyelesaikan subtugas ini",
 		"newTaskContent": "Instruksi Subtugas",
 		"completionContent": "Subtugas Selesai",
 		"resultContent": "Hasil Subtugas",
@@ -313,7 +313,7 @@
 		"goToSubtask": "Lihat tugas"
 	},
 	"questions": {
-		"hasQuestion": "Roo punya pertanyaan"
+		"hasQuestion": "Bear punya pertanyaan"
 	},
 	"taskCompleted": "Tugas Selesai",
 	"error": "Error",
@@ -327,14 +327,14 @@
 	"diffError": {
 		"title": "Edit Tidak Berhasil"
 	},
-	"troubleMessage": "Roo mengalami masalah...",
+	"troubleMessage": "Bear mengalami masalah...",
 	"errorDetails": {
 		"link": "Details",
 		"title": "Detail Kesalahan",
 		"copyToClipboard": "Salin ke Clipboard",
 		"copied": "Disalin!",
 		"diagnostics": "Dapatkan informasi kesalahan terperinci",
-		"proxyProvider": "Tampaknya kamu menggunakan penyedia berbasis proxy. Pastikan untuk memeriksa log-nya dan memastikan tidak menulis ulang permintaan Roo."
+		"proxyProvider": "Tampaknya kamu menggunakan penyedia berbasis proxy. Pastikan untuk memeriksa log-nya dan memastikan tidak menulis ulang permintaan Bear."
 	},
 	"powershell": {
 		"issues": "Sepertinya kamu mengalami masalah Windows PowerShell, silakan lihat ini"
@@ -358,10 +358,10 @@
 		"triggerLabelAll": "BRRR"
 	},
 	"announcement": {
-		"title": "Roo Code {{version}} Dirilis",
-		"support": "Dukung Roo Code dengan memberi kami bintang di <githubLink>GitHub</githubLink>.",
+		"title": "BearCode {{version}} Dirilis",
+		"support": "Dukung BearCode dengan memberi kami bintang di <githubLink>GitHub</githubLink>.",
 		"finalRelease": {
-			"title": "Rilis Roo Code terakhir",
+			"title": "Rilis BearCode terakhir",
 			"intro": "Ini adalah rilis Roo Code terakhir. <announcementLink>Seperti yang kami umumkan beberapa minggu lalu</announcementLink>, kami memutuskan untuk mengalihkan fokus ke <roomoteLink>Roomote</roomoteLink>, platform agen cloud kami, yang kami yakini sebagai masa depan pengembangan perangkat lunak. Terima kasih banyak atas dukunganmu selama kira-kira setahun terakhir.",
 			"continuity": "Ekstensi ini seharusnya tetap berfungsi tanpa batas waktu, tetapi tidak akan menerima perbaikan bug, fitur baru, atau pembaruan model.",
 			"alternatives": "Jika kamu ingin menggunakan ekstensi, kami merekomendasikan <zooCodeLink>ZooCode</zooCodeLink> (fork Roo Code oleh komunitas) dan <clineLink>Cline</clineLink> (tempat Roo Code awalnya bermula).",
@@ -369,7 +369,7 @@
 		},
 		"release": {
 			"heading": "Yang Baru:",
-			"gpt55": "GPT-5.5 via OpenAI Codex: Dukungan GPT-5.5 ditambahkan di provider OpenAI Codex agar kamu bisa menggunakan model terbaru langsung dari Roo Code.",
+			"gpt55": "GPT-5.5 via OpenAI Codex: Dukungan GPT-5.5 ditambahkan di provider OpenAI Codex agar kamu bisa menggunakan model terbaru langsung dari BearCode.",
 			"claudeOpus47": "Claude Opus 4.7 di Vertex AI: Claude Opus 4.7 ditambahkan ke provider Vertex AI untuk model reasoning andalan terbaru dari Anthropic.",
 			"checkpointNav": "Navigasi Checkpoint Sebelumnya: Menambahkan kontrol di chat untuk melompat kembali ke checkpoint sebelumnya, dengan dukungan i18n penuh."
 		},
@@ -403,18 +403,18 @@
 	"profileViolationWarning": "Profil saat ini tidak kompatibel dengan pengaturan organisasi kamu",
 	"shellIntegration": {
 		"title": "Peringatan Eksekusi Perintah",
-		"description": "Perintah kamu dijalankan tanpa integrasi shell terminal VSCode. Untuk menekan peringatan ini kamu bisa menonaktifkan integrasi shell di bagian <strong>Terminal</strong> dari <settingsLink>pengaturan Roo Code</settingsLink> atau troubleshoot integrasi terminal VSCode menggunakan link di bawah.",
+		"description": "Perintah kamu dijalankan tanpa integrasi shell terminal VSCode. Untuk menekan peringatan ini kamu bisa menonaktifkan integrasi shell di bagian <strong>Terminal</strong> dari <settingsLink>pengaturan BearCode</settingsLink> atau troubleshoot integrasi terminal VSCode menggunakan link di bawah.",
 		"troubleshooting": "Klik di sini untuk dokumentasi integrasi shell."
 	},
 	"ask": {
 		"autoApprovedRequestLimitReached": {
 			"title": "Batas Permintaan yang Disetujui Otomatis Tercapai",
-			"description": "Roo telah mencapai batas {{count}} permintaan API yang disetujui otomatis. Apakah Anda ingin mengatur ulang hitungan dan melanjutkan tugas?",
+			"description": "Bear telah mencapai batas {{count}} permintaan API yang disetujui otomatis. Apakah Anda ingin mengatur ulang hitungan dan melanjutkan tugas?",
 			"button": "Setel Ulang dan Lanjutkan"
 		},
 		"autoApprovedCostLimitReached": {
 			"title": "Batas Biaya yang Disetujui Otomatis Tercapai",
-			"description": "Roo telah mencapai batas biaya yang disetujui otomatis sebesar ${{count}}. Apakah Anda ingin mengatur ulang biaya dan melanjutkan tugas?",
+			"description": "Bear telah mencapai batas biaya yang disetujui otomatis sebesar ${{count}}. Apakah Anda ingin mengatur ulang biaya dan melanjutkan tugas?",
 			"button": "Setel Ulang dan Lanjutkan"
 		}
 	},
@@ -466,8 +466,8 @@
 		"clickToEdit": "Klik untuk mengedit pesan"
 	},
 	"slashCommand": {
-		"wantsToRun": "Roo ingin menjalankan perintah slash",
-		"didRun": "Roo telah menjalankan perintah slash"
+		"wantsToRun": "Bear ingin menjalankan perintah slash",
+		"didRun": "Bear telah menjalankan perintah slash"
 	},
 	"todo": {
 		"partial": "{{completed}} dari {{total}} to-do selesai",
@@ -486,7 +486,7 @@
 		"openMcpSettings": "Buka Pengaturan MCP"
 	},
 	"readCommandOutput": {
-		"title": "Roo read command output"
+		"title": "Bear read command output"
 	},
 	"retiredProvider": {
 		"title": "Penyedia tidak lagi didukung",

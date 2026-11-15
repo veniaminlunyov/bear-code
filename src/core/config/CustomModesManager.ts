@@ -1,7 +1,6 @@
 import * as vscode from "vscode"
 import * as path from "path"
 import * as fs from "fs/promises"
-import * as os from "os"
 
 import * as yaml from "yaml"
 import stripBom from "strip-bom"
@@ -10,13 +9,18 @@ import { type ModeConfig, type PromptComponent, customModesSettingsSchema, modeC
 
 import { fileExistsAtPath } from "../../utils/fs"
 import { getWorkspacePath } from "../../utils/path"
-import { getGlobalRooDirectory } from "../../services/roo-config"
+import {
+	getGlobalRooDirectory,
+	getProjectRooDirectoryForCwd,
+	getProjectModesFilePath,
+	isProjectModesFile,
+	MODES_FILENAME,
+	LEGACY_MODES_FILENAME,
+} from "../../services/roo-config"
 import { logger } from "../../utils/logging"
 import { GlobalFileNames } from "../../shared/globalFileNames"
 import { ensureSettingsDirectoryExists } from "../../utils/globalContext"
 import { t } from "../../i18n"
-
-const ROOMODES_FILENAME = ".roomodes"
 
 // Type definitions for import/export functionality
 interface RuleFile {
@@ -98,7 +102,7 @@ export class CustomModesManager {
 		}
 
 		const workspaceRoot = getWorkspacePath()
-		const roomodesPath = path.join(workspaceRoot, ROOMODES_FILENAME)
+		const roomodesPath = getProjectModesFilePath(workspaceRoot)
 		const exists = await fileExistsAtPath(roomodesPath)
 		return exists ? roomodesPath : undefined
 	}
@@ -155,7 +159,7 @@ export class CustomModesManager {
 			return parsed ?? {}
 		} catch (yamlError) {
 			// For .roomodes files, try JSON as fallback
-			if (filePath.endsWith(ROOMODES_FILENAME)) {
+			if (isProjectModesFile(filePath)) {
 				try {
 					// Try parsing the original content as JSON (not the cleaned content)
 					return JSON.parse(content)
@@ -196,7 +200,7 @@ export class CustomModesManager {
 				console.error(`[CustomModesManager] Schema validation failed for ${filePath}:`, result.error)
 
 				// Show user-friendly error for .roomodes files
-				if (filePath.endsWith(ROOMODES_FILENAME)) {
+				if (isProjectModesFile(filePath)) {
 					const issues = result.error.issues
 						.map((issue) => `• ${issue.path.join(".")}: ${issue.message}`)
 						.join("\n")
@@ -208,7 +212,7 @@ export class CustomModesManager {
 			}
 
 			// Determine source based on file path
-			const isRoomodes = filePath.endsWith(ROOMODES_FILENAME)
+			const isRoomodes = isProjectModesFile(filePath)
 			const source = isRoomodes ? ("project" as const) : ("global" as const)
 
 			// Add source to each mode
@@ -317,39 +321,38 @@ export class CustomModesManager {
 		const workspaceFolders = vscode.workspace.workspaceFolders
 		if (workspaceFolders && workspaceFolders.length > 0) {
 			const workspaceRoot = getWorkspacePath()
-			const roomodesPath = path.join(workspaceRoot, ROOMODES_FILENAME)
-			const roomodesWatcher = vscode.workspace.createFileSystemWatcher(roomodesPath)
-
+			// Re-resolve on every event: the active file may switch between
+			// .bearmodes and the legacy .roomodes when either is created or deleted.
 			const handleRoomodesChange = async () => {
 				try {
 					const settingsModes = await this.loadModesFromFile(settingsPath)
-					const roomodesModes = await this.loadModesFromFile(roomodesPath)
-					// .roomodes takes precedence
-					const mergedModes = await this.mergeCustomModes(roomodesModes, settingsModes)
-					await this.context.globalState.update("customModes", mergedModes)
+					const roomodesPath = getProjectModesFilePath(workspaceRoot)
+
+					if (!(await fileExistsAtPath(roomodesPath))) {
+						// No project modes file left, refresh with only settings modes
+						await this.context.globalState.update("customModes", settingsModes)
+					} else {
+						const roomodesModes = await this.loadModesFromFile(roomodesPath)
+						// Project modes take precedence
+						const mergedModes = await this.mergeCustomModes(roomodesModes, settingsModes)
+						await this.context.globalState.update("customModes", mergedModes)
+					}
+
 					this.clearCache()
 					await this.onUpdate()
 				} catch (error) {
-					console.error(`[CustomModesManager] Error handling .roomodes file change:`, error)
+					console.error(`[CustomModesManager] Error handling project modes file change:`, error)
 				}
 			}
 
-			this.disposables.push(roomodesWatcher.onDidChange(handleRoomodesChange))
-			this.disposables.push(roomodesWatcher.onDidCreate(handleRoomodesChange))
-			this.disposables.push(
-				roomodesWatcher.onDidDelete(async () => {
-					// When .roomodes is deleted, refresh with only settings modes
-					try {
-						const settingsModes = await this.loadModesFromFile(settingsPath)
-						await this.context.globalState.update("customModes", settingsModes)
-						this.clearCache()
-						await this.onUpdate()
-					} catch (error) {
-						console.error(`[CustomModesManager] Error handling .roomodes file deletion:`, error)
-					}
-				}),
-			)
-			this.disposables.push(roomodesWatcher)
+			// Watch both names - watch the paths even if they don't exist yet
+			for (const fileName of [MODES_FILENAME, LEGACY_MODES_FILENAME]) {
+				const roomodesWatcher = vscode.workspace.createFileSystemWatcher(path.join(workspaceRoot, fileName))
+				this.disposables.push(roomodesWatcher.onDidChange(handleRoomodesChange))
+				this.disposables.push(roomodesWatcher.onDidCreate(handleRoomodesChange))
+				this.disposables.push(roomodesWatcher.onDidDelete(handleRoomodesChange))
+				this.disposables.push(roomodesWatcher)
+			}
 		}
 	}
 
@@ -427,10 +430,10 @@ export class CustomModesManager {
 				}
 
 				const workspaceRoot = getWorkspacePath()
-				targetPath = path.join(workspaceRoot, ROOMODES_FILENAME)
+				targetPath = getProjectModesFilePath(workspaceRoot)
 				const exists = await fileExistsAtPath(targetPath)
 
-				logger.info(`${exists ? "Updating" : "Creating"} project mode in ${ROOMODES_FILENAME}`, {
+				logger.info(`${exists ? "Updating" : "Creating"} project mode in ${path.basename(targetPath)}`, {
 					slug,
 					workspace: workspaceRoot,
 				})
@@ -568,14 +571,13 @@ export class CustomModesManager {
 			if (scope === "project") {
 				const workspacePath = getWorkspacePath()
 				if (workspacePath) {
-					rulesFolderPath = path.join(workspacePath, ".roo", `rules-${slug}`)
+					rulesFolderPath = path.join(getProjectRooDirectoryForCwd(workspacePath), `rules-${slug}`)
 				} else {
 					return // No workspace, can't delete project rules
 				}
 			} else {
-				// Global scope - use OS home directory
-				const homeDir = os.homedir()
-				rulesFolderPath = path.join(homeDir, ".roo", `rules-${slug}`)
+				// Global scope - use the global config directory
+				rulesFolderPath = path.join(getGlobalRooDirectory(), `rules-${slug}`)
 			}
 
 			// Check if the rules folder exists and delete it
@@ -631,7 +633,7 @@ export class CustomModesManager {
 					return false
 				}
 
-				const roomodesPath = path.join(workspacePath, ROOMODES_FILENAME)
+				const roomodesPath = getProjectModesFilePath(workspacePath)
 				try {
 					const roomodesExists = await fileExistsAtPath(roomodesPath)
 					if (roomodesExists) {
@@ -666,7 +668,7 @@ export class CustomModesManager {
 				if (!workspacePath) {
 					return false
 				}
-				modeRulesDir = path.join(workspacePath, ".roo", `rules-${slug}`)
+				modeRulesDir = path.join(getProjectRooDirectoryForCwd(workspacePath), `rules-${slug}`)
 			}
 
 			try {
@@ -726,7 +728,7 @@ export class CustomModesManager {
 				// Only check workspace-based modes if workspace is available
 				const workspacePath = getWorkspacePath()
 				if (workspacePath) {
-					const roomodesPath = path.join(workspacePath, ROOMODES_FILENAME)
+					const roomodesPath = getProjectModesFilePath(workspacePath)
 					try {
 						const roomodesExists = await fileExistsAtPath(roomodesPath)
 						if (roomodesExists) {
@@ -772,7 +774,7 @@ export class CustomModesManager {
 			// Check for .roo/rules-{slug}/ directory (or rules-{slug}/ for global)
 			const modeRulesDir = isGlobalMode
 				? path.join(baseDir, `rules-${slug}`)
-				: path.join(baseDir, ".roo", `rules-${slug}`)
+				: path.join(getProjectRooDirectoryForCwd(baseDir), `rules-${slug}`)
 
 			let rulesFiles: RuleFile[] = []
 			try {
@@ -856,7 +858,7 @@ export class CustomModesManager {
 			rulesFolderPath = path.join(baseDir, `rules-${importMode.slug}`)
 		} else {
 			const workspacePath = getWorkspacePath()
-			baseDir = path.join(workspacePath, ".roo")
+			baseDir = getProjectRooDirectoryForCwd(workspacePath)
 			rulesFolderPath = path.join(baseDir, `rules-${importMode.slug}`)
 		}
 

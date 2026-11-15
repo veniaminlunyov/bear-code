@@ -2,7 +2,12 @@ import { safeWriteJson } from "../../utils/safeWriteJson"
 import * as path from "path"
 import * as os from "os"
 import * as fs from "fs/promises"
-import { getRooDirectoriesForCwd } from "../../services/roo-config/index.js"
+import {
+	getRooDirectoriesForCwd,
+	getGlobalRooDirectory,
+	getProjectRooDirectoryForCwd,
+	resolveWorkspaceConfigPath,
+} from "../../services/roo-config/index.js"
 import pWaitFor from "p-wait-for"
 import * as vscode from "vscode"
 
@@ -1107,7 +1112,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 		case "openFile":
 			let filePath: string = message.text!
 			if (!path.isAbsolute(filePath)) {
-				filePath = path.join(getCurrentCwd(), filePath)
+				filePath = resolveWorkspaceConfigPath(getCurrentCwd(), filePath)
 			}
 			openFile(filePath, message.values as { create?: boolean; content?: string; line?: number })
 			break
@@ -1235,7 +1240,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			break
 		}
 		case "openKeyboardShortcuts": {
-			// Open VSCode keyboard shortcuts settings and optionally filter to show the Roo Code commands
+			// Open VSCode keyboard shortcuts settings and optionally filter to show the BearCode commands
 			const searchQuery = message.text || ""
 			if (searchQuery) {
 				// Open with a search query pre-filled
@@ -1262,7 +1267,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			}
 
 			const workspaceFolder = getCurrentCwd()
-			const rooDir = path.join(workspaceFolder, ".roo")
+			const rooDir = getProjectRooDirectoryForCwd(workspaceFolder)
 			const mcpPath = path.join(rooDir, "mcp.json")
 
 			try {
@@ -1898,14 +1903,16 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 				if (scope === "project") {
 					const workspacePath = getWorkspacePath()
 					if (workspacePath) {
-						rulesFolderPath = path.join(workspacePath, ".roo", `rules-${message.slug}`)
+						rulesFolderPath = path.join(
+							getProjectRooDirectoryForCwd(workspacePath),
+							`rules-${message.slug}`,
+						)
 					} else {
-						rulesFolderPath = path.join(".roo", `rules-${message.slug}`)
+						rulesFolderPath = path.join(getProjectRooDirectoryForCwd(""), `rules-${message.slug}`)
 					}
 				} else {
-					// Global scope - use OS home directory
-					const homeDir = os.homedir()
-					rulesFolderPath = path.join(homeDir, ".roo", `rules-${message.slug}`)
+					// Global scope - use the global config directory
+					rulesFolderPath = path.join(getGlobalRooDirectory(), `rules-${message.slug}`)
 				}
 
 				// Check if the rules folder exists
@@ -2655,7 +2662,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 				// Determine the commands directory based on source
 				let commandsDir: string
 				if (source === "global") {
-					const globalConfigDir = path.join(os.homedir(), ".roo")
+					const globalConfigDir = getGlobalRooDirectory()
 					commandsDir = path.join(globalConfigDir, "commands")
 				} else {
 					if (!vscode.workspace.workspaceFolders?.length) {
@@ -2668,7 +2675,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 						vscode.window.showErrorMessage(t("common:errors.no_workspace_for_project_command"))
 						break
 					}
-					commandsDir = path.join(workspaceRoot, ".roo", "commands")
+					commandsDir = path.join(getProjectRooDirectoryForCwd(workspaceRoot), "commands")
 				}
 
 				// Ensure the commands directory exists

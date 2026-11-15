@@ -1,5 +1,5 @@
 /**
- * ExtensionHost - Loads and runs the Roo Code extension in CLI mode
+ * ExtensionHost - Loads and runs the BearCode extension in CLI mode
  *
  * This class is a thin coordination layer responsible for:
  * 1. Creating the vscode-shim mock
@@ -447,7 +447,7 @@ export class ExtensionHost extends EventEmitter implements ExtensionHostInterfac
 		// sending webviewDidLaunch. This prevents a race condition where the
 		// webviewDidLaunch handler's first-time init sync reads default state
 		// instead of the CLI-provided settings.
-		setRuntimeConfigValues("roo-cline", this.initialSettings as Record<string, unknown>)
+		setRuntimeConfigValues("bear-code", this.initialSettings as Record<string, unknown>)
 		this.sendToExtension({ type: "updateSettings", updatedSettings: this.initialSettings })
 
 		// Now trigger extension initialization. The context proxy should already

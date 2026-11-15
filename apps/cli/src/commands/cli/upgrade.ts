@@ -141,11 +141,11 @@ export async function upgrade(options: UpgradeOptions = {}): Promise<void> {
 	console.log(`Latest version: ${latestVersion}`)
 
 	if (compareVersions(latestVersion, currentVersion) <= 0) {
-		console.log("Roo CLI is already up to date.")
+		console.log("Bear CLI is already up to date.")
 		return
 	}
 
-	console.log(`Upgrading Roo CLI from ${currentVersion} to ${latestVersion}...`)
+	console.log(`Upgrading Bear CLI from ${currentVersion} to ${latestVersion}...`)
 	if (runInstaller) {
 		await runInstaller()
 	} else {

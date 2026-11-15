@@ -1,11 +1,75 @@
 import * as path from "path"
 import * as os from "os"
+import * as fsSync from "fs"
 import fs from "fs/promises"
 
 /**
- * Gets the global .roo directory path based on the current platform
+ * BearCode configuration file and directory names.
  *
- * @returns The absolute path to the global .roo directory
+ * BearCode is a fork of Roo Code. New files are always created with the BearCode
+ * names below; the legacy Roo Code names are still read when the BearCode
+ * counterpart does not exist, so existing projects keep working unchanged.
+ */
+export const CONFIG_DIR_NAME = ".bear"
+export const LEGACY_CONFIG_DIR_NAME = ".roo"
+export const MODES_FILENAME = ".bearmodes"
+export const LEGACY_MODES_FILENAME = ".roomodes"
+export const IGNORE_FILENAME = ".bearignore"
+export const LEGACY_IGNORE_FILENAME = ".rooignore"
+export const RULES_FILENAME = ".bearrules"
+export const LEGACY_RULES_FILENAME = ".roorules"
+
+/**
+ * Resolves a BearCode config entry inside `baseDir` with fallback to its legacy Roo Code name.
+ *
+ * Returns `baseDir/name` if it exists, otherwise `baseDir/legacyName` if that exists,
+ * otherwise `baseDir/name` (so that newly created files use the BearCode name).
+ */
+export function resolveBrandedPath(baseDir: string, name: string, legacyName: string): string {
+	const preferred = path.join(baseDir, name)
+	if (fsSync.existsSync(preferred)) {
+		return preferred
+	}
+	const legacy = path.join(baseDir, legacyName)
+	if (fsSync.existsSync(legacy)) {
+		return legacy
+	}
+	return preferred
+}
+
+/** Resolves the project modes file (`.bearmodes`, falling back to `.roomodes`). */
+export function getProjectModesFilePath(workspaceRoot: string): string {
+	return resolveBrandedPath(workspaceRoot, MODES_FILENAME, LEGACY_MODES_FILENAME)
+}
+
+/** True if `filePath` points to a project modes file (`.bearmodes` or legacy `.roomodes`). */
+export function isProjectModesFile(filePath: string): boolean {
+	return filePath.endsWith(MODES_FILENAME) || filePath.endsWith(LEGACY_MODES_FILENAME)
+}
+
+/**
+ * Resolves a workspace-relative path to an absolute path, applying the legacy fallback
+ * for BearCode config entries: `.bearmodes` may resolve to `.roomodes`, and `.bear/...`
+ * may resolve to `.roo/...` when only the legacy variant exists.
+ */
+export function resolveWorkspaceConfigPath(cwd: string, relativePath: string): string {
+	const segments = path
+		.normalize(relativePath)
+		.split(/[/\\]/)
+		.filter((segment) => segment && segment !== ".")
+	if (segments[0] === MODES_FILENAME && segments.length === 1) {
+		return getProjectModesFilePath(cwd)
+	}
+	if (segments[0] === CONFIG_DIR_NAME) {
+		return path.join(getProjectRooDirectoryForCwd(cwd), ...segments.slice(1))
+	}
+	return path.join(cwd, relativePath)
+}
+
+/**
+ * Gets the global .bear directory path (falls back to an existing legacy ~/.roo)
+ *
+ * @returns The absolute path to the global .bear directory
  *
  * @example Platform-specific paths:
  * ```
@@ -25,7 +89,7 @@ import fs from "fs/promises"
  */
 export function getGlobalRooDirectory(): string {
 	const homeDir = os.homedir()
-	return path.join(homeDir, ".roo")
+	return resolveBrandedPath(homeDir, CONFIG_DIR_NAME, LEGACY_CONFIG_DIR_NAME)
 }
 
 /**
@@ -102,7 +166,7 @@ export function getProjectAgentsDirectoryForCwd(cwd: string): string {
  * ```
  */
 export function getProjectRooDirectoryForCwd(cwd: string): string {
-	return path.join(cwd, ".roo")
+	return resolveBrandedPath(cwd, CONFIG_DIR_NAME, LEGACY_CONFIG_DIR_NAME)
 }
 
 /**
@@ -196,14 +260,16 @@ export async function discoverSubfolderRooDirectories(cwd: string): Promise<stri
 		// available in the webview context
 		const { executeRipgrep } = await import("../search/file-search")
 
-		// Use ripgrep to find any file inside any .roo directory
-		// This efficiently discovers all .roo folders regardless of their content
+		// Use ripgrep to find any file inside any .bear (or legacy .roo) directory
+		// This efficiently discovers all config folders regardless of their content
 		const args = [
 			"--files",
 			"--hidden",
 			"--follow",
 			"-g",
-			"**/.roo/**",
+			`**/${CONFIG_DIR_NAME}/**`,
+			"-g",
+			`**/${LEGACY_CONFIG_DIR_NAME}/**`,
 			"-g",
 			"!node_modules/**",
 			"-g",
@@ -213,20 +279,31 @@ export async function discoverSubfolderRooDirectories(cwd: string): Promise<stri
 
 		const results = await executeRipgrep({ args, workspacePath: cwd })
 
-		// Extract unique .roo directory paths
-		const rooDirs = new Set<string>()
-		const rootRooDir = path.join(cwd, ".roo")
+		// Collect the parent folders that contain a config directory, remembering
+		// which variants exist so that .bear wins over legacy .roo in the same folder.
+		const foundByParent = new Map<string, Set<string>>()
 
 		for (const result of results) {
-			// Match paths like "subfolder/.roo/anything" or "subfolder/nested/.roo/anything"
+			// Match paths like "subfolder/.bear/anything" or "subfolder/nested/.roo/anything"
 			// Handle both forward slashes (Unix) and backslashes (Windows)
-			const match = result.path.match(/^(.+?)[/\\]\.roo[/\\]/)
+			const match = result.path.match(/^(.+?)[/\\](\.bear|\.roo)[/\\]/)
 			if (match) {
-				const rooDir = path.join(cwd, match[1], ".roo")
-				// Exclude the root .roo directory (already handled by getProjectRooDirectoryForCwd)
-				if (rooDir !== rootRooDir) {
-					rooDirs.add(rooDir)
-				}
+				const parent = match[1]
+				const variants = foundByParent.get(parent) ?? new Set<string>()
+				variants.add(match[2])
+				foundByParent.set(parent, variants)
+			}
+		}
+
+		const rooDirs = new Set<string>()
+		const rootRooDirs = new Set([path.join(cwd, CONFIG_DIR_NAME), path.join(cwd, LEGACY_CONFIG_DIR_NAME)])
+
+		for (const [parent, variants] of foundByParent) {
+			const dirName = variants.has(CONFIG_DIR_NAME) ? CONFIG_DIR_NAME : LEGACY_CONFIG_DIR_NAME
+			const rooDir = path.join(cwd, parent, dirName)
+			// Exclude the root config directory (already handled by getProjectRooDirectoryForCwd)
+			if (!rootRooDirs.has(rooDir)) {
+				rooDirs.add(rooDir)
 			}
 		}
 

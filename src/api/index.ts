@@ -43,7 +43,7 @@ export interface SingleCompletionHandler {
 export interface ApiHandlerCreateMessageMetadata {
 	/**
 	 * Task ID used for tracking and provider-specific features:
-	 * - Roo: Sent as X-Roo-Task-ID header
+	 * - Bear: Sent as X-Bear-Task-ID header
 	 * - Requesty: Sent as trace_id
 	 */
 	taskId: string

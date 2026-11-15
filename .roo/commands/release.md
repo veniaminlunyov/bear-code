@@ -12,7 +12,7 @@ mode: code
 
 ```
 ---
-"roo-cline": patch|minor|major
+"bear-code": patch|minor|major
 ---
 [list of changes]
 ```

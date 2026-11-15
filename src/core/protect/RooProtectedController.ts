@@ -4,23 +4,29 @@ import ignore, { Ignore } from "ignore"
 export const SHIELD_SYMBOL = "\u{1F6E1}"
 
 /**
- * Controls write access to Roo configuration files by enforcing protection patterns.
- * Prevents auto-approved modifications to sensitive Roo configuration files.
+ * Controls write access to BearCode configuration files by enforcing protection patterns.
+ * Prevents auto-approved modifications to sensitive BearCode configuration files.
  */
 export class RooProtectedController {
 	private cwd: string
 	private ignoreInstance: Ignore
 
-	// Predefined list of protected Roo configuration patterns
+	// Predefined list of protected BearCode configuration patterns
 	private static readonly PROTECTED_PATTERNS = [
+		".bearignore",
+		".bearmodes",
+		".bearrules*",
+		".bear/**",
+		".bearprotected", // For future use
+		// Legacy Roo Code names (still read as a fallback)
 		".rooignore",
 		".roomodes",
 		".roorules*",
-		".clinerules*",
 		".roo/**",
+		".rooprotected",
+		".clinerules*",
 		".vscode/**",
 		"*.code-workspace",
-		".rooprotected", // For future use
 		"AGENTS.md",
 		"AGENT.md",
 	]
@@ -91,7 +97,7 @@ export class RooProtectedController {
 	 * Get display message for protected file operations
 	 */
 	getProtectionMessage(): string {
-		return "This is a Roo configuration file and requires approval for modifications"
+		return "This is a BearCode configuration file and requires approval for modifications"
 	}
 
 	/**
@@ -100,7 +106,7 @@ export class RooProtectedController {
 	 */
 	getInstructions(): string {
 		const patterns = RooProtectedController.PROTECTED_PATTERNS.join(", ")
-		return `# Protected Files\n\n(The following Roo configuration file patterns are write-protected and always require approval for modifications, regardless of autoapproval settings. When using list_files, you'll notice a ${SHIELD_SYMBOL} next to files that are write-protected.)\n\nProtected patterns: ${patterns}`
+		return `# Protected Files\n\n(The following BearCode configuration file patterns are write-protected and always require approval for modifications, regardless of autoapproval settings. When using list_files, you'll notice a ${SHIELD_SYMBOL} next to files that are write-protected.)\n\nProtected patterns: ${patterns}`
 	}
 
 	/**

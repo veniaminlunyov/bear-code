@@ -149,7 +149,9 @@ export class ClineProvider
 
 	public isViewLaunched = false
 	public settingsImportedAt?: number
-	public readonly latestAnnouncementId = "may-2026-final-roo-code-release" // Final Roo Code release announcement.
+	// Empty = no announcement. The upstream "final Roo Code release" notice is not shown in BearCode.
+	// Set a new id (and update Announcement.tsx) to show a BearCode release announcement.
+	public readonly latestAnnouncementId: string = ""
 	public readonly providerSettingsManager: ProviderSettingsManager
 	public readonly customModesManager: CustomModesManager
 
@@ -1145,7 +1147,7 @@ export class ClineProvider
 						window.AUDIO_BASE_URI = "${audioUri}"
 						window.MATERIAL_ICONS_BASE_URI = "${materialIconsUri}"
 					</script>
-					<title>Roo Code</title>
+					<title>BearCode</title>
 				</head>
 				<body>
 					<div id="root"></div>
@@ -1224,7 +1226,7 @@ export class ClineProvider
 				window.AUDIO_BASE_URI = "${audioUri}"
 				window.MATERIAL_ICONS_BASE_URI = "${materialIconsUri}"
 			</script>
-            <title>Roo Code</title>
+            <title>BearCode</title>
           </head>
           <body>
             <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -1545,21 +1547,21 @@ export class ClineProvider
 		// Get platform-specific application data directory
 		let mcpServersDir: string
 		if (process.platform === "win32") {
-			// Windows: %APPDATA%\Roo-Code\MCP
-			mcpServersDir = path.join(os.homedir(), "AppData", "Roaming", "Roo-Code", "MCP")
+			// Windows: %APPDATA%\BearCode\MCP
+			mcpServersDir = path.join(os.homedir(), "AppData", "Roaming", "BearCode", "MCP")
 		} else if (process.platform === "darwin") {
-			// macOS: ~/Documents/Cline/MCP
-			mcpServersDir = path.join(os.homedir(), "Documents", "Cline", "MCP")
+			// macOS: ~/Documents/BearCode/MCP
+			mcpServersDir = path.join(os.homedir(), "Documents", "BearCode", "MCP")
 		} else {
-			// Linux: ~/.local/share/Cline/MCP
-			mcpServersDir = path.join(os.homedir(), ".local", "share", "Roo-Code", "MCP")
+			// Linux: ~/.local/share/BearCode/MCP
+			mcpServersDir = path.join(os.homedir(), ".local", "share", "BearCode", "MCP")
 		}
 
 		try {
 			await fs.mkdir(mcpServersDir, { recursive: true })
 		} catch (error) {
 			// Fallback to a relative path if directory creation fails
-			return path.join(os.homedir(), ".roo-code", "mcp")
+			return path.join(os.homedir(), ".bear-code", "mcp")
 		}
 		return mcpServersDir
 	}
@@ -2035,7 +2037,8 @@ export class ClineProvider
 			ttsSpeed: ttsSpeed ?? 1.0,
 			enableCheckpoints: enableCheckpoints ?? true,
 			checkpointTimeout: checkpointTimeout ?? DEFAULT_CHECKPOINT_TIMEOUT_SECONDS,
-			shouldShowAnnouncement: lastShownAnnouncementId !== this.latestAnnouncementId,
+			shouldShowAnnouncement:
+				!!this.latestAnnouncementId && lastShownAnnouncementId !== this.latestAnnouncementId,
 			allowedCommands: mergedAllowedCommands,
 			deniedCommands: mergedDeniedCommands,
 			soundVolume: soundVolume ?? 0.5,

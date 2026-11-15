@@ -1,77 +1,49 @@
-<p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline"><img src="https://img.shields.io/badge/VS_Code_Marketplace-007ACC?style=flat&logo=visualstudiocode&logoColor=white" alt="VS Code Marketplace"></a>  
-</p>
+# BearCode
 
-# Roo Code
+BearCode — AI-агент для разработки прямо в VS Code: пишет и рефакторит код, запускает команды,
+работает с файлами проекта и MCP-серверами. Поддерживает режимы (Code, Architect, Ask, Debug,
+Orchestrator и пользовательские), подключение к разным LLM-провайдерам (Anthropic, OpenAI,
+OpenRouter, Bedrock, Vertex, Ollama, LM Studio и др.), чекпоинты и автоодобрение действий.
 
-> Your AI-Powered Dev Team, Right in Your Editor
+BearCode — форк [Roo Code](https://github.com/RooCodeInc/Roo-Code) (Apache-2.0).
 
-<details>
-  <summary>🌐 Available languages</summary>
+## Установка
 
-- [English](README.md)
-- [Català](locales/ca/README.md)
-- [Deutsch](locales/de/README.md)
-- [Español](locales/es/README.md)
-- [Français](locales/fr/README.md)
-- [हिंदी](locales/hi/README.md)
-- [Bahasa Indonesia](locales/id/README.md)
-- [Italiano](locales/it/README.md)
-- [日本語](locales/ja/README.md)
-- [한국어](locales/ko/README.md)
-- [Nederlands](locales/nl/README.md)
-- [Polski](locales/pl/README.md)
-- [Português (BR)](locales/pt-BR/README.md)
-- [Русский](locales/ru/README.md)
-- [Türkçe](locales/tr/README.md)
-- [Tiếng Việt](locales/vi/README.md)
-- [简体中文](locales/zh-CN/README.md)
-- [繁體中文](locales/zh-TW/README.md)
-- ...
-    </details>
+Соберите VSIX (см. ниже) и установите его: `Extensions → … → Install from VSIX…`
+или командой:
 
----
+```sh
+code --install-extension bin/bear-code-<версия>.vsix
+```
 
-## What Can Roo Code Do For YOU?
+BearCode имеет собственный ID (`bearcode.bear-code`) и может стоять рядом с Roo Code.
 
-- Generate Code from natural language descriptions and specs
-- Adapt with Modes: Code, Architect, Ask, Debug, and Custom Modes
-- Refactor & Debug existing code
-- Write & Update documentation
-- Answer Questions about your codebase
-- Automate repetitive tasks
-- Utilize MCP Servers
+## Файлы конфигурации проекта
 
-## Modes
+| BearCode            | Назначение                           | Legacy (Roo Code)  |
+| ------------------- | ------------------------------------ | ------------------ |
+| `.bear/`            | правила, команды, skills, `mcp.json` | `.roo/`            |
+| `.bearmodes`        | пользовательские режимы проекта      | `.roomodes`        |
+| `.bearignore`       | файлы, недоступные агенту            | `.rooignore`       |
+| `.bearrules[-mode]` | однофайловые правила                 | `.roorules[-mode]` |
+| `~/.bear/`          | глобальные правила, команды, skills  | `~/.roo/`          |
 
-Roo Code adapts to how you work:
+Если файла/папки с именем BearCode нет, а legacy-вариант существует, BearCode читает legacy-вариант.
+Новые файлы всегда создаются с именами BearCode. Правило работает на уровне папки целиком:
+если существует `.bear/`, то `.roo/` в этом же месте не читается.
 
-- Code Mode: everyday coding, edits, and file ops
-- Architect Mode: plan systems, specs, and migrations
-- Ask Mode: fast answers, explanations, and docs
-- Debug Mode: trace issues, add logs, isolate root causes
-- Custom Modes: build specialized modes for your team or workflow
+## Сборка
 
-Learn more: [Using Modes](https://roocodeinc.github.io/Roo-Code/basic-usage/using-modes) • [Custom Modes](https://roocodeinc.github.io/Roo-Code/advanced-usage/custom-modes)
+Требования: Node.js 20.19.2 (см. `.nvmrc`), pnpm 10.8.1.
 
-## Resources
+```sh
+pnpm install
+pnpm vsix          # → bin/bear-code-<версия>.vsix
+pnpm test          # юнит-тесты
+```
 
-- **[Documentation](https://roocodeinc.github.io/Roo-Code/):** The official guide to installing, configuring, and mastering Roo Code.
-- **[GitHub Issues](https://github.com/RooCodeInc/Roo-Code/issues):** Report bugs and track development.
+Отладка: откройте папку в VS Code и запустите конфигурацию «Run Extension» (F5).
 
----
+## Лицензия
 
-## Disclaimer
-
-The Roo Code Extension was shut down on May 15th.
-
-- If you're looking for an alternative, check out [ZooCode](https://github.com/Zoo-Code-Org/Zoo-Code/) (a fork started by the Roo Code community) and [Cline](https://cline.bot/) (from where Roo Code originated).
-- If you were a paying user and have billing questions, please write [billing@roocode.com](mailto:billing@roocode.com).
-
-**Please note** that Roo Code, Inc does **not** make any representations or warranties regarding any code, models, or other tools provided or made available in connection with Roo Code, any associated third-party tools, or any resulting outputs. You assume **all risks** associated with the use of any such tools or outputs; such tools are provided on an **"AS IS"** and **"AS AVAILABLE"** basis. Such risks may include, without limitation, intellectual property infringement, cyber vulnerabilities or attacks, bias, inaccuracies, errors, defects, viruses, downtime, property loss or damage, and/or personal injury. You are solely responsible for your use of any such tools or outputs (including, without limitation, the legality, appropriateness, and results thereof).
-
----
-
-## License
-
-[Apache 2.0 © 2026 Roo Code, Inc.](./LICENSE)
+Apache License 2.0 — см. файлы `LICENSE` и `NOTICE` в составе расширения.

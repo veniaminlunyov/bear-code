@@ -91,6 +91,6 @@
 	"additionalProperties": false,
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://github.com/RooCodeInc/Roo-Code/blob/main/schemas/roomodes.json",
-	"title": "Roo Code Custom Modes",
-	"description": "Schema for .roomodes configuration files used by Roo Code to define custom modes."
+	"title": "BearCode Custom Modes",
+	"description": "Schema for .bearmodes configuration files used by BearCode to define custom modes."
 }

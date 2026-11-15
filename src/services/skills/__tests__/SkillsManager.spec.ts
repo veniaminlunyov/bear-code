@@ -81,7 +81,7 @@ vi.mock("vscode", () => ({
 }))
 
 // Global roo directory - computed once
-const GLOBAL_ROO_DIR = p(HOME_DIR, ".roo")
+const GLOBAL_ROO_DIR = p(HOME_DIR, ".bear")
 const GLOBAL_AGENTS_DIR = p(HOME_DIR, ".agents")
 
 // Mock roo-config
@@ -89,6 +89,7 @@ vi.mock("../../roo-config", () => ({
 	getGlobalRooDirectory: () => GLOBAL_ROO_DIR,
 	getGlobalAgentsDirectory: () => GLOBAL_AGENTS_DIR,
 	getProjectAgentsDirectoryForCwd: (cwd: string) => p(cwd, ".agents"),
+	getProjectRooDirectoryForCwd: (cwd: string) => p(cwd, ".bear"),
 	directoryExists: mockDirectoryExists,
 	fileExists: mockFileExists,
 }))
@@ -120,7 +121,7 @@ describe("SkillsManager", () => {
 	const globalSkillsDir = p(GLOBAL_ROO_DIR, "skills")
 	const globalSkillsCodeDir = p(GLOBAL_ROO_DIR, "skills-code")
 	const globalSkillsArchitectDir = p(GLOBAL_ROO_DIR, "skills-architect")
-	const projectRooDir = p(PROJECT_DIR, ".roo")
+	const projectRooDir = p(PROJECT_DIR, ".bear")
 	const projectSkillsDir = p(projectRooDir, "skills")
 	// .agents directory paths
 	const globalAgentsSkillsDir = p(GLOBAL_AGENTS_DIR, "skills")
@@ -510,7 +511,7 @@ description: ${longDescription}
 			const sharedSkillDir = p(SHARED_DIR, "shared-skill")
 			const sharedSkillMd = p(sharedSkillDir, "SKILL.md")
 
-			// Simulate .roo/skills being a symlink to /shared/skills
+			// Simulate .bear/skills being a symlink to /shared/skills
 			mockDirectoryExists.mockImplementation(async (dir: string) => {
 				return dir === globalSkillsDir
 			})
@@ -567,7 +568,7 @@ Instructions here...`
 			const myAliasDir = p(globalSkillsDir, "my-alias")
 			const myAliasMd = p(myAliasDir, "SKILL.md")
 
-			// Simulate .roo/skills/my-alias being a symlink to /external/actual-skill
+			// Simulate .bear/skills/my-alias being a symlink to /external/actual-skill
 			mockDirectoryExists.mockImplementation(async (dir: string) => {
 				return dir === globalSkillsDir
 			})
@@ -717,7 +718,7 @@ Instructions here...`
 			expect(skills[0].source).toBe("project")
 		})
 
-		it("should prioritize .roo skills over .agents skills with same name", async () => {
+		it("should prioritize .bear skills over .agents skills with same name", async () => {
 			const agentSkillDir = p(globalAgentsSkillsDir, "common-skill")
 			const agentSkillMd = p(agentSkillDir, "SKILL.md")
 			const rooSkillDir = p(globalSkillsDir, "common-skill")
@@ -759,10 +760,10 @@ description: Agent version (should be overridden)
 				if (file === rooSkillMd) {
 					return `---
 name: common-skill
-description: Roo version (should take priority)
+description: Bear version (should take priority)
 ---
 
-# Roo Common Skill`
+# Bear Common Skill`
 				}
 				throw new Error("File not found")
 			})
@@ -772,8 +773,8 @@ description: Roo version (should take priority)
 			const skills = skillsManager.getSkillsForMode("code")
 			const commonSkill = skills.find((s) => s.name === "common-skill")
 			expect(commonSkill).toBeDefined()
-			// .roo should override .agents
-			expect(commonSkill?.description).toBe("Roo version (should take priority)")
+			// .bear should override .agents
+			expect(commonSkill?.description).toBe("Bear version (should take priority)")
 		})
 
 		it("should discover mode-specific skills from .agents directory", async () => {
@@ -1243,7 +1244,7 @@ Instructions`)
 
 			const createdPath = await skillsManager.createSkill("project-skill", "project", "A project skill")
 
-			expect(createdPath).toBe(p(PROJECT_DIR, ".roo", "skills", "project-skill", "SKILL.md"))
+			expect(createdPath).toBe(p(PROJECT_DIR, ".bear", "skills", "project-skill", "SKILL.md"))
 		})
 
 		it("should throw error for invalid skill name", async () => {

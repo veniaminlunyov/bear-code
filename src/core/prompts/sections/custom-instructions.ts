@@ -222,11 +222,11 @@ export async function loadRuleFiles(cwd: string, enableSubfolderRules: boolean =
 
 	// If we found rules in .roo/rules/ directories, return them
 	if (rules.length > 0) {
-		return "\n# Rules from .roo directories:\n\n" + rules.join("\n\n")
+		return "\n# Rules from .bear directories:\n\n" + rules.join("\n\n")
 	}
 
-	// Fall back to existing behavior for legacy .roorules/.clinerules files
-	const ruleFiles = [".roorules", ".clinerules"]
+	// Fall back to single-file rules: .bearrules, then legacy .roorules/.clinerules
+	const ruleFiles = [".bearrules", ".roorules", ".clinerules"]
 
 	for (const file of ruleFiles) {
 		const content = await safeReadFile(path.join(cwd, file))
@@ -423,12 +423,15 @@ export async function addCustomInstructions(
 			modeRuleContent = "\n" + modeRules.join("\n\n")
 			usedRuleFile = `rules-${mode} directories`
 		} else {
-			// Fall back to existing behavior for legacy files
-			const rooModeRuleFile = `.roorules-${mode}`
-			modeRuleContent = await safeReadFile(path.join(cwd, rooModeRuleFile))
-			if (modeRuleContent) {
-				usedRuleFile = rooModeRuleFile
-			} else {
+			// Fall back to single-file mode rules: .bearrules-{mode}, then legacy .roorules-{mode}/.clinerules-{mode}
+			for (const modeRuleFile of [`.bearrules-${mode}`, `.roorules-${mode}`]) {
+				modeRuleContent = await safeReadFile(path.join(cwd, modeRuleFile))
+				if (modeRuleContent) {
+					usedRuleFile = modeRuleFile
+					break
+				}
+			}
+			if (!modeRuleContent) {
 				const clineModeRuleFile = `.clinerules-${mode}`
 				modeRuleContent = await safeReadFile(path.join(cwd, clineModeRuleFile))
 				if (modeRuleContent) {

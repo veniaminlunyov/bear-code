@@ -5,18 +5,22 @@ import fsSync from "fs"
 import ignore, { Ignore } from "ignore"
 import * as vscode from "vscode"
 
+import { IGNORE_FILENAME, LEGACY_IGNORE_FILENAME } from "../../services/roo-config"
+
 export const LOCK_TEXT_SYMBOL = "\u{1F512}"
 
 /**
  * Controls LLM access to files by enforcing ignore patterns.
  * Designed to be instantiated once in Cline.ts and passed to file manipulation services.
- * Uses the 'ignore' library to support standard .gitignore syntax in .rooignore files.
+ * Uses the 'ignore' library to support standard .gitignore syntax in .bearignore (legacy: .rooignore) files.
  */
 export class RooIgnoreController {
 	private cwd: string
 	private ignoreInstance: Ignore
 	private disposables: vscode.Disposable[] = []
 	rooIgnoreContent: string | undefined
+	/** File name of the active ignore file (.bearignore, or legacy .rooignore) */
+	rooIgnoreFileName: string = IGNORE_FILENAME
 
 	constructor(cwd: string) {
 		this.cwd = cwd
@@ -38,20 +42,15 @@ export class RooIgnoreController {
 	 * Set up the file watcher for .rooignore changes
 	 */
 	private setupFileWatcher(): void {
-		const rooignorePattern = new vscode.RelativePattern(this.cwd, ".rooignore")
+		// Watch both the BearCode name and the legacy Roo Code name
+		const rooignorePattern = new vscode.RelativePattern(this.cwd, `{${IGNORE_FILENAME},${LEGACY_IGNORE_FILENAME}}`)
 		const fileWatcher = vscode.workspace.createFileSystemWatcher(rooignorePattern)
 
 		// Watch for changes and updates
 		this.disposables.push(
-			fileWatcher.onDidChange(() => {
-				this.loadRooIgnore()
-			}),
-			fileWatcher.onDidCreate(() => {
-				this.loadRooIgnore()
-			}),
-			fileWatcher.onDidDelete(() => {
-				this.loadRooIgnore()
-			}),
+			fileWatcher.onDidChange(() => this.loadRooIgnore()),
+			fileWatcher.onDidCreate(() => this.loadRooIgnore()),
+			fileWatcher.onDidDelete(() => this.loadRooIgnore()),
 		)
 
 		// Add fileWatcher itself to disposables
@@ -65,18 +64,24 @@ export class RooIgnoreController {
 		try {
 			// Reset ignore instance to prevent duplicate patterns
 			this.ignoreInstance = ignore()
-			const ignorePath = path.join(this.cwd, ".rooignore")
+			// Prefer .bearignore, fall back to the legacy .rooignore
+			let ignorePath = path.join(this.cwd, IGNORE_FILENAME)
+			if (!(await fileExistsAtPath(ignorePath))) {
+				ignorePath = path.join(this.cwd, LEGACY_IGNORE_FILENAME)
+			}
 			if (await fileExistsAtPath(ignorePath)) {
 				const content = await fs.readFile(ignorePath, "utf8")
 				this.rooIgnoreContent = content
+				this.rooIgnoreFileName = path.basename(ignorePath)
 				this.ignoreInstance.add(content)
-				this.ignoreInstance.add(".rooignore")
+				this.ignoreInstance.add([IGNORE_FILENAME, LEGACY_IGNORE_FILENAME])
 			} else {
 				this.rooIgnoreContent = undefined
+				this.rooIgnoreFileName = IGNORE_FILENAME
 			}
 		} catch (error) {
 			// Should never happen: reading file failed even though it exists
-			console.error("Unexpected error loading .rooignore:", error)
+			console.error("Unexpected error loading .bearignore:", error)
 		}
 	}
 
@@ -208,6 +213,7 @@ export class RooIgnoreController {
 			return undefined
 		}
 
-		return `# .rooignore\n\n(The following is provided by a root-level .rooignore file where the user has specified files and directories that should not be accessed. When using list_files, you'll notice a ${LOCK_TEXT_SYMBOL} next to files that are blocked. Attempting to access the file's contents e.g. through read_file will result in an error.)\n\n${this.rooIgnoreContent}\n.rooignore`
+		const fileName = this.rooIgnoreFileName
+		return `# ${fileName}\n\n(The following is provided by a root-level ${fileName} file where the user has specified files and directories that should not be accessed. When using list_files, you'll notice a ${LOCK_TEXT_SYMBOL} next to files that are blocked. Attempting to access the file's contents e.g. through read_file will result in an error.)\n\n${this.rooIgnoreContent}\n${fileName}`
 	}
 }

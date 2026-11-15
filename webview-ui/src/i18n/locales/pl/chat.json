@@ -1,5 +1,5 @@
 {
-	"greeting": "Witamy w Roo Code",
+	"greeting": "Witamy w BearCode",
 	"task": {
 		"title": "Zadanie",
 		"expand": "Rozwiń zadanie",
@@ -90,7 +90,7 @@
 	"enqueueMessage": "Dodaj wiadomość do kolejki (zostanie wysłana po zakończeniu bieżącego zadania)",
 	"scrollToBottom": "Przewiń do dołu czatu",
 	"scrollToLatestCheckpoint": "Przewiń do poprzedniego punktu kontrolnego",
-	"about": "Roo Code to cały zespół deweloperów AI w Twoim edytorze.",
+	"about": "BearCode to cały zespół deweloperów AI w Twoim edytorze.",
 	"docs": "Sprawdź naszą <DocsLink>dokumentację</DocsLink>, aby dowiedzieć się więcej.",
 	"onboarding": "Twoja lista zadań w tym obszarze roboczym jest pusta.",
 	"rooTips": {
@@ -121,7 +121,7 @@
 	"modeSelector": {
 		"title": "Tryby",
 		"settings": "Ustawienia Trybów",
-		"description": "Wyspecjalizowane persony, które dostosowują zachowanie Roo.",
+		"description": "Wyspecjalizowane persony, które dostosowują zachowanie Bear.",
 		"searchPlaceholder": "Szukaj trybów...",
 		"noResults": "Nie znaleziono wyników"
 	},
@@ -135,7 +135,7 @@
 	"diffError": {
 		"title": "Edycja nieudana"
 	},
-	"troubleMessage": "Roo ma problemy...",
+	"troubleMessage": "Bear ma problemy...",
 	"apiRequest": {
 		"title": "Zapytanie API",
 		"failed": "Zapytanie API nie powiodło się",
@@ -178,43 +178,43 @@
 		"current": "Bieżący"
 	},
 	"instructions": {
-		"wantsToFetch": "Roo chce pobrać szczegółowe instrukcje, aby pomóc w bieżącym zadaniu"
+		"wantsToFetch": "Bear chce pobrać szczegółowe instrukcje, aby pomóc w bieżącym zadaniu"
 	},
 	"fileOperations": {
-		"wantsToRead": "Roo chce przeczytać ten plik",
-		"wantsToReadOutsideWorkspace": "Roo chce przeczytać ten plik poza obszarem roboczym",
-		"didRead": "Roo przeczytał ten plik",
-		"wantsToEdit": "Roo chce edytować ten plik",
-		"wantsToEditOutsideWorkspace": "Roo chce edytować ten plik poza obszarem roboczym",
-		"wantsToEditProtected": "Roo chce edytować chroniony plik konfiguracyjny",
-		"wantsToCreate": "Roo chce utworzyć nowy plik",
-		"wantsToSearchReplace": "Roo chce wykonać wyszukiwanie i zamianę w tym pliku",
-		"didSearchReplace": "Roo wykonał wyszukiwanie i zamianę w tym pliku",
-		"wantsToInsert": "Roo chce wstawić zawartość do tego pliku",
-		"wantsToInsertWithLineNumber": "Roo chce wstawić zawartość do tego pliku w linii {{lineNumber}}",
-		"wantsToInsertAtEnd": "Roo chce dodać zawartość na końcu tego pliku",
-		"wantsToReadAndXMore": "Roo chce przeczytać ten plik i {{count}} więcej",
-		"wantsToReadMultiple": "Roo chce odczytać wiele plików",
-		"wantsToApplyBatchChanges": "Roo chce zastosować zmiany do wielu plików",
-		"wantsToGenerateImage": "Roo chce wygenerować obraz",
-		"wantsToGenerateImageOutsideWorkspace": "Roo chce wygenerować obraz poza obszarem roboczym",
-		"wantsToGenerateImageProtected": "Roo chce wygenerować obraz w chronionym miejscu",
-		"didGenerateImage": "Roo wygenerował obraz"
+		"wantsToRead": "Bear chce przeczytać ten plik",
+		"wantsToReadOutsideWorkspace": "Bear chce przeczytać ten plik poza obszarem roboczym",
+		"didRead": "Bear przeczytał ten plik",
+		"wantsToEdit": "Bear chce edytować ten plik",
+		"wantsToEditOutsideWorkspace": "Bear chce edytować ten plik poza obszarem roboczym",
+		"wantsToEditProtected": "Bear chce edytować chroniony plik konfiguracyjny",
+		"wantsToCreate": "Bear chce utworzyć nowy plik",
+		"wantsToSearchReplace": "Bear chce wykonać wyszukiwanie i zamianę w tym pliku",
+		"didSearchReplace": "Bear wykonał wyszukiwanie i zamianę w tym pliku",
+		"wantsToInsert": "Bear chce wstawić zawartość do tego pliku",
+		"wantsToInsertWithLineNumber": "Bear chce wstawić zawartość do tego pliku w linii {{lineNumber}}",
+		"wantsToInsertAtEnd": "Bear chce dodać zawartość na końcu tego pliku",
+		"wantsToReadAndXMore": "Bear chce przeczytać ten plik i {{count}} więcej",
+		"wantsToReadMultiple": "Bear chce odczytać wiele plików",
+		"wantsToApplyBatchChanges": "Bear chce zastosować zmiany do wielu plików",
+		"wantsToGenerateImage": "Bear chce wygenerować obraz",
+		"wantsToGenerateImageOutsideWorkspace": "Bear chce wygenerować obraz poza obszarem roboczym",
+		"wantsToGenerateImageProtected": "Bear chce wygenerować obraz w chronionym miejscu",
+		"didGenerateImage": "Bear wygenerował obraz"
 	},
 	"directoryOperations": {
-		"wantsToViewTopLevel": "Roo chce zobaczyć pliki najwyższego poziomu w tym katalogu",
-		"didViewTopLevel": "Roo zobaczył pliki najwyższego poziomu w tym katalogu",
-		"wantsToViewRecursive": "Roo chce rekurencyjnie zobaczyć wszystkie pliki w tym katalogu",
-		"didViewRecursive": "Roo rekurencyjnie zobaczył wszystkie pliki w tym katalogu",
-		"wantsToSearch": "Roo chce przeszukać ten katalog w poszukiwaniu <code>{{regex}}</code>",
-		"didSearch": "Roo przeszukał ten katalog w poszukiwaniu <code>{{regex}}</code>",
-		"wantsToSearchOutsideWorkspace": "Roo chce przeszukać ten katalog (poza obszarem roboczym) w poszukiwaniu <code>{{regex}}</code>",
-		"didSearchOutsideWorkspace": "Roo przeszukał ten katalog (poza obszarem roboczym) w poszukiwaniu <code>{{regex}}</code>",
-		"wantsToViewTopLevelOutsideWorkspace": "Roo chce zobaczyć pliki najwyższego poziomu w tym katalogu (poza obszarem roboczym)",
-		"didViewTopLevelOutsideWorkspace": "Roo zobaczył pliki najwyższego poziomu w tym katalogu (poza obszarem roboczym)",
-		"wantsToViewRecursiveOutsideWorkspace": "Roo chce rekurencyjnie zobaczyć wszystkie pliki w tym katalogu (poza obszarem roboczym)",
-		"didViewRecursiveOutsideWorkspace": "Roo rekurencyjnie zobaczył wszystkie pliki w tym katalogu (poza obszarem roboczym)",
-		"wantsToViewMultipleDirectories": "Roo chce wyświetlić wiele katalogów"
+		"wantsToViewTopLevel": "Bear chce zobaczyć pliki najwyższego poziomu w tym katalogu",
+		"didViewTopLevel": "Bear zobaczył pliki najwyższego poziomu w tym katalogu",
+		"wantsToViewRecursive": "Bear chce rekurencyjnie zobaczyć wszystkie pliki w tym katalogu",
+		"didViewRecursive": "Bear rekurencyjnie zobaczył wszystkie pliki w tym katalogu",
+		"wantsToSearch": "Bear chce przeszukać ten katalog w poszukiwaniu <code>{{regex}}</code>",
+		"didSearch": "Bear przeszukał ten katalog w poszukiwaniu <code>{{regex}}</code>",
+		"wantsToSearchOutsideWorkspace": "Bear chce przeszukać ten katalog (poza obszarem roboczym) w poszukiwaniu <code>{{regex}}</code>",
+		"didSearchOutsideWorkspace": "Bear przeszukał ten katalog (poza obszarem roboczym) w poszukiwaniu <code>{{regex}}</code>",
+		"wantsToViewTopLevelOutsideWorkspace": "Bear chce zobaczyć pliki najwyższego poziomu w tym katalogu (poza obszarem roboczym)",
+		"didViewTopLevelOutsideWorkspace": "Bear zobaczył pliki najwyższego poziomu w tym katalogu (poza obszarem roboczym)",
+		"wantsToViewRecursiveOutsideWorkspace": "Bear chce rekurencyjnie zobaczyć wszystkie pliki w tym katalogu (poza obszarem roboczym)",
+		"didViewRecursiveOutsideWorkspace": "Bear rekurencyjnie zobaczył wszystkie pliki w tym katalogu (poza obszarem roboczym)",
+		"wantsToViewMultipleDirectories": "Bear chce wyświetlić wiele katalogów"
 	},
 	"commandOutput": "Wyjście polecenia",
 	"commandExecution": {
@@ -236,24 +236,24 @@
 	"response": "Odpowiedź",
 	"arguments": "Argumenty",
 	"text": {
-		"rooSaid": "Roo powiedział"
+		"rooSaid": "Bear powiedział"
 	},
 	"feedback": {
 		"youSaid": "Powiedziałeś"
 	},
 	"mcp": {
-		"wantsToUseTool": "Roo chce użyć narzędzia na serwerze MCP {{serverName}}",
-		"wantsToAccessResource": "Roo chce uzyskać dostęp do zasobu na serwerze MCP {{serverName}}"
+		"wantsToUseTool": "Bear chce użyć narzędzia na serwerze MCP {{serverName}}",
+		"wantsToAccessResource": "Bear chce uzyskać dostęp do zasobu na serwerze MCP {{serverName}}"
 	},
 	"modes": {
-		"wantsToSwitch": "Roo chce przełączyć się na tryb <code>{{mode}}</code>",
-		"wantsToSwitchWithReason": "Roo chce przełączyć się na tryb <code>{{mode}}</code> ponieważ: {{reason}}",
-		"didSwitch": "Roo przełączył się na tryb <code>{{mode}}</code>",
-		"didSwitchWithReason": "Roo przełączył się na tryb <code>{{mode}}</code> ponieważ: {{reason}}"
+		"wantsToSwitch": "Bear chce przełączyć się na tryb <code>{{mode}}</code>",
+		"wantsToSwitchWithReason": "Bear chce przełączyć się na tryb <code>{{mode}}</code> ponieważ: {{reason}}",
+		"didSwitch": "Bear przełączył się na tryb <code>{{mode}}</code>",
+		"didSwitchWithReason": "Bear przełączył się na tryb <code>{{mode}}</code> ponieważ: {{reason}}"
 	},
 	"subtasks": {
-		"wantsToCreate": "Roo chce utworzyć nowe podzadanie w trybie <code>{{mode}}</code>",
-		"wantsToFinish": "Roo chce zakończyć to podzadanie",
+		"wantsToCreate": "Bear chce utworzyć nowe podzadanie w trybie <code>{{mode}}</code>",
+		"wantsToFinish": "Bear chce zakończyć to podzadanie",
 		"newTaskContent": "Instrukcje podzadania",
 		"completionContent": "Podzadanie zakończone",
 		"resultContent": "Wyniki podzadania",
@@ -262,7 +262,7 @@
 		"goToSubtask": "Wyświetl zadanie"
 	},
 	"questions": {
-		"hasQuestion": "Roo ma pytanie"
+		"hasQuestion": "Bear ma pytanie"
 	},
 	"taskCompleted": "Zadanie zakończone",
 	"modelResponseIncomplete": "Odpowiedź modelu niekompletna",
@@ -278,7 +278,7 @@
 		"copyToClipboard": "Kopiuj do schowka",
 		"copied": "Skopiowano!",
 		"diagnostics": "Uzyskaj szczegółowe informacje o błędzie",
-		"proxyProvider": "Wygląda na to, że używasz dostawcy opartego na proxy. Pamiętaj, aby sprawdzić jego dzienniki i upewnić się, że nie przepisuje żądań Roo."
+		"proxyProvider": "Wygląda na to, że używasz dostawcy opartego na proxy. Pamiętaj, aby sprawdzić jego dzienniki i upewnić się, że nie przepisuje żądań Bear."
 	},
 	"powershell": {
 		"issues": "Wygląda na to, że masz problemy z Windows PowerShell, proszę zapoznaj się z tym"
@@ -321,18 +321,18 @@
 		}
 	},
 	"skill": {
-		"wantsToLoad": "Roo chce załadować umiejętność",
-		"didLoad": "Roo załadował umiejętność"
+		"wantsToLoad": "Bear chce załadować umiejętność",
+		"didLoad": "Bear załadował umiejętność"
 	},
 	"followUpSuggest": {
 		"copyToInput": "Kopiuj do pola wprowadzania (lub Shift + kliknięcie)",
 		"timerPrefix": "Automatyczne zatwierdzanie włączone. Zaznaczanie za {{seconds}}s…"
 	},
 	"announcement": {
-		"title": "Roo Code {{version}} wydany",
-		"support": "Wesprzyj Roo Code, dając nam gwiazdkę na <githubLink>GitHub</githubLink>.",
+		"title": "BearCode {{version}} wydany",
+		"support": "Wesprzyj BearCode, dając nam gwiazdkę na <githubLink>GitHub</githubLink>.",
 		"finalRelease": {
-			"title": "Ostatnie wydanie Roo Code",
+			"title": "Ostatnie wydanie BearCode",
 			"intro": "To jest ostatnie wydanie Roo Code. <announcementLink>Jak ogłosiliśmy kilka tygodni temu</announcementLink>, zdecydowaliśmy się skupić na <roomoteLink>Roomote</roomoteLink>, naszej platformie agentów w chmurze, którą uważamy za przyszłość tworzenia oprogramowania. Bardzo dziękujemy za wsparcie przez ostatni mniej więcej rok.",
 			"continuity": "To rozszerzenie powinno nadal działać bezterminowo, ale nie będzie otrzymywać poprawek błędów, nowych funkcji ani aktualizacji modeli.",
 			"alternatives": "Jeśli chcesz korzystać z rozszerzenia, polecamy sprawdzić <zooCodeLink>ZooCode</zooCodeLink> (fork Roo Code tworzony przez społeczność) oraz <clineLink>Cline</clineLink> (miejsce, od którego Roo Code pierwotnie się zaczęło).",
@@ -340,7 +340,7 @@
 		},
 		"release": {
 			"heading": "Co nowego:",
-			"gpt55": "GPT-5.5 przez OpenAI Codex: Dodano obsługę GPT-5.5 w dostawcy OpenAI Codex, żebyś mógł korzystać z najnowszego modelu bezpośrednio z Roo Code.",
+			"gpt55": "GPT-5.5 przez OpenAI Codex: Dodano obsługę GPT-5.5 w dostawcy OpenAI Codex, żebyś mógł korzystać z najnowszego modelu bezpośrednio z BearCode.",
 			"claudeOpus47": "Claude Opus 4.7 w Vertex AI: Dodano Claude Opus 4.7 do dostawcy Vertex AI - najnowszy flagowy model rozumowania od Anthropic.",
 			"checkpointNav": "Nawigacja po poprzednich checkpointach: Dodano kontrolki w czacie, żebyś mógł cofać się do wcześniejszych checkpointów, z pełną obsługą i18n."
 		},
@@ -366,24 +366,24 @@
 	"profileViolationWarning": "Bieżący profil nie jest kompatybilny z ustawieniami Twojej organizacji",
 	"shellIntegration": {
 		"title": "Ostrzeżenie wykonania polecenia",
-		"description": "Twoje polecenie jest wykonywane bez integracji powłoki terminala VSCode. Aby ukryć to ostrzeżenie, możesz wyłączyć integrację powłoki w sekcji <strong>Terminal</strong> w <settingsLink>ustawieniach Roo Code</settingsLink> lub rozwiązać problemy z integracją terminala VSCode korzystając z poniższego linku.",
+		"description": "Twoje polecenie jest wykonywane bez integracji powłoki terminala VSCode. Aby ukryć to ostrzeżenie, możesz wyłączyć integrację powłoki w sekcji <strong>Terminal</strong> w <settingsLink>ustawieniach BearCode</settingsLink> lub rozwiązać problemy z integracją terminala VSCode korzystając z poniższego linku.",
 		"troubleshooting": "Kliknij tutaj, aby zobaczyć dokumentację integracji powłoki."
 	},
 	"ask": {
 		"autoApprovedRequestLimitReached": {
 			"title": "Osiągnięto limit automatycznie zatwierdzonych żądań",
-			"description": "Roo osiągnął automatycznie zatwierdzony limit {{count}} żądania/żądań API. Czy chcesz zresetować licznik i kontynuować zadanie?",
+			"description": "Bear osiągnął automatycznie zatwierdzony limit {{count}} żądania/żądań API. Czy chcesz zresetować licznik i kontynuować zadanie?",
 			"button": "Zresetuj i kontynuuj"
 		},
 		"autoApprovedCostLimitReached": {
 			"button": "Zresetuj i Kontynuuj",
 			"title": "Osiągnięto limit kosztów z automatycznym zatwierdzaniem",
-			"description": "Roo osiągnął automatycznie zatwierdzony limit kosztów wynoszący ${{count}}. Czy chcesz zresetować koszt i kontynuować zadanie?"
+			"description": "Bear osiągnął automatycznie zatwierdzony limit kosztów wynoszący ${{count}}. Czy chcesz zresetować koszt i kontynuować zadanie?"
 		}
 	},
 	"codebaseSearch": {
-		"wantsToSearch": "Roo chce przeszukać bazę kodu w poszukiwaniu <code>{{query}}</code>",
-		"wantsToSearchWithPath": "Roo chce przeszukać bazę kodu w poszukiwaniu <code>{{query}}</code> w <code>{{path}}</code>",
+		"wantsToSearch": "Bear chce przeszukać bazę kodu w poszukiwaniu <code>{{query}}</code>",
+		"wantsToSearchWithPath": "Bear chce przeszukać bazę kodu w poszukiwaniu <code>{{query}}</code> w <code>{{path}}</code>",
 		"didSearch_one": "Znaleziono 1 wynik",
 		"didSearch_other": "Znaleziono {{count}} wyników",
 		"resultTooltip": "Wynik podobieństwa: {{score}} (kliknij, aby otworzyć plik)"
@@ -460,8 +460,8 @@
 		"clickToEdit": "Kliknij, aby edytować wiadomość"
 	},
 	"slashCommand": {
-		"wantsToRun": "Roo chce uruchomić komendę slash",
-		"didRun": "Roo uruchomił komendę slash"
+		"wantsToRun": "Bear chce uruchomić komendę slash",
+		"didRun": "Bear uruchomił komendę slash"
 	},
 	"todo": {
 		"partial": "Ukończono {{completed}} z {{total}} zadań do wykonania",
@@ -480,7 +480,7 @@
 		"openMcpSettings": "Otwórz ustawienia MCP"
 	},
 	"readCommandOutput": {
-		"title": "Roo read command output"
+		"title": "Bear read command output"
 	},
 	"retiredProvider": {
 		"title": "Dostawca nie jest już obsługiwany",

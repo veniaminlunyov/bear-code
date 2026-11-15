@@ -1,5 +1,5 @@
 /**
- * Builds the Zod schema for .roomodes configuration files and converts it
+ * Builds the Zod schema for .bearmodes configuration files and converts it
  * to JSON Schema (draft-07). This module is the single source of truth for
  * both the generator script (scripts/generate-roomodes-schema.ts) and the
  * drift-detection test.
@@ -33,7 +33,7 @@ const exportedModeConfigSchema = modeConfigSchema.omit({ groups: true }).extend(
 	rulesFiles: z.array(ruleFileSchema).optional(),
 })
 
-// Build the top-level .roomodes schema.
+// Build the top-level .bearmodes schema.
 const roomodesZodSchema = z
 	.object({
 		customModes: z.array(exportedModeConfigSchema),
@@ -41,7 +41,7 @@ const roomodesZodSchema = z
 	.strict()
 
 /**
- * Generates the JSON Schema object for .roomodes configuration files.
+ * Generates the JSON Schema object for .bearmodes configuration files.
  * Includes metadata fields ($id, title, description).
  */
 export function generateRoomodesJsonSchema(): Record<string, unknown> {
@@ -51,8 +51,8 @@ export function generateRoomodesJsonSchema(): Record<string, unknown> {
 	}) as Record<string, unknown>
 
 	jsonSchema["$id"] = "https://github.com/RooCodeInc/Roo-Code/blob/main/schemas/roomodes.json"
-	jsonSchema["title"] = "Roo Code Custom Modes"
-	jsonSchema["description"] = "Schema for .roomodes configuration files used by Roo Code to define custom modes."
+	jsonSchema["title"] = "BearCode Custom Modes"
+	jsonSchema["description"] = "Schema for .bearmodes configuration files used by BearCode to define custom modes."
 
 	return jsonSchema
 }

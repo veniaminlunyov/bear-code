@@ -213,8 +213,8 @@ vi.mock("../providers/LiteLLM", () => ({
 	),
 }))
 
-// Mock Roo provider for tests
-vi.mock("../providers/Roo", () => ({
+// Mock Bear provider for tests
+vi.mock("../providers/Bear", () => ({
 	Roo: ({ cloudIsAuthenticated }: any) => (
 		<div data-testid="roo-provider">{cloudIsAuthenticated ? "Authenticated" : "Not Authenticated"}</div>
 	),
@@ -582,7 +582,7 @@ describe("ApiOptions", () => {
 		expect(screen.queryByTestId("litellm-provider")).not.toBeInTheDocument()
 	})
 
-	it("renders Roo-specific retired provider message for Roo Code Router", () => {
+	it("renders Bear-specific retired provider message for Bear Code Router", () => {
 		renderApiOptions({
 			apiConfiguration: {
 				apiProvider: "roo" as any,

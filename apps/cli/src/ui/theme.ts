@@ -1,5 +1,5 @@
 /**
- * Theme configuration for Roo Code CLI TUI
+ * Theme configuration for BearCode CLI TUI
  * Using Hardcore color scheme
  */
 

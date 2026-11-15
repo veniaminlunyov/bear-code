@@ -16,7 +16,7 @@ const tmpDir = path.join(os.tmpdir(), "CheckpointService")
 
 const initWorkspaceRepo = async ({
 	workspaceDir,
-	userName = "Roo Code",
+	userName = "BearCode",
 	userEmail = "support@roocode.com",
 	testFileName = "test.txt",
 	textFileContent = "Hello, world!",
@@ -388,7 +388,7 @@ describe.each([[RepoPerTaskCheckpointService, "RepoPerTaskCheckpointService"]])(
 				await fs.mkdir(workspaceDir, { recursive: true })
 				const mainGit = simpleGit(workspaceDir)
 				await mainGit.init()
-				await mainGit.addConfig("user.name", "Roo Code")
+				await mainGit.addConfig("user.name", "BearCode")
 				await mainGit.addConfig("user.email", "support@roocode.com")
 
 				// Create a nested repo inside the workspace.
@@ -396,7 +396,7 @@ describe.each([[RepoPerTaskCheckpointService, "RepoPerTaskCheckpointService"]])(
 				await fs.mkdir(nestedRepoPath, { recursive: true })
 				const nestedGit = simpleGit(nestedRepoPath)
 				await nestedGit.init()
-				await nestedGit.addConfig("user.name", "Roo Code")
+				await nestedGit.addConfig("user.name", "BearCode")
 				await nestedGit.addConfig("user.email", "support@roocode.com")
 
 				// Add a file to the nested repo.
@@ -458,7 +458,7 @@ describe.each([[RepoPerTaskCheckpointService, "RepoPerTaskCheckpointService"]])(
 				await fs.mkdir(workspaceDir, { recursive: true })
 				const mainGit = simpleGit(workspaceDir)
 				await mainGit.init()
-				await mainGit.addConfig("user.name", "Roo Code")
+				await mainGit.addConfig("user.name", "BearCode")
 				await mainGit.addConfig("user.email", "support@roocode.com")
 
 				// Create a test file in the main workspace.
@@ -876,7 +876,7 @@ describe.each([[RepoPerTaskCheckpointService, "RepoPerTaskCheckpointService"]])(
 			it("isolates checkpoint operations from GIT_DIR environment variable", async () => {
 				// This test verifies the fix for the issue where GIT_DIR environment variable
 				// causes checkpoint commits to go to the wrong repository.
-				// In the real-world Dev Container scenario, GIT_DIR is set BEFORE Roo starts,
+				// In the real-world Dev Container scenario, GIT_DIR is set BEFORE Bear starts,
 				// so we need to set it BEFORE creating the checkpoint service.
 
 				// Create a separate git directory to simulate GIT_DIR pointing elsewhere
@@ -974,7 +974,7 @@ describe("worktree path comparison", () => {
 			await fs.mkdir(workspaceDir, { recursive: true })
 			const mainGit = simpleGit(workspaceDir)
 			await mainGit.init()
-			await mainGit.addConfig("user.name", "Roo Code")
+			await mainGit.addConfig("user.name", "BearCode")
 			await mainGit.addConfig("user.email", "support@roocode.com")
 
 			await fs.writeFile(path.join(workspaceDir, "main.txt"), "main content")
@@ -1009,7 +1009,7 @@ describe("worktree path comparison", () => {
 			await fs.mkdir(workspaceDir, { recursive: true })
 			const mainGit = simpleGit(workspaceDir)
 			await mainGit.init()
-			await mainGit.addConfig("user.name", "Roo Code")
+			await mainGit.addConfig("user.name", "BearCode")
 			await mainGit.addConfig("user.email", "support@roocode.com")
 
 			await fs.writeFile(path.join(workspaceDir, "main.txt"), "main content")

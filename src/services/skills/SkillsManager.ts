@@ -4,7 +4,12 @@ import * as vscode from "vscode"
 import matter from "gray-matter"
 
 import type { ClineProvider } from "../../core/webview/ClineProvider"
-import { getGlobalRooDirectory, getGlobalAgentsDirectory, getProjectAgentsDirectoryForCwd } from "../roo-config"
+import {
+	getGlobalRooDirectory,
+	getGlobalAgentsDirectory,
+	getProjectAgentsDirectoryForCwd,
+	getProjectRooDirectoryForCwd,
+} from "../roo-config"
 import { directoryExists, fileExists } from "../roo-config"
 import { SkillMetadata, SkillContent } from "../../shared/skills"
 import { modes, getAllModes } from "../../shared/modes"
@@ -372,7 +377,7 @@ export class SkillsManager {
 			if (!provider?.cwd) {
 				throw new Error(t("skills:errors.no_workspace"))
 			}
-			baseDir = path.join(provider.cwd, ".roo")
+			baseDir = getProjectRooDirectoryForCwd(provider.cwd)
 		}
 
 		// Always use the generic skills directory (mode info stored in frontmatter now)
@@ -481,7 +486,7 @@ Add your skill instructions here.
 			if (!provider?.cwd) {
 				throw new Error(t("skills:errors.no_workspace"))
 			}
-			baseDir = path.join(provider.cwd, ".roo")
+			baseDir = getProjectRooDirectoryForCwd(provider.cwd)
 		}
 
 		// Determine source and destination directories
@@ -575,7 +580,7 @@ Add your skill instructions here.
 		const globalRooDir = getGlobalRooDirectory()
 		const globalAgentsDir = getGlobalAgentsDirectory()
 		const provider = this.providerRef.deref()
-		const projectRooDir = provider?.cwd ? path.join(provider.cwd, ".roo") : null
+		const projectRooDir = provider?.cwd ? getProjectRooDirectoryForCwd(provider.cwd) : null
 		const projectAgentsDir = provider?.cwd ? getProjectAgentsDirectoryForCwd(provider.cwd) : null
 
 		// Get list of modes to check for mode-specific skills
@@ -604,7 +609,7 @@ Add your skill instructions here.
 			}
 		}
 
-		// Global .roo directories (Roo-specific, higher priority than .agents)
+		// Global .roo directories (Bear-specific, higher priority than .agents)
 		dirs.push({ dir: path.join(globalRooDir, "skills"), source: "global" })
 		for (const mode of modesList) {
 			dirs.push({ dir: path.join(globalRooDir, `skills-${mode}`), source: "global", mode })
@@ -657,7 +662,7 @@ Add your skill instructions here.
 		// Watch for changes in skills directories
 		const globalRooDir = getGlobalRooDirectory()
 		const globalAgentsDir = getGlobalAgentsDirectory()
-		const projectRooDir = path.join(provider.cwd, ".roo")
+		const projectRooDir = getProjectRooDirectoryForCwd(provider.cwd)
 		const projectAgentsDir = getProjectAgentsDirectoryForCwd(provider.cwd)
 
 		// Watch global .roo skills directory
