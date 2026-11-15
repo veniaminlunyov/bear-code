@@ -2,16 +2,18 @@
 
 ## Supported Versions
 
-We actively patch only the most recent minor release of Roo Code. Older versions receive fixes at our discretion.
+Security fixes are released for the most recent version of BearCode only.
 
 ## Reporting a Vulnerability
 
-Email security@roocode.com with:
+Please do not open a public issue for security problems. Report them privately via
+[GitHub Security Advisories](https://github.com/veniaminlunyov/bear-code/security/advisories/new) with:
 
 - A short summary of the issue
 - Steps to reproduce or a proof of concept
-- Any logs, stack traces, or screenshots that might help us understand the problem
+- Any logs, stack traces, or screenshots that might help understand the problem
 
-We acknowledge reports within 48 hours and aim to release a fix or mitigation within 30 days. While we work on a resolution, please keep the details private.
+Please keep the details private until a fix or mitigation is released.
 
-Thank you for helping us keep Roo Code users safe.
+BearCode is a fork of [Roo Code](https://github.com/RooCodeInc/Roo-Code). Vulnerabilities that also
+affect upstream Roo Code may additionally be reported to its maintainers.

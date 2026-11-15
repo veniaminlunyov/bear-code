@@ -11,7 +11,7 @@ describe("DEFAULT_HEADERS", () => {
 	})
 
 	it("should have correct HTTP-Referer value", () => {
-		expect(DEFAULT_HEADERS["HTTP-Referer"]).toBe("https://github.com/RooVetGit/Bear-Cline")
+		expect(DEFAULT_HEADERS["HTTP-Referer"]).toBe("https://github.com/veniaminlunyov/bear-code")
 	})
 
 	it("should have correct X-Title value", () => {

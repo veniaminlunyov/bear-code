@@ -16,6 +16,14 @@
 	"author": {
 		"name": "BearCode"
 	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/veniaminlunyov/bear-code"
+	},
+	"homepage": "https://github.com/veniaminlunyov/bear-code",
+	"bugs": {
+		"url": "https://github.com/veniaminlunyov/bear-code/issues"
+	},
 	"categories": [
 		"AI",
 		"Chat",
@@ -406,7 +414,7 @@
 		"format": "prettier --write .",
 		"bundle": "node esbuild.mjs",
 		"vscode:prepublish": "pnpm bundle --production",
-		"vsix": "mkdirp ../bin && vsce package --no-dependencies --allow-missing-repository --out ../bin",
+		"vsix": "mkdirp ../bin && vsce package --no-dependencies --out ../bin",
 		"publish:marketplace": "vsce publish --no-dependencies && ovsx publish --no-dependencies",
 		"watch:bundle": "pnpm bundle --watch",
 		"watch:tsc": "cd .. && tsc --noEmit --watch --project src/tsconfig.json",

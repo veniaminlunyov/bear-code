@@ -1117,7 +1117,8 @@ export const ChatRowContent = ({
 							} else {
 								// Non-HTTP-status-code error message - store full text as errorDetails
 								body = t("chat:apiRequest.errorMessage.unknown")
-								docsURL = "https://github.com/RooCodeInc/Roo-Code/issues/new?template=bug_report.yml"
+								docsURL =
+									"https://github.com/veniaminlunyov/bear-code/issues/new?template=bug_report.yml"
 							}
 						}
 

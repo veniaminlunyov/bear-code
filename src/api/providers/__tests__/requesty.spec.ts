@@ -58,7 +58,7 @@ describe("RequestyHandler", () => {
 			baseURL: "https://router.requesty.ai/v1",
 			apiKey: mockOptions.requestyApiKey,
 			defaultHeaders: {
-				"HTTP-Referer": "https://github.com/RooVetGit/Bear-Cline",
+				"HTTP-Referer": "https://github.com/veniaminlunyov/bear-code",
 				"X-Title": "BearCode",
 				"User-Agent": `BearCode/${Package.version}`,
 			},
@@ -73,7 +73,7 @@ describe("RequestyHandler", () => {
 			baseURL: "https://custom.requesty.ai/v1",
 			apiKey: mockOptions.requestyApiKey,
 			defaultHeaders: {
-				"HTTP-Referer": "https://github.com/RooVetGit/Bear-Cline",
+				"HTTP-Referer": "https://github.com/veniaminlunyov/bear-code",
 				"X-Title": "BearCode",
 				"User-Agent": `BearCode/${Package.version}`,
 			},

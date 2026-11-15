@@ -111,7 +111,7 @@ describe("OpenAiHandler", () => {
 				baseURL: expect.any(String),
 				apiKey: expect.any(String),
 				defaultHeaders: {
-					"HTTP-Referer": "https://github.com/RooVetGit/Bear-Cline",
+					"HTTP-Referer": "https://github.com/veniaminlunyov/bear-code",
 					"X-Title": "BearCode",
 					"User-Agent": `BearCode/${Package.version}`,
 				},

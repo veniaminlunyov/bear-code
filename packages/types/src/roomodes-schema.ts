@@ -50,7 +50,7 @@ export function generateRoomodesJsonSchema(): Record<string, unknown> {
 		target: "jsonSchema7",
 	}) as Record<string, unknown>
 
-	jsonSchema["$id"] = "https://github.com/RooCodeInc/Roo-Code/blob/main/schemas/roomodes.json"
+	jsonSchema["$id"] = "https://github.com/veniaminlunyov/bear-code/blob/main/schemas/roomodes.json"
 	jsonSchema["title"] = "BearCode Custom Modes"
 	jsonSchema["description"] = "Schema for .bearmodes configuration files used by BearCode to define custom modes."
 

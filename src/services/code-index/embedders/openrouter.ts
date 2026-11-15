@@ -74,7 +74,7 @@ export class OpenRouterEmbedder implements IEmbedder {
 				baseURL: this.baseUrl,
 				apiKey: apiKey,
 				defaultHeaders: {
-					"HTTP-Referer": "https://github.com/RooCodeInc/Roo-Code",
+					"HTTP-Referer": "https://github.com/veniaminlunyov/bear-code",
 					"X-Title": "BearCode",
 				},
 			})
