@@ -8,7 +8,7 @@ import type { BearCodeAPI } from "@bear-code/types"
 import { waitFor } from "./utils"
 
 export async function run() {
-	const extension = vscode.extensions.getExtension<BearCodeAPI>("bearcode.bear-code")
+	const extension = vscode.extensions.getExtension<BearCodeAPI>("benjy-the-bear.bear-code")
 
 	if (!extension) {
 		throw new Error("Extension not found")

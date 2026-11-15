@@ -280,7 +280,7 @@ export function createVSCodeAPIMock(
 			all: [],
 			getExtension: (extensionId: string) => {
 				// Mock the extension object with extensionUri for theme loading
-				if (extensionId === "bearcode.bear-code") {
+				if (extensionId === "benjy-the-bear.bear-code") {
 					return {
 						id: extensionId,
 						extensionUri: context.extensionUri,

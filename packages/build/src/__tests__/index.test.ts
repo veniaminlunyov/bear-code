@@ -9,7 +9,7 @@ describe("generatePackageJson", () => {
 				name: "bear-code",
 				displayName: "%extension.displayName%",
 				description: "%extension.description%",
-				publisher: "bearcode",
+				publisher: "benjy-the-bear",
 				version: "3.17.2",
 				icon: "assets/icons/icon.png",
 				contributes: {
@@ -110,7 +110,7 @@ describe("generatePackageJson", () => {
 			overrideJson: {
 				name: "bear-code-nightly",
 				displayName: "BearCode Nightly",
-				publisher: "bearcode",
+				publisher: "benjy-the-bear",
 				version: "0.0.1",
 				icon: "assets/icons/icon-nightly.png",
 				scripts: {},
@@ -122,7 +122,7 @@ describe("generatePackageJson", () => {
 			name: "bear-code-nightly",
 			displayName: "BearCode Nightly",
 			description: "%extension.description%",
-			publisher: "bearcode",
+			publisher: "benjy-the-bear",
 			version: "0.0.1",
 			icon: "assets/icons/icon-nightly.png",
 			contributes: {

@@ -5,7 +5,7 @@ import * as vscode from "vscode"
 vi.mock("../../../shared/package", () => ({
 	Package: {
 		name: "bear-code",
-		publisher: "bearcode",
+		publisher: "benjy-the-bear",
 		version: "1.0.0",
 		outputChannel: "BearCode",
 	},

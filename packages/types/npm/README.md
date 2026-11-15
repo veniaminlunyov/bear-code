@@ -10,7 +10,7 @@ To use this API in your extension:
 ```typescript
 import { BearCodeAPI } from "@bear-code/types"
 
-const extension = vscode.extensions.getExtension<BearCodeAPI>("bearcode.bear-code")
+const extension = vscode.extensions.getExtension<BearCodeAPI>("benjy-the-bear.bear-code")
 
 if (!extension?.isActive) {
 	throw new Error("Extension is not activated")
@@ -38,10 +38,10 @@ await api.pressPrimaryButton()
 await api.pressSecondaryButton()
 ```
 
-**NOTE:** To ensure that the `bearcode.bear-code` extension is activated before your extension, add it to the `extensionDependencies` in your `package.json`:
+**NOTE:** To ensure that the `benjy-the-bear.bear-code` extension is activated before your extension, add it to the `extensionDependencies` in your `package.json`:
 
 ```json
-"extensionDependencies": ["bearcode.bear-code"]
+"extensionDependencies": ["benjy-the-bear.bear-code"]
 ```
 
 For detailed information on the available methods and their usage, refer to the `bear-code.d.ts` file.

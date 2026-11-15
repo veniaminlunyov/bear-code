@@ -12,5 +12,5 @@ export default defineConfig({
 		ui: "tdd",
 		timeout: 60000,
 	},
-	launchArgs: ["--enable-proposed-api=bearcode.bear-code", "--disable-extensions"],
+	launchArgs: ["--enable-proposed-api=benjy-the-bear.bear-code", "--disable-extensions"],
 })

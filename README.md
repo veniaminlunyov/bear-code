@@ -38,7 +38,7 @@ code --install-extension bear-code-0.1.0.vsix
 
 To build the VSIX yourself, see [Building](#building).
 
-BearCode has its own extension ID (`bearcode.bear-code`) and can be installed side by side with Roo Code.
+BearCode has its own extension ID (`benjy-the-bear.bear-code`) and can be installed side by side with Roo Code.
 
 ### Migrating from Roo Code
 
