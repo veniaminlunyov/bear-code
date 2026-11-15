@@ -1,6 +1,28 @@
 {
 	"title": "Mode",
 	"done": "Selesai",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ Arsitek",
+			"description": "Rencanakan dan rancang sebelum implementasi"
+		},
+		"code": {
+			"name": "💻 Kode",
+			"description": "Tulis, ubah, dan refaktor kode"
+		},
+		"ask": {
+			"name": "❓ Tanya",
+			"description": "Dapatkan jawaban dan penjelasan"
+		},
+		"debug": {
+			"name": "🪲 Debug",
+			"description": "Diagnosis dan perbaiki masalah perangkat lunak"
+		},
+		"orchestrator": {
+			"name": "🪃 Orkestrator",
+			"description": "Koordinasikan tugas di berbagai mode"
+		}
+	},
 	"modes": {
 		"title": "Mode",
 		"createNewMode": "Buat mode baru",

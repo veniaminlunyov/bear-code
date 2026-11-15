@@ -10,6 +10,7 @@ import { vscode } from "@/utils/vscode"
 import { cn } from "@/lib/utils"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { useAppTranslation } from "@/i18n/TranslationContext"
+import { localizeModes, resolveModeDescription } from "@/i18n/modeTranslations"
 import { useBearPortal } from "@/components/ui/hooks/useBearPortal"
 import { Popover, PopoverContent, PopoverTrigger, StandardTooltip } from "@/components/ui"
 
@@ -59,14 +60,16 @@ export const ModeSelector = ({
 	}, [hasOpenedModeSelector, setHasOpenedModeSelector])
 
 	// Get all modes including custom modes and merge custom prompt descriptions.
+	// The localized description is used as the base so that built-in modes show
+	// their translated text; a user-provided override still takes precedence.
 	const modes = React.useMemo(() => {
-		const allModes = getAllModes(customModes)
+		const allModes = localizeModes(getAllModes(customModes), t)
 
 		return allModes.map((mode) => ({
 			...mode,
-			description: customModePrompts?.[mode.slug]?.description ?? mode.description,
+			description: resolveModeDescription(mode, customModePrompts?.[mode.slug]?.description, t),
 		}))
-	}, [customModes, customModePrompts])
+	}, [customModes, customModePrompts, t])
 
 	// Find the selected mode, falling back to default if current mode doesn't exist (e.g., after workspace switch)
 	const selectedMode = React.useMemo(() => {

@@ -1,6 +1,28 @@
 {
 	"title": "모드",
 	"done": "완료",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ 아키텍트",
+			"description": "구현 전에 계획하고 설계"
+		},
+		"code": {
+			"name": "💻 코드",
+			"description": "코드 작성, 수정 및 리팩터링"
+		},
+		"ask": {
+			"name": "❓ 질문",
+			"description": "답변과 설명 얻기"
+		},
+		"debug": {
+			"name": "🪲 디버그",
+			"description": "소프트웨어 문제 진단 및 수정"
+		},
+		"orchestrator": {
+			"name": "🪃 오케스트레이터",
+			"description": "여러 모드에 걸쳐 작업 조정"
+		}
+	},
 	"modes": {
 		"title": "모드",
 		"createNewMode": "새 모드 만들기",

@@ -1,6 +1,28 @@
 {
 	"title": "Tryby",
 	"done": "Gotowe",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ Architekt",
+			"description": "Planuj i projektuj przed wdrożeniem"
+		},
+		"code": {
+			"name": "💻 Kod",
+			"description": "Pisz, modyfikuj i refaktoryzuj kod"
+		},
+		"ask": {
+			"name": "❓ Pytanie",
+			"description": "Uzyskaj odpowiedzi i wyjaśnienia"
+		},
+		"debug": {
+			"name": "🪲 Debugowanie",
+			"description": "Diagnozuj i napraw problemy z oprogramowaniem"
+		},
+		"orchestrator": {
+			"name": "🪃 Orkiestrator",
+			"description": "Koordynuj zadania między wieloma trybami"
+		}
+	},
 	"modes": {
 		"title": "Tryby",
 		"createNewMode": "Utwórz nowy tryb",

@@ -1,0 +1,131 @@
+verification:
+  feature: mode name/description localization (webview UI)
+  doc_source: user report "Не все режимы переведены и имеют описание на русском языке, например - Docs Extractor и его описание"
+  verified_at: 2026-11-15T20:21:45Z
+  summary:
+    total_claims: 4
+    accurate: 3
+    inaccurate: 0
+    outdated: 0
+    missing_context: 1
+    unverifiable: 0
+
+claims:
+  - id: claim-1
+    quote: "Не все режимы переведены ... на русский язык"
+    category: ui
+    status: ACCURATE
+    evidence:
+      code_file: webview-ui/src/i18n/modeTranslations.ts:30
+      actual_behavior: null
+      code_quote: "if (!isBuiltinModeSlug(mode.slug)) { return mode.name }"
+
+  - id: claim-2
+    quote: "например - Docs Extractor и его описание"
+    category: ui
+    status: ACCURATE
+    evidence:
+      code_file: .bearmodes:76
+      actual_behavior: null
+      code_quote: "- slug: docs-extractor\n    name: 📚 Docs Extractor\n    description: Extract feature details or verify documentation accuracy."
+
+  - id: claim-3
+    quote: "Docs Extractor ... [не имеет перевода]"
+    category: configuration
+    status: ACCURATE
+    evidence:
+      code_file: packages/types/src/mode.ts:168
+      actual_behavior: null
+      code_quote: "DEFAULT_MODES = [ architect, code, ask, debug, orchestrator ]  // docs-extractor отсутствует"
+
+  - id: claim-4
+    quote: "Не все режимы переведены"
+    category: ui
+    status: MISSING_CONTEXT
+    evidence:
+      code_file: webview-ui/src/i18n/modeTranslations.ts:8
+      actual_behavior: "Переводятся только 5 встроенных режимов из DEFAULT_MODES (architect, code, ask, debug, orchestrator). 7 проектных режимов из .bearmodes (translate, issue-fixer, pr-fixer, merge-resolver, docs-extractor, issue-investigator, issue-writer) не переводятся по дизайну — для них нет ключей prompts:builtinModes.<slug> ни в одной из 18 локалей. Дополнительно SkillsSettings.tsx:346 и CreateSkillDialog.tsx:92 рендерят mode.name без локализации."
+      code_quote: "export const BUILTIN_MODE_SLUGS = DEFAULT_MODES.map((mode) => mode.slug)"
+
+facts:
+  builtin_modes_translated:
+    - slug: architect
+      ru_name: "🏗️ Архитектор"
+      ru_description: "Планирование и проектирование до реализации"
+      source: webview-ui/src/i18n/locales/ru/prompts.json:5
+    - slug: code
+      ru_name: "💻 Код"
+      ru_description: "Пиши, изменяй и рефактори код"
+      source: webview-ui/src/i18n/locales/ru/prompts.json:9
+    - slug: ask
+      ru_name: "❓ Вопрос"
+      ru_description: "Получай ответы и объяснения"
+      source: webview-ui/src/i18n/locales/ru/prompts.json:13
+    - slug: debug
+      ru_name: "🪲 Отладка"
+      ru_description: "Диагностируй и исправляй проблемы в коде"
+      source: webview-ui/src/i18n/locales/ru/prompts.json:17
+    - slug: orchestrator
+      ru_name: "🪃 Оркестратор"
+      ru_description: "Координируй задачи между режимами"
+      source: webview-ui/src/i18n/locales/ru/prompts.json:21
+
+  project_modes_untranslated:
+    - slug: translate
+      name: "🌐 Translate"
+      description: "Translate and manage localization files."
+      source: .bearmodes:2
+    - slug: issue-fixer
+      name: "🔧 Issue Fixer"
+      description: "Fix GitHub issues and implement features."
+      source: .bearmodes:14
+    - slug: pr-fixer
+      name: "🛠️ PR Fixer"
+      description: "Fix pull requests."
+      source: .bearmodes:34
+    - slug: merge-resolver
+      name: "🔀 Merge Resolver"
+      description: "Resolve merge conflicts intelligently using git history."
+      source: .bearmodes:44
+    - slug: docs-extractor
+      name: "📚 Docs Extractor"
+      description: "Extract feature details or verify documentation accuracy."
+      source: .bearmodes:76
+    - slug: issue-investigator
+      name: "🕵️ Issue Investigator"
+      description: "Investigates GitHub issues"
+      source: .bearmodes:99
+    - slug: issue-writer
+      name: "📝 Issue Writer"
+      description: "Create well-structured GitHub issues."
+      source: .bearmodes:109
+
+  localization_mechanism:
+    - fact: "Локализация выполняется только для slug из DEFAULT_MODES"
+      source: webview-ui/src/i18n/modeTranslations.ts:8
+    - fact: "Ключ имени: prompts:builtinModes.<slug>.name"
+      source: webview-ui/src/i18n/modeTranslations.ts:34
+    - fact: "Ключ описания: prompts:builtinModes.<slug>.description"
+      source: webview-ui/src/i18n/modeTranslations.ts:55
+    - fact: "Fallback на исходное имя при отсутствии перевода"
+      source: webview-ui/src/i18n/modeTranslations.ts:37
+    - fact: "Кастомные режимы возвращаются без изменений"
+      source: webview-ui/src/i18n/modeTranslations.ts:30
+
+  consumers:
+    - file: webview-ui/src/components/chat/ModeSelector.tsx:66
+      usage: "localizeModes(getAllModes(customModes), t)"
+    - file: webview-ui/src/components/modes/ModesView.tsx:87
+      usage: "localizeModes(getAllModes(customModes), t)"
+    - file: webview-ui/src/components/chat/ChatTextArea.tsx:257
+      usage: "localizeModes(getAllModes(customModes), t)"
+    - file: webview-ui/src/components/settings/SkillsSettings.tsx:56
+      usage: "getAllModes(customModes).map((m) => ({ slug: m.slug, name: m.name })) — без локализации"
+    - file: webview-ui/src/components/settings/CreateSkillDialog.tsx:92
+      usage: "getAllModes(customModes).map((m) => ({ slug: m.slug, name: m.name })) — без локализации"
+
+  locale_coverage:
+    - fact: "Все 18 локалей содержат блок builtinModes только для 5 встроенных режимов"
+      source: webview-ui/src/i18n/locales/*/prompts.json
+    - fact: "Ключей для 7 проектных режимов нет ни в одной локали"
+      source: webview-ui/src/i18n/locales/*/prompts.json

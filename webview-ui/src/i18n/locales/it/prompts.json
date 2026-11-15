@@ -1,6 +1,28 @@
 {
 	"title": "Modi",
 	"done": "Fatto",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ Architetto",
+			"description": "Pianifica e progetta prima dell'implementazione"
+		},
+		"code": {
+			"name": "💻 Codice",
+			"description": "Scrivi, modifica e rifattorizza il codice"
+		},
+		"ask": {
+			"name": "❓ Domanda",
+			"description": "Ottieni risposte e spiegazioni"
+		},
+		"debug": {
+			"name": "🪲 Debug",
+			"description": "Diagnostica e risolvi i problemi del software"
+		},
+		"orchestrator": {
+			"name": "🪃 Orchestratore",
+			"description": "Coordina le attività tra più modalità"
+		}
+	},
 	"modes": {
 		"title": "Modalità",
 		"createNewMode": "Crea nuova modalità",

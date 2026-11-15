@@ -1,6 +1,28 @@
 {
 	"title": "Modes",
 	"done": "Terminé",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ Architecte",
+			"description": "Planifie et conçoit avant l'implémentation"
+		},
+		"code": {
+			"name": "💻 Code",
+			"description": "Écris, modifie et refactorise du code"
+		},
+		"ask": {
+			"name": "❓ Question",
+			"description": "Obtiens des réponses et des explications"
+		},
+		"debug": {
+			"name": "🪲 Débogage",
+			"description": "Diagnostique et corrige les problèmes logiciels"
+		},
+		"orchestrator": {
+			"name": "🪃 Orchestrateur",
+			"description": "Coordonne les tâches entre plusieurs modes"
+		}
+	},
 	"modes": {
 		"title": "Modes",
 		"createNewMode": "Créer un nouveau mode",

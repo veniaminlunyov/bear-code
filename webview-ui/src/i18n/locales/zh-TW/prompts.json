@@ -1,6 +1,28 @@
 {
 	"title": "模式",
 	"done": "完成",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ 架構師",
+			"description": "在實作之前進行規劃與設計"
+		},
+		"code": {
+			"name": "💻 程式碼",
+			"description": "撰寫、修改與重構程式碼"
+		},
+		"ask": {
+			"name": "❓ 提問",
+			"description": "取得答案與說明"
+		},
+		"debug": {
+			"name": "🪲 除錯",
+			"description": "診斷並修正軟體問題"
+		},
+		"orchestrator": {
+			"name": "🪃 協調器",
+			"description": "在多個模式之間協調任務"
+		}
+	},
 	"modes": {
 		"title": "模式",
 		"createNewMode": "建立新模式",

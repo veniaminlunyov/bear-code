@@ -1,6 +1,28 @@
 {
 	"title": "Modlar",
 	"done": "Tamamlandı",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ Mimar",
+			"description": "Uygulamadan önce planla ve tasarla"
+		},
+		"code": {
+			"name": "💻 Kod",
+			"description": "Kod yaz, değiştir ve yeniden düzenle"
+		},
+		"ask": {
+			"name": "❓ Soru",
+			"description": "Yanıtlar ve açıklamalar al"
+		},
+		"debug": {
+			"name": "🪲 Hata Ayıklama",
+			"description": "Yazılım sorunlarını teşhis et ve düzelt"
+		},
+		"orchestrator": {
+			"name": "🪃 Orkestratör",
+			"description": "Görevleri birden fazla mod arasında koordine et"
+		}
+	},
 	"modes": {
 		"title": "Modlar",
 		"createNewMode": "Yeni mod oluştur",

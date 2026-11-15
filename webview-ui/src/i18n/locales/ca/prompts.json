@@ -1,6 +1,28 @@
 {
 	"title": "Modes",
 	"done": "Fet",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ Arquitecte",
+			"description": "Planifica i dissenya abans d'implementar"
+		},
+		"code": {
+			"name": "💻 Codi",
+			"description": "Escriu, modifica i refactoritza codi"
+		},
+		"ask": {
+			"name": "❓ Pregunta",
+			"description": "Obtén respostes i explicacions"
+		},
+		"debug": {
+			"name": "🪲 Depuració",
+			"description": "Diagnostica i corregeix problemes de programari"
+		},
+		"orchestrator": {
+			"name": "🪃 Orquestrador",
+			"description": "Coordina tasques entre diversos modes"
+		}
+	},
 	"modes": {
 		"title": "Modes",
 		"createNewMode": "Crear nou mode",

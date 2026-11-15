@@ -12,6 +12,7 @@ import { Mode, getAllModes } from "@bear/modes"
 import { vscode } from "@src/utils/vscode"
 import { useExtensionState } from "@src/context/ExtensionStateContext"
 import { useAppTranslation } from "@src/i18n/TranslationContext"
+import { localizeModes } from "@src/i18n/modeTranslations"
 import {
 	ContextMenuOptionType,
 	getContextMenuOptions,
@@ -253,7 +254,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			}
 		}, [inputValue, setInputValue, t])
 
-		const allModes = useMemo(() => getAllModes(customModes), [customModes])
+		const allModes = useMemo(() => localizeModes(getAllModes(customModes), t), [customModes, t])
 
 		// Memoized check for whether the input has content (text or images)
 		const hasInputContent = useMemo(() => {

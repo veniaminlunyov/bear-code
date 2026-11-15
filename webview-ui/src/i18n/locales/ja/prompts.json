@@ -1,6 +1,28 @@
 {
 	"title": "モード",
 	"done": "完了",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ アーキテクト",
+			"description": "実装前に計画と設計を行う"
+		},
+		"code": {
+			"name": "💻 コード",
+			"description": "コードを書く、変更する、リファクタリングする"
+		},
+		"ask": {
+			"name": "❓ 質問",
+			"description": "回答と説明を得る"
+		},
+		"debug": {
+			"name": "🪲 デバッグ",
+			"description": "ソフトウェアの問題を診断して修正する"
+		},
+		"orchestrator": {
+			"name": "🪃 オーケストレーター",
+			"description": "複数のモードにまたがるタスクを調整する"
+		}
+	},
 	"modes": {
 		"title": "モード",
 		"createNewMode": "新しいモードを作成",
