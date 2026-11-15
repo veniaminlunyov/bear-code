@@ -69,6 +69,19 @@ pnpm test          # unit tests
 
 Debugging: open the folder in VS Code and start the "Run Extension" launch configuration (F5).
 
+## Releases
+
+Releases are managed with [changesets](https://github.com/changesets/changesets):
+
+1. Add a changeset to your pull request: `pnpm changeset` (choose patch/minor/major and describe the change).
+2. When a pull request with changesets is merged into `main`, the "Changeset Release" workflow opens a
+   "Changeset version bump" pull request that bumps the version and updates `CHANGELOG.md`.
+3. Merging the version bump pull request triggers the "Publish Extension" workflow: it publishes the extension
+   to the VS Code Marketplace and Open VSX, creates the `v<version>` tag, and creates a
+   [GitHub Release](https://github.com/veniaminlunyov/bear-code/releases) with the VSIX attached.
+
+Publishing requires the `VSCE_PAT` and `OVSX_PAT` repository secrets.
+
 ## License
 
 Apache License 2.0 — see the `LICENSE` and `NOTICE` files shipped with the extension.
