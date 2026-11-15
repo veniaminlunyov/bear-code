@@ -1,0 +1,25 @@
+# Dependabot version updates
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+    - package-ecosystem: "npm"
+      directory: "/"
+      schedule:
+          interval: "weekly"
+      open-pull-requests-limit: 5
+      groups:
+          # One PR per week for all minor/patch updates instead of one PR per package
+          minor-and-patch:
+              update-types: ["minor", "patch"]
+      ignore:
+          # vsce is pinned on purpose (packaging must stay reproducible)
+          - dependency-name: "@vscode/vsce"
+
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      schedule:
+          interval: "monthly"
+      groups:
+          github-actions:
+              patterns: ["*"]
