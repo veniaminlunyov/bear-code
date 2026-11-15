@@ -600,7 +600,7 @@
 			"label": "Límit de context de fitxers de l'espai de treball",
 			"description": "Nombre màxim de fitxers a incloure als detalls del directori de treball actual. Valors més alts proporcionen més context però augmenten l'ús de token."
 		},
-		"rooignore": {
+		"bearignore": {
 			"label": "Mostrar fitxers .bearignore en llistes i cerques",
 			"description": "Quan està habilitat, els fitxers que coincideixen amb els patrons a .bearignore es mostraran en llistes amb un símbol de cadenat. Quan està deshabilitat, aquests fitxers s'ocultaran completament de les llistes de fitxers i cerques."
 		},

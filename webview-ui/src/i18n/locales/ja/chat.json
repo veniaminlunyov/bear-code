@@ -93,7 +93,7 @@
 	"about": "BearCodeは、エディタに常駐するAI開発チームです。",
 	"docs": "詳細については、<DocsLink>ドキュメント</DocsLink>をご確認ください。",
 	"onboarding": "このワークスペースのタスクリストは空です。",
-	"rooTips": {
+	"bearTips": {
 		"customizableModes": {
 			"title": "カスタマイズ可能なモード",
 			"description": "タスクに集中し、成果を出す専門のペルソナ。"
@@ -236,7 +236,7 @@
 	"response": "応答",
 	"arguments": "引数",
 	"text": {
-		"rooSaid": "Bearの発言"
+		"bearSaid": "Bearの発言"
 	},
 	"feedback": {
 		"youSaid": "あなたの発言"
@@ -330,26 +330,7 @@
 	},
 	"announcement": {
 		"title": "BearCode {{version}} リリース",
-		"support": "<githubLink>GitHub</githubLink>でスターを付けてBearCodeを応援してください。",
-		"finalRelease": {
-			"title": "BearCode 最後のリリース",
-			"intro": "これは Roo Code の最後のリリースです。<announcementLink>数週間前にお知らせしたとおり</announcementLink>、私たちは今後、ソフトウェア開発の未来だと考えているクラウドエージェントプラットフォーム <roomoteLink>Roomote</roomoteLink> に注力することにしました。この約1年間のご支援、本当にありがとうございました。",
-			"continuity": "この拡張機能は今後も無期限に動作し続けるはずですが、バグ修正、新機能、モデル更新は提供されません。",
-			"alternatives": "拡張機能を使いたい場合は、コミュニティによる Roo Code のフォークである <zooCodeLink>ZooCode</zooCodeLink> と、Roo Code の出発点である <clineLink>Cline</clineLink> をぜひ確認してみてください。",
-			"signoff": "Happy coding!"
-		},
-		"release": {
-			"heading": "新機能:",
-			"gpt55": "OpenAI Codex 経由の GPT-5.5: OpenAI Codex プロバイダーで GPT-5.5 のサポートを追加しました。BearCode から最新モデルを直接利用できます。",
-			"claudeOpus47": "Vertex AI 上の Claude Opus 4.7: Anthropic の最新フラッグシップ推論モデルとして、Vertex AI プロバイダーに Claude Opus 4.7 を追加しました。",
-			"checkpointNav": "以前のチェックポイントへのナビゲーション: チャットから以前のチェックポイントへ戻るためのコントロールを追加しました。i18n にも完全対応しています。"
-		},
-		"cloudAgents": {
-			"heading": "クラウドの新機能:",
-			"specialized": "<bold>Explainer</bold>、<bold>Planner</bold>、<bold>Coder</bold> の 3 つの専門クラウドエージェントを紹介します。ワークフローを強化します。",
-			"description": "エージェントはクラウドで連携して動作し、Web または Slack からトリガーできます。",
-			"tryButton": "クラウドエージェントを試す"
-		}
+		"support": "<githubLink>GitHub</githubLink>でスターを付けてBearCodeを応援してください。"
 	},
 	"costs": {
 		"totalWithSubtasks": "合計コスト（サブタスク含む）: ${{cost}}",

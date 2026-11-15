@@ -3,11 +3,11 @@ import * as path from "path"
 import * as os from "os"
 import * as fs from "fs/promises"
 import {
-	getRooDirectoriesForCwd,
-	getGlobalRooDirectory,
-	getProjectRooDirectoryForCwd,
+	getBearDirectoriesForCwd,
+	getGlobalBearDirectory,
+	getProjectBearDirectoryForCwd,
 	resolveWorkspaceConfigPath,
-} from "../../services/roo-config/index.js"
+} from "../../services/bear-config/index.js"
 import pWaitFor from "p-wait-for"
 import * as vscode from "vscode"
 
@@ -19,12 +19,12 @@ import {
 	type Command as SlashCommand,
 	type WebviewMessage,
 	type EditQueuedMessagePayload,
-	RooCodeSettings,
+	BearCodeSettings,
 	ExperimentId,
 	checkoutDiffPayloadSchema,
 	checkoutRestorePayloadSchema,
-} from "@roo-code/types"
-import { customToolRegistry } from "@roo-code/core"
+} from "@bear-code/types"
+import { customToolRegistry } from "@bear-code/core"
 
 import { type ApiMessage } from "../task-persistence/apiMessages"
 import { saveTaskMessages } from "../task-persistence"
@@ -62,7 +62,7 @@ import { getOpenAiModels } from "../../api/providers/openai"
 import { getVsCodeLmModels } from "../../api/providers/vscode-lm"
 import { openMention } from "../mentions"
 import { resolveImageMentions } from "../mentions/resolveImageMentions"
-import { RooIgnoreController } from "../ignore/RooIgnoreController"
+import { BearIgnoreController } from "../ignore/BearIgnoreController"
 import { getWorkspacePath } from "../../utils/path"
 import { isPathOutsideWorkspace } from "../../utils/pathUtils"
 import { Mode, defaultModeSlug } from "../../shared/modes"
@@ -177,7 +177,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			text,
 			images,
 			cwd: getCurrentCwd(),
-			rooIgnoreController: currentTask?.rooIgnoreController,
+			bearIgnoreController: currentTask?.bearIgnoreController,
 			maxImageFileSize: state.maxImageFileSize,
 			maxTotalImageSize: state.maxTotalImageSize,
 		})
@@ -730,7 +730,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 						}
 					}
 
-					await provider.contextProxy.setValue(key as keyof RooCodeSettings, newValue)
+					await provider.contextProxy.setValue(key as keyof BearCodeSettings, newValue)
 				}
 
 				await provider.postStateToWebview()
@@ -1267,11 +1267,11 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			}
 
 			const workspaceFolder = getCurrentCwd()
-			const rooDir = getProjectRooDirectoryForCwd(workspaceFolder)
-			const mcpPath = path.join(rooDir, "mcp.json")
+			const bearDir = getProjectBearDirectoryForCwd(workspaceFolder)
+			const mcpPath = path.join(bearDir, "mcp.json")
 
 			try {
-				await fs.mkdir(rooDir, { recursive: true })
+				await fs.mkdir(bearDir, { recursive: true })
 				const exists = await fileExistsAtPath(mcpPath)
 
 				if (!exists) {
@@ -1630,26 +1630,26 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 					20, // Use default limit, as filtering is now done in the backend
 				)
 
-				// Get the RooIgnoreController from the current task, or create a new one
+				// Get the BearIgnoreController from the current task, or create a new one
 				const currentTask = provider.getCurrentTask()
-				let rooIgnoreController = currentTask?.rooIgnoreController
-				let tempController: RooIgnoreController | undefined
+				let bearIgnoreController = currentTask?.bearIgnoreController
+				let tempController: BearIgnoreController | undefined
 
 				// If no current task or no controller, create a temporary one
-				if (!rooIgnoreController) {
-					tempController = new RooIgnoreController(workspacePath)
+				if (!bearIgnoreController) {
+					tempController = new BearIgnoreController(workspacePath)
 					await tempController.initialize()
-					rooIgnoreController = tempController
+					bearIgnoreController = tempController
 				}
 
 				try {
-					// Get showRooIgnoredFiles setting from state
-					const { showRooIgnoredFiles = false } = (await provider.getState()) ?? {}
+					// Get showBearIgnoredFiles setting from state
+					const { showBearIgnoredFiles = false } = (await provider.getState()) ?? {}
 
-					// Filter results using RooIgnoreController if showRooIgnoredFiles is false
+					// Filter results using BearIgnoreController if showBearIgnoredFiles is false
 					let filteredResults = results
-					if (!showRooIgnoredFiles && rooIgnoreController) {
-						const allowedPaths = rooIgnoreController.filterPaths(results.map((r) => r.path))
+					if (!showBearIgnoredFiles && bearIgnoreController) {
+						const allowedPaths = bearIgnoreController.filterPaths(results.map((r) => r.path))
 						filteredResults = results.filter((r) => allowedPaths.includes(r.path))
 					}
 
@@ -1686,7 +1686,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 		}
 		case "refreshCustomTools": {
 			try {
-				const toolDirs = getRooDirectoriesForCwd(getCurrentCwd()).map((dir) => path.join(dir, "tools"))
+				const toolDirs = getBearDirectoriesForCwd(getCurrentCwd()).map((dir) => path.join(dir, "tools"))
 				await customToolRegistry.loadFromDirectories(toolDirs)
 
 				await provider.postMessageToWebview({
@@ -1904,15 +1904,15 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 					const workspacePath = getWorkspacePath()
 					if (workspacePath) {
 						rulesFolderPath = path.join(
-							getProjectRooDirectoryForCwd(workspacePath),
+							getProjectBearDirectoryForCwd(workspacePath),
 							`rules-${message.slug}`,
 						)
 					} else {
-						rulesFolderPath = path.join(getProjectRooDirectoryForCwd(""), `rules-${message.slug}`)
+						rulesFolderPath = path.join(getProjectBearDirectoryForCwd(""), `rules-${message.slug}`)
 					}
 				} else {
 					// Global scope - use the global config directory
-					rulesFolderPath = path.join(getGlobalRooDirectory(), `rules-${message.slug}`)
+					rulesFolderPath = path.join(getGlobalBearDirectory(), `rules-${message.slug}`)
 				}
 
 				// Check if the rules folder exists
@@ -2662,7 +2662,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 				// Determine the commands directory based on source
 				let commandsDir: string
 				if (source === "global") {
-					const globalConfigDir = getGlobalRooDirectory()
+					const globalConfigDir = getGlobalBearDirectory()
 					commandsDir = path.join(globalConfigDir, "commands")
 				} else {
 					if (!vscode.workspace.workspaceFolders?.length) {
@@ -2675,7 +2675,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 						vscode.window.showErrorMessage(t("common:errors.no_workspace_for_project_command"))
 						break
 					}
-					commandsDir = path.join(getProjectRooDirectoryForCwd(workspaceRoot), "commands")
+					commandsDir = path.join(getProjectBearDirectoryForCwd(workspaceRoot), "commands")
 				}
 
 				// Ensure the commands directory exists
@@ -2842,7 +2842,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 				try {
 					const tmpDir = os.tmpdir()
 					const timestamp = Date.now()
-					const tempFileName = `roo-preview-${timestamp}.md`
+					const tempFileName = `bear-preview-${timestamp}.md`
 					const tempFilePath = path.join(tmpDir, tempFileName)
 
 					await fs.writeFile(tempFilePath, message.text, "utf8")
@@ -2930,7 +2930,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 				// Create a temporary file
 				const tmpDir = os.tmpdir()
 				const timestamp = Date.now()
-				const tempFileName = `roo-debug-${message.type === "openDebugApiHistory" ? "api" : "ui"}-${currentTask.taskId.slice(0, 8)}-${timestamp}.json`
+				const tempFileName = `bear-debug-${message.type === "openDebugApiHistory" ? "api" : "ui"}-${currentTask.taskId.slice(0, 8)}-${timestamp}.json`
 				const tempFilePath = path.join(tmpDir, tempFileName)
 
 				await fs.writeFile(tempFilePath, prettifiedContent, "utf8")

@@ -35,7 +35,7 @@ import {
 	type ModelInfo,
 	type ClineApiReqCancelReason,
 	type ClineApiReqInfo,
-	RooCodeEventName,
+	BearCodeEventName,
 	TaskStatus,
 	TodoItem,
 	getApiProtocol,
@@ -51,7 +51,7 @@ import {
 	MIN_CHECKPOINT_TIMEOUT_SECONDS,
 	MAX_MCP_TOOLS_THRESHOLD,
 	countEnabledMcpTools,
-} from "@roo-code/types"
+} from "@bear-code/types"
 
 // api
 import { ApiHandler, ApiHandlerCreateMessageMetadata, buildApiHandler } from "../../api"
@@ -77,7 +77,7 @@ import { RepoPerTaskCheckpointService } from "../../services/checkpoints"
 // integrations
 import { DiffViewProvider } from "../../integrations/editor/DiffViewProvider"
 import { findToolName } from "../../integrations/misc/export-markdown"
-import { RooTerminalProcess } from "../../integrations/terminal/types"
+import { BearTerminalProcess } from "../../integrations/terminal/types"
 import { TerminalRegistry } from "../../integrations/terminal/TerminalRegistry"
 import { OutputInterceptor } from "../../integrations/terminal/OutputInterceptor"
 
@@ -96,8 +96,8 @@ import { buildNativeToolsArrayWithRestrictions } from "./build-tools"
 import { ToolRepetitionDetector } from "../tools/ToolRepetitionDetector"
 import { restoreTodoListForTask } from "../tools/UpdateTodoListTool"
 import { FileContextTracker } from "../context-tracking/FileContextTracker"
-import { RooIgnoreController } from "../ignore/RooIgnoreController"
-import { RooProtectedController } from "../protect/RooProtectedController"
+import { BearIgnoreController } from "../ignore/BearIgnoreController"
+import { BearProtectedController } from "../protect/BearProtectedController"
 import { type AssistantMessageContent, presentAssistantMessage } from "../assistant-message"
 import { NativeToolCallParser } from "../assistant-message/NativeToolCallParser"
 import { manageContext, willManageContext } from "../context-management"
@@ -291,10 +291,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	toolRepetitionDetector: ToolRepetitionDetector
-	rooIgnoreController?: RooIgnoreController
-	rooProtectedController?: RooProtectedController
+	bearIgnoreController?: BearIgnoreController
+	bearProtectedController?: BearProtectedController
 	fileContextTracker: FileContextTracker
-	terminalProcess?: RooTerminalProcess
+	terminalProcess?: BearTerminalProcess
 
 	// Editing
 	diffViewProvider: DiffViewProvider
@@ -469,12 +469,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.instanceId = crypto.randomUUID().slice(0, 8)
 		this.taskNumber = -1
 
-		this.rooIgnoreController = new RooIgnoreController(this.cwd)
-		this.rooProtectedController = new RooProtectedController(this.cwd)
+		this.bearIgnoreController = new BearIgnoreController(this.cwd)
+		this.bearProtectedController = new BearProtectedController(this.cwd)
 		this.fileContextTracker = new FileContextTracker(provider, this.taskId)
 
-		this.rooIgnoreController.initialize().catch((error) => {
-			console.error("Failed to initialize RooIgnoreController:", error)
+		this.bearIgnoreController.initialize().catch((error) => {
+			console.error("Failed to initialize BearIgnoreController:", error)
 		})
 
 		this.apiConfiguration = apiConfiguration
@@ -497,8 +497,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.messageQueueService = new MessageQueueService()
 
 		this.messageQueueStateChangedHandler = () => {
-			this.emit(RooCodeEventName.TaskUserMessage, this.taskId)
-			this.emit(RooCodeEventName.QueuedMessagesUpdated, this.taskId, this.messageQueueService.messages)
+			this.emit(BearCodeEventName.TaskUserMessage, this.taskId)
+			this.emit(BearCodeEventName.QueuedMessagesUpdated, this.taskId, this.messageQueueService.messages)
 			this.providerRef.deref()?.postStateToWebviewWithoutTaskHistory()
 		}
 
@@ -528,7 +528,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				const toolChanged = hasToolUsageChanged(toolUsage, this.toolUsageSnapshot)
 
 				if (tokenChanged || toolChanged) {
-					this.emit(RooCodeEventName.TaskTokenUsageUpdated, this.taskId, tokenUsage, toolUsage)
+					this.emit(BearCodeEventName.TaskTokenUsageUpdated, this.taskId, tokenUsage, toolUsage)
 					this.tokenUsageSnapshot = tokenUsage
 					this.tokenUsageSnapshotAt = this.clineMessages.at(-1)?.ts
 					// Deep copy tool usage for snapshot
@@ -666,7 +666,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		}
 
-		provider.on(RooCodeEventName.ProviderProfileChanged, this.providerProfileChangeListener)
+		provider.on(BearCodeEventName.ProviderProfileChanged, this.providerProfileChangeListener)
 	}
 
 	/**
@@ -1147,7 +1147,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Avoid resending large, mostly-static fields (notably taskHistory) on every chat message update.
 		// taskHistory is maintained in-memory in the webview and updated via taskHistoryItemUpdated.
 		await provider?.postStateToWebviewWithoutTaskHistory()
-		this.emit(RooCodeEventName.Message, { action: "created", message })
+		this.emit(BearCodeEventName.Message, { action: "created", message })
 		await this.saveClineMessages()
 	}
 
@@ -1160,7 +1160,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private async updateClineMessage(message: ClineMessage) {
 		const provider = this.providerRef.deref()
 		await provider?.postMessageToWebview({ type: "messageUpdated", clineMessage: message })
-		this.emit(RooCodeEventName.Message, { action: "updated", message })
+		this.emit(BearCodeEventName.Message, { action: "updated", message })
 	}
 
 	private async saveClineMessages(): Promise<boolean> {
@@ -1353,7 +1353,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 						if (message) {
 							this.interactiveAsk = message
-							this.emit(RooCodeEventName.TaskInteractive, this.taskId)
+							this.emit(BearCodeEventName.TaskInteractive, this.taskId)
 							provider?.postMessageToWebview({ type: "interactionRequired" })
 						}
 					}, statusMutationTimeout),
@@ -1365,7 +1365,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 						if (message) {
 							this.resumableAsk = message
-							this.emit(RooCodeEventName.TaskResumable, this.taskId)
+							this.emit(BearCodeEventName.TaskResumable, this.taskId)
 						}
 					}, statusMutationTimeout),
 				)
@@ -1376,7 +1376,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 						if (message) {
 							this.idleAsk = message
-							this.emit(RooCodeEventName.TaskIdle, this.taskId)
+							this.emit(BearCodeEventName.TaskIdle, this.taskId)
 						}
 					}, statusMutationTimeout),
 				)
@@ -1446,10 +1446,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this.idleAsk = undefined
 			this.resumableAsk = undefined
 			this.interactiveAsk = undefined
-			this.emit(RooCodeEventName.TaskActive, this.taskId)
+			this.emit(BearCodeEventName.TaskActive, this.taskId)
 		}
 
-		this.emit(RooCodeEventName.TaskAskResponded)
+		this.emit(BearCodeEventName.TaskAskResponded)
 		return result
 	}
 
@@ -1569,7 +1569,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					}
 				}
 
-				this.emit(RooCodeEventName.TaskUserMessage, this.taskId)
+				this.emit(BearCodeEventName.TaskUserMessage, this.taskId)
 
 				// Handle the message directly instead of routing through the webview.
 				// This avoids a race condition where the webview's message state hasn't
@@ -1591,9 +1591,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 	}
 
-	private async getFilesReadByRooSafely(context: string): Promise<string[] | undefined> {
+	private async getFilesReadByBearSafely(context: string): Promise<string[] | undefined> {
 		try {
-			return await this.fileContextTracker.getFilesReadByRoo()
+			return await this.fileContextTracker.getFilesReadByBear()
 		} catch (error) {
 			console.error(`[Task#${context}] Failed to get files read by Bear:`, error)
 			return undefined
@@ -1648,7 +1648,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Generate environment details to include in the condensed summary
 		const environmentDetails = await getEnvironmentDetails(this, true)
 
-		const filesReadByRoo = await this.getFilesReadByRooSafely("condenseContext")
+		const filesReadByBear = await this.getFilesReadByBearSafely("condenseContext")
 
 		const {
 			messages,
@@ -1667,9 +1667,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			customCondensingPrompt,
 			metadata,
 			environmentDetails,
-			filesReadByRoo,
+			filesReadByBear,
 			cwd: this.cwd,
-			rooIgnoreController: this.rooIgnoreController,
+			bearIgnoreController: this.bearIgnoreController,
 		})
 		if (error) {
 			await this.say(
@@ -2226,7 +2226,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Force final token usage update before abort event
 		this.emitFinalTokenUsageUpdate()
 
-		this.emit(RooCodeEventName.TaskAborted)
+		this.emit(BearCodeEventName.TaskAborted)
 
 		try {
 			this.dispose() // Call the centralized dispose method
@@ -2258,7 +2258,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			if (this.providerProfileChangeListener) {
 				const provider = this.providerRef.deref()
 				if (provider) {
-					provider.off(RooCodeEventName.ProviderProfileChanged, this.providerProfileChangeListener)
+					provider.off(BearCodeEventName.ProviderProfileChanged, this.providerProfileChangeListener)
 				}
 				this.providerProfileChangeListener = undefined
 			}
@@ -2304,12 +2304,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			})
 
 		try {
-			if (this.rooIgnoreController) {
-				this.rooIgnoreController.dispose()
-				this.rooIgnoreController = undefined
+			if (this.bearIgnoreController) {
+				this.bearIgnoreController.dispose()
+				this.bearIgnoreController = undefined
 			}
 		} catch (error) {
-			console.error("Error disposing RooIgnoreController:", error)
+			console.error("Error disposing BearIgnoreController:", error)
 			// This is the critical one for the leak fix.
 		}
 
@@ -2377,7 +2377,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Mark as initialized and active
 		this.isInitialized = true
-		this.emit(RooCodeEventName.TaskActive, this.taskId)
+		this.emit(BearCodeEventName.TaskActive, this.taskId)
 
 		// Load conversation history if not already loaded
 		if (this.apiConversationHistory.length === 0) {
@@ -2431,7 +2431,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		let nextUserContent = userContent
 		let includeFileDetails = true
 
-		this.emit(RooCodeEventName.TaskStarted)
+		this.emit(BearCodeEventName.TaskStarted)
 
 		while (!this.abort) {
 			const didEndLoop = await this.recursivelyMakeClineRequests(nextUserContent, includeFileDetails)
@@ -2477,7 +2477,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const currentIncludeFileDetails = currentItem.includeFileDetails
 
 			if (this.abort) {
-				throw new Error(`[BearCode#recursivelyMakeRooRequests] task ${this.taskId}.${this.instanceId} aborted`)
+				throw new Error(`[BearCode#recursivelyMakeBearRequests] task ${this.taskId}.${this.instanceId} aborted`)
 			}
 
 			if (this.consecutiveMistakeLimit > 0 && this.consecutiveMistakeCount >= this.consecutiveMistakeLimit) {
@@ -2534,7 +2534,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const provider = this.providerRef.deref()
 			const state = provider ? await provider.getState() : undefined
 
-			const showRooIgnoredFiles = state?.showRooIgnoredFiles ?? false
+			const showBearIgnoredFiles = state?.showBearIgnoredFiles ?? false
 			const includeDiagnosticMessages = state?.includeDiagnosticMessages ?? true
 			const maxDiagnosticMessages = state?.maxDiagnosticMessages ?? 50
 			const currentMode = state?.mode ?? defaultModeSlug
@@ -2543,8 +2543,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				userContent: currentUserContent,
 				cwd: this.cwd,
 				fileContextTracker: this.fileContextTracker,
-				rooIgnoreController: this.rooIgnoreController,
-				showRooIgnoredFiles,
+				bearIgnoreController: this.bearIgnoreController,
+				showBearIgnoredFiles,
 				includeDiagnosticMessages,
 				maxDiagnosticMessages,
 				skillsManager: provider?.getSkillsManager(),
@@ -3206,7 +3206,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// Need to call here in case the stream was aborted.
 				if (this.abort || this.abandoned) {
 					throw new Error(
-						`[BearCode#recursivelyMakeRooRequests] task ${this.taskId}.${this.instanceId} aborted`,
+						`[BearCode#recursivelyMakeBearRequests] task ${this.taskId}.${this.instanceId} aborted`,
 					)
 				}
 
@@ -3653,7 +3653,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			})
 		}
 
-		const rooIgnoreInstructions = this.rooIgnoreController?.getInstructions()
+		const bearIgnoreInstructions = this.bearIgnoreController?.getInstructions()
 
 		const state = await this.providerRef.deref()?.getState()
 
@@ -3689,7 +3689,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				customInstructions,
 				experiments,
 				language,
-				rooIgnoreInstructions,
+				bearIgnoreInstructions,
 				{
 					todoListEnabled: apiConfiguration?.todoListEnabled ?? true,
 					useAgentRules:
@@ -3995,9 +3995,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				: undefined
 
 			// Get files read by Bear for code folding - only when context management will run
-			const contextMgmtFilesReadByRoo =
+			const contextMgmtFilesReadByBear =
 				contextManagementWillRun && autoCondenseContext
-					? await this.getFilesReadByRooSafely("attemptApiRequest")
+					? await this.getFilesReadByBearSafely("attemptApiRequest")
 					: undefined
 
 			try {
@@ -4016,9 +4016,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					currentProfileId,
 					metadata: contextMgmtMetadata,
 					environmentDetails: contextMgmtEnvironmentDetails,
-					filesReadByRoo: contextMgmtFilesReadByRoo,
+					filesReadByBear: contextMgmtFilesReadByBear,
 					cwd: this.cwd,
-					rooIgnoreController: this.rooIgnoreController,
+					bearIgnoreController: this.bearIgnoreController,
 				})
 				if (truncateResult.messages !== this.apiConversationHistory) {
 					await this.overwriteApiConversationHistory(truncateResult.messages)
@@ -4519,7 +4519,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.toolUsage[toolName].failures++
 
 		if (error) {
-			this.emit(RooCodeEventName.TaskToolFailed, this.taskId, toolName, error)
+			this.emit(BearCodeEventName.TaskToolFailed, this.taskId, toolName, error)
 		}
 	}
 

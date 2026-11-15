@@ -6,23 +6,25 @@ import {
 	type ExtensionState,
 	type ClineMessage,
 	DEFAULT_CHECKPOINT_TIMEOUT_SECONDS,
-} from "@roo-code/types"
+} from "@bear-code/types"
 
 import { ExtensionStateContextProvider, useExtensionState, mergeExtensionState } from "../ExtensionStateContext"
 
 const TestComponent = () => {
-	const { allowedCommands, setAllowedCommands, soundEnabled, showRooIgnoredFiles, setShowRooIgnoredFiles } =
+	const { allowedCommands, setAllowedCommands, soundEnabled, showBearIgnoredFiles, setShowBearIgnoredFiles } =
 		useExtensionState()
 
 	return (
 		<div>
 			<div data-testid="allowed-commands">{JSON.stringify(allowedCommands)}</div>
 			<div data-testid="sound-enabled">{JSON.stringify(soundEnabled)}</div>
-			<div data-testid="show-rooignored-files">{JSON.stringify(showRooIgnoredFiles)}</div>
+			<div data-testid="show-bearignored-files">{JSON.stringify(showBearIgnoredFiles)}</div>
 			<button data-testid="update-button" onClick={() => setAllowedCommands(["npm install", "git status"])}>
 				Update Commands
 			</button>
-			<button data-testid="toggle-rooignore-button" onClick={() => setShowRooIgnoredFiles(!showRooIgnoredFiles)}>
+			<button
+				data-testid="toggle-bearignore-button"
+				onClick={() => setShowBearIgnoredFiles(!showBearIgnoredFiles)}>
 				Update Commands
 			</button>
 		</div>
@@ -68,17 +70,17 @@ describe("ExtensionStateContext", () => {
 		expect(JSON.parse(screen.getByTestId("sound-enabled").textContent!)).toBe(false)
 	})
 
-	it("initializes with showRooIgnoredFiles set to true", () => {
+	it("initializes with showBearIgnoredFiles set to true", () => {
 		render(
 			<ExtensionStateContextProvider>
 				<TestComponent />
 			</ExtensionStateContextProvider>,
 		)
 
-		expect(JSON.parse(screen.getByTestId("show-rooignored-files").textContent!)).toBe(true)
+		expect(JSON.parse(screen.getByTestId("show-bearignored-files").textContent!)).toBe(true)
 	})
 
-	it("updates showRooIgnoredFiles through setShowRooIgnoredFiles", () => {
+	it("updates showBearIgnoredFiles through setShowBearIgnoredFiles", () => {
 		render(
 			<ExtensionStateContextProvider>
 				<TestComponent />
@@ -86,10 +88,10 @@ describe("ExtensionStateContext", () => {
 		)
 
 		act(() => {
-			screen.getByTestId("toggle-rooignore-button").click()
+			screen.getByTestId("toggle-bearignore-button").click()
 		})
 
-		expect(JSON.parse(screen.getByTestId("show-rooignored-files").textContent!)).toBe(false)
+		expect(JSON.parse(screen.getByTestId("show-bearignored-files").textContent!)).toBe(false)
 	})
 
 	it("updates allowedCommands through setAllowedCommands", () => {
@@ -199,7 +201,7 @@ describe("mergeExtensionState", () => {
 			maxOpenTabsContext: 20,
 			maxWorkspaceFiles: 100,
 			apiConfiguration: { providerId: "openrouter" } as ProviderSettings,
-			showRooIgnoredFiles: true,
+			showBearIgnoredFiles: true,
 			enableSubfolderRules: false,
 			renderContext: "sidebar",
 			organizationAllowList: { allowAll: true, providers: {} },
@@ -262,7 +264,7 @@ describe("mergeExtensionState", () => {
 			maxOpenTabsContext: 20,
 			maxWorkspaceFiles: 100,
 			apiConfiguration: {},
-			showRooIgnoredFiles: true,
+			showBearIgnoredFiles: true,
 			enableSubfolderRules: false,
 			renderContext: "sidebar",
 			organizationAllowList: { allowAll: true, providers: {} },

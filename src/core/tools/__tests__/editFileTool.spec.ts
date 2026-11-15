@@ -39,7 +39,7 @@ vi.mock("../../../utils/fs", () => ({
 vi.mock("../../prompts/responses", () => ({
 	formatResponse: {
 		toolError: vi.fn((msg) => `Error: ${msg}`),
-		rooIgnoreError: vi.fn((path) => `Access denied: ${path}`),
+		bearIgnoreError: vi.fn((path) => `Access denied: ${path}`),
 		createPrettyPatch: vi.fn(() => "mock-diff"),
 	},
 }))
@@ -117,10 +117,10 @@ describe("editFileTool", () => {
 				}),
 			}),
 		}
-		mockTask.rooIgnoreController = {
+		mockTask.bearIgnoreController = {
 			validateAccess: vi.fn().mockReturnValue(true),
 		}
-		mockTask.rooProtectedController = {
+		mockTask.bearProtectedController = {
 			isWriteProtected: vi.fn().mockReturnValue(false),
 		}
 		mockTask.diffViewProvider = {
@@ -175,7 +175,7 @@ describe("editFileTool", () => {
 
 		mockedFileExistsAtPath.mockResolvedValue(fileExists)
 		mockedFsReadFile.mockResolvedValue(fileContent)
-		mockTask.rooIgnoreController.validateAccess.mockReturnValue(accessAllowed)
+		mockTask.bearIgnoreController.validateAccess.mockReturnValue(accessAllowed)
 
 		const nativeArgs: Record<string, unknown> = {
 			file_path: testFilePath,
@@ -269,7 +269,7 @@ describe("editFileTool", () => {
 
 				mockedFileExistsAtPath.mockResolvedValue(fileExists)
 				mockedFsReadFile.mockResolvedValue(fileContent)
-				mockTask.rooIgnoreController.validateAccess.mockReturnValue(true)
+				mockTask.bearIgnoreController.validateAccess.mockReturnValue(true)
 
 				const toolUse: ToolUse = {
 					type: "tool_use",
@@ -679,7 +679,7 @@ describe("editFileTool", () => {
 		it("tracks file context after successful edit", async () => {
 			await executeEditFileTool()
 
-			expect(mockTask.fileContextTracker.trackFileContext).toHaveBeenCalledWith(testFilePath, "roo_edited")
+			expect(mockTask.fileContextTracker.trackFileContext).toHaveBeenCalledWith(testFilePath, "bear_edited")
 		})
 	})
 

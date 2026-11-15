@@ -1,8 +1,8 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import * as path from "path"
 import * as diff from "diff"
-import { RooIgnoreController, LOCK_TEXT_SYMBOL } from "../ignore/RooIgnoreController"
-import { RooProtectedController } from "../protect/RooProtectedController"
+import { BearIgnoreController, LOCK_TEXT_SYMBOL } from "../ignore/BearIgnoreController"
+import { BearProtectedController } from "../protect/BearProtectedController"
 
 export const formatResponse = {
 	toolDenied: () =>
@@ -30,7 +30,7 @@ export const formatResponse = {
 			error,
 		}),
 
-	rooIgnoreError: (path: string) =>
+	bearIgnoreError: (path: string) =>
 		JSON.stringify({
 			status: "error",
 			type: "access_denied",
@@ -118,9 +118,9 @@ Otherwise, if you have not completed the task and do not need additional informa
 		absolutePath: string,
 		files: string[],
 		didHitLimit: boolean,
-		rooIgnoreController: RooIgnoreController | undefined,
-		showRooIgnoredFiles: boolean,
-		rooProtectedController?: RooProtectedController,
+		bearIgnoreController: BearIgnoreController | undefined,
+		showBearIgnoredFiles: boolean,
+		bearProtectedController?: BearProtectedController,
 	): string => {
 		const sorted = files
 			.map((file) => {
@@ -150,43 +150,43 @@ Otherwise, if you have not completed the task and do not need additional informa
 				return aParts.length - bParts.length
 			})
 
-		let rooIgnoreParsed: string[] = sorted
+		let bearIgnoreParsed: string[] = sorted
 
-		if (rooIgnoreController) {
-			rooIgnoreParsed = []
+		if (bearIgnoreController) {
+			bearIgnoreParsed = []
 			for (const filePath of sorted) {
 				// path is relative to absolute path, not cwd
 				// validateAccess expects either path relative to cwd or absolute path
 				// otherwise, for validating against ignore patterns like "assets/icons", we would end up with just "icons", which would result in the path not being ignored.
 				const absoluteFilePath = path.resolve(absolutePath, filePath)
-				const isIgnored = !rooIgnoreController.validateAccess(absoluteFilePath)
+				const isIgnored = !bearIgnoreController.validateAccess(absoluteFilePath)
 
 				if (isIgnored) {
 					// If file is ignored and we're not showing ignored files, skip it
-					if (!showRooIgnoredFiles) {
+					if (!showBearIgnoredFiles) {
 						continue
 					}
 					// Otherwise, mark it with a lock symbol
-					rooIgnoreParsed.push(LOCK_TEXT_SYMBOL + " " + filePath)
+					bearIgnoreParsed.push(LOCK_TEXT_SYMBOL + " " + filePath)
 				} else {
 					// Check if file is write-protected (only for non-ignored files)
-					const isWriteProtected = rooProtectedController?.isWriteProtected(absoluteFilePath) || false
+					const isWriteProtected = bearProtectedController?.isWriteProtected(absoluteFilePath) || false
 					if (isWriteProtected) {
-						rooIgnoreParsed.push("🛡️ " + filePath)
+						bearIgnoreParsed.push("🛡️ " + filePath)
 					} else {
-						rooIgnoreParsed.push(filePath)
+						bearIgnoreParsed.push(filePath)
 					}
 				}
 			}
 		}
 		if (didHitLimit) {
-			return `${rooIgnoreParsed.join(
+			return `${bearIgnoreParsed.join(
 				"\n",
 			)}\n\n(File list truncated. Use list_files on specific subdirectories if you need to explore further.)`
-		} else if (rooIgnoreParsed.length === 0 || (rooIgnoreParsed.length === 1 && rooIgnoreParsed[0] === "")) {
+		} else if (bearIgnoreParsed.length === 0 || (bearIgnoreParsed.length === 1 && bearIgnoreParsed[0] === "")) {
 			return "No files found."
 		} else {
-			return rooIgnoreParsed.join("\n")
+			return bearIgnoreParsed.join("\n")
 		}
 	},
 

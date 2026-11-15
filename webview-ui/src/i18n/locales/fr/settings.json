@@ -600,7 +600,7 @@
 			"label": "Limite de contexte des fichiers de l'espace de travail",
 			"description": "Nombre maximum de fichiers à inclure dans les détails du répertoire de travail actuel. Des valeurs plus élevées fournissent plus de contexte mais augmentent l'utilisation de token."
 		},
-		"rooignore": {
+		"bearignore": {
 			"label": "Afficher les fichiers .bearignore dans les listes et recherches",
 			"description": "Lorsque cette option est activée, les fichiers correspondant aux modèles dans .bearignore seront affichés dans les listes avec un symbole de cadenas. Lorsqu'elle est désactivée, ces fichiers seront complètement masqués des listes de fichiers et des recherches."
 		},

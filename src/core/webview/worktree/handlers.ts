@@ -14,11 +14,11 @@ import type {
 	WorktreeIncludeStatus,
 	WorktreeListResponse,
 	WorktreeDefaultsResponse,
-} from "@roo-code/types"
-import { worktreeService, worktreeIncludeService, type CopyProgressCallback } from "@roo-code/core"
+} from "@bear-code/types"
+import { worktreeService, worktreeIncludeService, type CopyProgressCallback } from "@bear-code/core"
 
 import type { ClineProvider } from "../ClineProvider"
-import { getGlobalRooDirectory } from "../../../services/roo-config"
+import { getGlobalBearDirectory } from "../../../services/bear-config"
 
 /**
  * Generate a random alphanumeric suffix for branch/folder names.
@@ -226,8 +226,8 @@ export async function handleGetWorktreeDefaults(provider: ClineProvider): Promis
 	const workspaceFolders = vscode.workspace.workspaceFolders
 	const projectName = workspaceFolders?.[0]?.name || "project"
 
-	const dotRooPath = getGlobalRooDirectory()
-	const suggestedPath = path.join(dotRooPath, "worktrees", `${projectName}-${suffix}`)
+	const dotBearPath = getGlobalBearDirectory()
+	const suggestedPath = path.join(dotBearPath, "worktrees", `${projectName}-${suffix}`)
 
 	return {
 		suggestedBranch: `worktree/bear-${suffix}`,

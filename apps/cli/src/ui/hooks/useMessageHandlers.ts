@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react"
-import type { ExtensionMessage, ClineMessage, ClineAsk, ClineSay, TodoItem } from "@roo-code/types"
-import { consolidateTokenUsage, consolidateApiRequests, consolidateCommands } from "@roo-code/core/cli"
+import type { ExtensionMessage, ClineMessage, ClineAsk, ClineSay, TodoItem } from "@bear-code/types"
+import { consolidateTokenUsage, consolidateApiRequests, consolidateCommands } from "@bear-code/core/cli"
 
 import type { TUIMessage, ToolData } from "../types.js"
 import type { FileResult, SlashCommandResult, ModeResult } from "../components/autocomplete/index.js"

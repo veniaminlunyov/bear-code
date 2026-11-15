@@ -14,7 +14,7 @@ import { createHash } from "crypto"
 import os from "os"
 import { pathToFileURL } from "url"
 
-import type { CustomToolDefinition, SerializedCustomToolDefinition, CustomToolParametersSchema } from "@roo-code/types"
+import type { CustomToolDefinition, SerializedCustomToolDefinition, CustomToolParametersSchema } from "@bear-code/types"
 
 import type { StoredCustomTool, LoadResult } from "./types.js"
 import { serializeCustomTool } from "./serialize.js"

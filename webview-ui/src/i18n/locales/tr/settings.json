@@ -600,7 +600,7 @@
 			"label": "Çalışma alanı dosyaları bağlam sınırı",
 			"description": "Mevcut çalışma dizini ayrıntılarına dahil edilecek maksimum dosya sayısı. Daha yüksek değerler daha fazla bağlam sağlar ancak token kullanımını artırır."
 		},
-		"rooignore": {
+		"bearignore": {
 			"label": "Listelerde ve aramalarda .bearignore dosyalarını göster",
 			"description": "Etkinleştirildiğinde, .bearignore'daki desenlerle eşleşen dosyalar kilit sembolü ile listelerde gösterilecektir. Devre dışı bırakıldığında, bu dosyalar dosya listelerinden ve aramalardan tamamen gizlenecektir."
 		},

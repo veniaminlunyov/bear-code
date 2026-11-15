@@ -5,7 +5,7 @@ import fsSync from "fs"
 import ignore, { Ignore } from "ignore"
 import * as vscode from "vscode"
 
-import { IGNORE_FILENAME, LEGACY_IGNORE_FILENAME } from "../../services/roo-config"
+import { IGNORE_FILENAME, LEGACY_IGNORE_FILENAME } from "../../services/bear-config"
 
 export const LOCK_TEXT_SYMBOL = "\u{1F512}"
 
@@ -14,19 +14,19 @@ export const LOCK_TEXT_SYMBOL = "\u{1F512}"
  * Designed to be instantiated once in Cline.ts and passed to file manipulation services.
  * Uses the 'ignore' library to support standard .gitignore syntax in .bearignore (legacy: .rooignore) files.
  */
-export class RooIgnoreController {
+export class BearIgnoreController {
 	private cwd: string
 	private ignoreInstance: Ignore
 	private disposables: vscode.Disposable[] = []
-	rooIgnoreContent: string | undefined
+	bearIgnoreContent: string | undefined
 	/** File name of the active ignore file (.bearignore, or legacy .rooignore) */
-	rooIgnoreFileName: string = IGNORE_FILENAME
+	bearIgnoreFileName: string = IGNORE_FILENAME
 
 	constructor(cwd: string) {
 		this.cwd = cwd
 		this.ignoreInstance = ignore()
-		this.rooIgnoreContent = undefined
-		// Set up file watcher for .rooignore
+		this.bearIgnoreContent = undefined
+		// Set up file watcher for .bearignore
 		this.setupFileWatcher()
 	}
 
@@ -35,22 +35,22 @@ export class RooIgnoreController {
 	 * Must be called after construction and before using the controller
 	 */
 	async initialize(): Promise<void> {
-		await this.loadRooIgnore()
+		await this.loadBearIgnore()
 	}
 
 	/**
-	 * Set up the file watcher for .rooignore changes
+	 * Set up the file watcher for .bearignore changes
 	 */
 	private setupFileWatcher(): void {
 		// Watch both the BearCode name and the legacy Roo Code name
-		const rooignorePattern = new vscode.RelativePattern(this.cwd, `{${IGNORE_FILENAME},${LEGACY_IGNORE_FILENAME}}`)
-		const fileWatcher = vscode.workspace.createFileSystemWatcher(rooignorePattern)
+		const bearignorePattern = new vscode.RelativePattern(this.cwd, `{${IGNORE_FILENAME},${LEGACY_IGNORE_FILENAME}}`)
+		const fileWatcher = vscode.workspace.createFileSystemWatcher(bearignorePattern)
 
 		// Watch for changes and updates
 		this.disposables.push(
-			fileWatcher.onDidChange(() => this.loadRooIgnore()),
-			fileWatcher.onDidCreate(() => this.loadRooIgnore()),
-			fileWatcher.onDidDelete(() => this.loadRooIgnore()),
+			fileWatcher.onDidChange(() => this.loadBearIgnore()),
+			fileWatcher.onDidCreate(() => this.loadBearIgnore()),
+			fileWatcher.onDidDelete(() => this.loadBearIgnore()),
 		)
 
 		// Add fileWatcher itself to disposables
@@ -58,9 +58,9 @@ export class RooIgnoreController {
 	}
 
 	/**
-	 * Load custom patterns from .rooignore if it exists
+	 * Load custom patterns from .bearignore if it exists
 	 */
-	private async loadRooIgnore(): Promise<void> {
+	private async loadBearIgnore(): Promise<void> {
 		try {
 			// Reset ignore instance to prevent duplicate patterns
 			this.ignoreInstance = ignore()
@@ -71,13 +71,13 @@ export class RooIgnoreController {
 			}
 			if (await fileExistsAtPath(ignorePath)) {
 				const content = await fs.readFile(ignorePath, "utf8")
-				this.rooIgnoreContent = content
-				this.rooIgnoreFileName = path.basename(ignorePath)
+				this.bearIgnoreContent = content
+				this.bearIgnoreFileName = path.basename(ignorePath)
 				this.ignoreInstance.add(content)
 				this.ignoreInstance.add([IGNORE_FILENAME, LEGACY_IGNORE_FILENAME])
 			} else {
-				this.rooIgnoreContent = undefined
-				this.rooIgnoreFileName = IGNORE_FILENAME
+				this.bearIgnoreContent = undefined
+				this.bearIgnoreFileName = IGNORE_FILENAME
 			}
 		} catch (error) {
 			// Should never happen: reading file failed even though it exists
@@ -92,8 +92,8 @@ export class RooIgnoreController {
 	 * @returns true if file is accessible, false if ignored
 	 */
 	validateAccess(filePath: string): boolean {
-		// Always allow access if .rooignore does not exist
-		if (!this.rooIgnoreContent) {
+		// Always allow access if .bearignore does not exist
+		if (!this.bearIgnoreContent) {
 			return true
 		}
 		try {
@@ -109,7 +109,7 @@ export class RooIgnoreController {
 				realPath = absolutePath
 			}
 
-			// Convert real path to relative for .rooignore checking
+			// Convert real path to relative for .bearignore checking
 			const relativePath = path.relative(this.cwd, realPath).toPosix()
 
 			// Check if the real path is ignored
@@ -126,8 +126,8 @@ export class RooIgnoreController {
 	 * @returns path of file that is being accessed if it is being accessed, undefined if command is allowed
 	 */
 	validateCommand(command: string): string | undefined {
-		// Always allow if no .rooignore exists
-		if (!this.rooIgnoreContent) {
+		// Always allow if no .bearignore exists
+		if (!this.bearIgnoreContent) {
 			return undefined
 		}
 
@@ -205,15 +205,15 @@ export class RooIgnoreController {
 	}
 
 	/**
-	 * Get formatted instructions about the .rooignore file for the LLM
-	 * @returns Formatted instructions or undefined if .rooignore doesn't exist
+	 * Get formatted instructions about the .bearignore file for the LLM
+	 * @returns Formatted instructions or undefined if .bearignore doesn't exist
 	 */
 	getInstructions(): string | undefined {
-		if (!this.rooIgnoreContent) {
+		if (!this.bearIgnoreContent) {
 			return undefined
 		}
 
-		const fileName = this.rooIgnoreFileName
-		return `# ${fileName}\n\n(The following is provided by a root-level ${fileName} file where the user has specified files and directories that should not be accessed. When using list_files, you'll notice a ${LOCK_TEXT_SYMBOL} next to files that are blocked. Attempting to access the file's contents e.g. through read_file will result in an error.)\n\n${this.rooIgnoreContent}\n${fileName}`
+		const fileName = this.bearIgnoreFileName
+		return `# ${fileName}\n\n(The following is provided by a root-level ${fileName} file where the user has specified files and directories that should not be accessed. When using list_files, you'll notice a ${LOCK_TEXT_SYMBOL} next to files that are blocked. Attempting to access the file's contents e.g. through read_file will result in an error.)\n\n${this.bearIgnoreContent}\n${fileName}`
 	}
 }

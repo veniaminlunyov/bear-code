@@ -49,7 +49,7 @@ export function isProjectModesFile(filePath: string): boolean {
 
 /**
  * Resolves a workspace-relative path to an absolute path, applying the legacy fallback
- * for BearCode config entries: `.bearmodes` may resolve to `.roomodes`, and `.bear/...`
+ * for BearCode config entries: `.bearmodes` may resolve to `.bearmodes`, and `.bear/...`
  * may resolve to `.roo/...` when only the legacy variant exists.
  */
 export function resolveWorkspaceConfigPath(cwd: string, relativePath: string): string {
@@ -61,7 +61,7 @@ export function resolveWorkspaceConfigPath(cwd: string, relativePath: string): s
 		return getProjectModesFilePath(cwd)
 	}
 	if (segments[0] === CONFIG_DIR_NAME) {
-		return path.join(getProjectRooDirectoryForCwd(cwd), ...segments.slice(1))
+		return path.join(getProjectBearDirectoryForCwd(cwd), ...segments.slice(1))
 	}
 	return path.join(cwd, relativePath)
 }
@@ -73,21 +73,21 @@ export function resolveWorkspaceConfigPath(cwd: string, relativePath: string): s
  *
  * @example Platform-specific paths:
  * ```
- * // macOS/Linux: ~/.roo/
- * // Example: /Users/john/.roo
+ * // macOS/Linux: ~/.bear/
+ * // Example: /Users/john/.bear
  *
- * // Windows: %USERPROFILE%\.roo\
- * // Example: C:\Users\john\.roo
+ * // Windows: %USERPROFILE%\.bear\
+ * // Example: C:\Users\john\.bear
  * ```
  *
  * @example Usage:
  * ```typescript
- * const globalDir = getGlobalRooDirectory()
- * // Returns: "/Users/john/.roo" (on macOS/Linux)
- * // Returns: "C:\\Users\\john\\.roo" (on Windows)
+ * const globalDir = getGlobalBearDirectory()
+ * // Returns: "/Users/john/.bear" (on macOS/Linux)
+ * // Returns: "C:\\Users\\john\\.bear" (on Windows)
  * ```
  */
-export function getGlobalRooDirectory(): string {
+export function getGlobalBearDirectory(): string {
 	const homeDir = os.homedir()
 	return resolveBrandedPath(homeDir, CONFIG_DIR_NAME, LEGACY_CONFIG_DIR_NAME)
 }
@@ -137,24 +137,24 @@ export function getProjectAgentsDirectoryForCwd(cwd: string): string {
 }
 
 /**
- * Gets the project-local .roo directory path for a given cwd
+ * Gets the project-local .bear directory path for a given cwd
  *
  * @param cwd - Current working directory (project path)
- * @returns The absolute path to the project-local .roo directory
+ * @returns The absolute path to the project-local .bear directory
  *
  * @example
  * ```typescript
- * const projectDir = getProjectRooDirectoryForCwd('/Users/john/my-project')
- * // Returns: "/Users/john/my-project/.roo"
+ * const projectDir = getProjectBearDirectoryForCwd('/Users/john/my-project')
+ * // Returns: "/Users/john/my-project/.bear"
  *
- * const windowsProjectDir = getProjectRooDirectoryForCwd('C:\\Users\\john\\my-project')
- * // Returns: "C:\\Users\\john\\my-project\\.roo"
+ * const windowsProjectDir = getProjectBearDirectoryForCwd('C:\\Users\\john\\my-project')
+ * // Returns: "C:\\Users\\john\\my-project\\.bear"
  * ```
  *
  * @example Directory structure:
  * ```
  * /Users/john/my-project/
- * ├── .roo/                    # Project-local configuration directory
+ * ├── .bear/                    # Project-local configuration directory
  * │   ├── rules/
  * │   │   └── rules.md
  * │   ├── custom-instructions.md
@@ -165,7 +165,7 @@ export function getProjectAgentsDirectoryForCwd(cwd: string): string {
  * └── package.json
  * ```
  */
-export function getProjectRooDirectoryForCwd(cwd: string): string {
+export function getProjectBearDirectoryForCwd(cwd: string): string {
 	return resolveBrandedPath(cwd, CONFIG_DIR_NAME, LEGACY_CONFIG_DIR_NAME)
 }
 
@@ -220,40 +220,40 @@ export async function readFileIfExists(filePath: string): Promise<string | null>
 }
 
 /**
- * Discovers all .roo directories in subdirectories of the workspace
+ * Discovers all .bear directories in subdirectories of the workspace
  *
  * @param cwd - Current working directory (workspace root)
- * @returns Array of absolute paths to .roo directories found in subdirectories,
- *          sorted alphabetically. Does not include the root .roo directory.
+ * @returns Array of absolute paths to .bear directories found in subdirectories,
+ *          sorted alphabetically. Does not include the root .bear directory.
  *
  * @example
  * ```typescript
- * const subfolderRoos = await discoverSubfolderRooDirectories('/Users/john/monorepo')
+ * const subfolderDirs = await discoverSubfolderBearDirectories('/Users/john/monorepo')
  * // Returns:
  * // [
- * //   '/Users/john/monorepo/package-a/.roo',
- * //   '/Users/john/monorepo/package-b/.roo',
- * //   '/Users/john/monorepo/packages/shared/.roo'
+ * //   '/Users/john/monorepo/package-a/.bear',
+ * //   '/Users/john/monorepo/package-b/.bear',
+ * //   '/Users/john/monorepo/packages/shared/.bear'
  * // ]
  * ```
  *
  * @example Directory structure:
  * ```
  * /Users/john/monorepo/
- * ├── .roo/                    # Root .roo (NOT included - use getProjectRooDirectoryForCwd)
+ * ├── .bear/                    # Root .bear (NOT included - use getProjectBearDirectoryForCwd)
  * ├── package-a/
- * │   └── .roo/                # Included
+ * │   └── .bear/                # Included
  * │       └── rules/
  * ├── package-b/
- * │   └── .roo/                # Included
+ * │   └── .bear/                # Included
  * │       └── rules-code/
  * └── packages/
  *     └── shared/
- *         └── .roo/            # Included (nested)
+ *         └── .bear/            # Included (nested)
  *             └── rules/
  * ```
  */
-export async function discoverSubfolderRooDirectories(cwd: string): Promise<string[]> {
+export async function discoverSubfolderBearDirectories(cwd: string): Promise<string[]> {
 	try {
 		// Dynamic import to avoid vscode dependency at module load time
 		// This is necessary because file-search.ts imports vscode, which is not
@@ -284,7 +284,7 @@ export async function discoverSubfolderRooDirectories(cwd: string): Promise<stri
 		const foundByParent = new Map<string, Set<string>>()
 
 		for (const result of results) {
-			// Match paths like "subfolder/.bear/anything" or "subfolder/nested/.roo/anything"
+			// Match paths like "subfolder/.bear/anything" or "subfolder/nested/.bear/anything"
 			// Handle both forward slashes (Unix) and backslashes (Windows)
 			const match = result.path.match(/^(.+?)[/\\](\.bear|\.roo)[/\\]/)
 			if (match) {
@@ -295,20 +295,20 @@ export async function discoverSubfolderRooDirectories(cwd: string): Promise<stri
 			}
 		}
 
-		const rooDirs = new Set<string>()
-		const rootRooDirs = new Set([path.join(cwd, CONFIG_DIR_NAME), path.join(cwd, LEGACY_CONFIG_DIR_NAME)])
+		const bearDirs = new Set<string>()
+		const rootBearDirs = new Set([path.join(cwd, CONFIG_DIR_NAME), path.join(cwd, LEGACY_CONFIG_DIR_NAME)])
 
 		for (const [parent, variants] of foundByParent) {
 			const dirName = variants.has(CONFIG_DIR_NAME) ? CONFIG_DIR_NAME : LEGACY_CONFIG_DIR_NAME
-			const rooDir = path.join(cwd, parent, dirName)
-			// Exclude the root config directory (already handled by getProjectRooDirectoryForCwd)
-			if (!rootRooDirs.has(rooDir)) {
-				rooDirs.add(rooDir)
+			const bearDir = path.join(cwd, parent, dirName)
+			// Exclude the root config directory (already handled by getProjectBearDirectoryForCwd)
+			if (!rootBearDirs.has(bearDir)) {
+				bearDirs.add(bearDir)
 			}
 		}
 
 		// Return sorted alphabetically
-		return Array.from(rooDirs).sort()
+		return Array.from(bearDirs).sort()
 	} catch (error) {
 		// If discovery fails (e.g., ripgrep not available), return empty array
 		return []
@@ -316,7 +316,7 @@ export async function discoverSubfolderRooDirectories(cwd: string): Promise<stri
 }
 
 /**
- * Gets the ordered list of .roo directories to check (global first, then project-local)
+ * Gets the ordered list of .bear directories to check (global first, then project-local)
  *
  * @param cwd - Current working directory (project path)
  * @returns Array of directory paths to check in order [global, project-local]
@@ -324,23 +324,23 @@ export async function discoverSubfolderRooDirectories(cwd: string): Promise<stri
  * @example
  * ```typescript
  * // For a project at /Users/john/my-project
- * const directories = getRooDirectoriesForCwd('/Users/john/my-project')
+ * const directories = getBearDirectoriesForCwd('/Users/john/my-project')
  * // Returns:
  * // [
- * //   '/Users/john/.roo',           // Global directory
- * //   '/Users/john/my-project/.roo' // Project-local directory
+ * //   '/Users/john/.bear',           // Global directory
+ * //   '/Users/john/my-project/.bear' // Project-local directory
  * // ]
  * ```
  *
  * @example Directory structure:
  * ```
  * /Users/john/
- * ├── .roo/                    # Global configuration
+ * ├── .bear/                    # Global configuration
  * │   ├── rules/
  * │   │   └── rules.md
  * │   └── custom-instructions.md
  * └── my-project/
- *     ├── .roo/                # Project-specific configuration
+ *     ├── .bear/                # Project-specific configuration
  *     │   ├── rules/
  *     │   │   └── rules.md     # Overrides global rules
  *     │   └── project-notes.md
@@ -348,58 +348,58 @@ export async function discoverSubfolderRooDirectories(cwd: string): Promise<stri
  *         └── index.ts
  * ```
  */
-export function getRooDirectoriesForCwd(cwd: string): string[] {
+export function getBearDirectoriesForCwd(cwd: string): string[] {
 	const directories: string[] = []
 
 	// Add global directory first
-	directories.push(getGlobalRooDirectory())
+	directories.push(getGlobalBearDirectory())
 
 	// Add project-local directory second
-	directories.push(getProjectRooDirectoryForCwd(cwd))
+	directories.push(getProjectBearDirectoryForCwd(cwd))
 
 	return directories
 }
 
 /**
- * Gets the ordered list of all .roo directories including subdirectories
+ * Gets the ordered list of all .bear directories including subdirectories
  *
  * @param cwd - Current working directory (project path)
  * @returns Array of directory paths in order: [global, project-local, ...subfolders (alphabetically)]
  *
  * @example
  * ```typescript
- * // For a monorepo at /Users/john/monorepo with .roo in subfolders
- * const directories = await getAllRooDirectoriesForCwd('/Users/john/monorepo')
+ * // For a monorepo at /Users/john/monorepo with .bear in subfolders
+ * const directories = await getAllBearDirectoriesForCwd('/Users/john/monorepo')
  * // Returns:
  * // [
- * //   '/Users/john/.roo',                    // Global directory
- * //   '/Users/john/monorepo/.roo',           // Project-local directory
- * //   '/Users/john/monorepo/package-a/.roo', // Subfolder (alphabetical)
- * //   '/Users/john/monorepo/package-b/.roo'  // Subfolder (alphabetical)
+ * //   '/Users/john/.bear',                    // Global directory
+ * //   '/Users/john/monorepo/.bear',           // Project-local directory
+ * //   '/Users/john/monorepo/package-a/.bear', // Subfolder (alphabetical)
+ * //   '/Users/john/monorepo/package-b/.bear'  // Subfolder (alphabetical)
  * // ]
  * ```
  */
-export async function getAllRooDirectoriesForCwd(cwd: string): Promise<string[]> {
+export async function getAllBearDirectoriesForCwd(cwd: string): Promise<string[]> {
 	const directories: string[] = []
 
 	// Add global directory first
-	directories.push(getGlobalRooDirectory())
+	directories.push(getGlobalBearDirectory())
 
 	// Add project-local directory second
-	directories.push(getProjectRooDirectoryForCwd(cwd))
+	directories.push(getProjectBearDirectoryForCwd(cwd))
 
-	// Discover and add subfolder .roo directories
-	const subfolderDirs = await discoverSubfolderRooDirectories(cwd)
+	// Discover and add subfolder .bear directories
+	const subfolderDirs = await discoverSubfolderBearDirectories(cwd)
 	directories.push(...subfolderDirs)
 
 	return directories
 }
 
 /**
- * Gets parent directories containing .roo folders, in order from root to subfolders
+ * Gets parent directories containing .bear folders, in order from root to subfolders
  *
  * @param cwd - Current working directory (project path)
- * @returns Array of parent directory paths (not .roo paths) containing AGENTS.md or .roo
+ * @returns Array of parent directory paths (not .bear paths) containing AGENTS.md or .bear
  *
  * @example
  * ```typescript
@@ -413,12 +413,12 @@ export async function getAgentsDirectoriesForCwd(cwd: string): Promise<string[]>
 	// Always include the root directory
 	directories.push(cwd)
 
-	// Get all subfolder .roo directories
-	const subfolderRooDirs = await discoverSubfolderRooDirectories(cwd)
+	// Get all subfolder .bear directories
+	const subfolderBearDirs = await discoverSubfolderBearDirectories(cwd)
 
-	// Extract parent directories (remove .roo from path)
-	for (const rooDir of subfolderRooDirs) {
-		const parentDir = path.dirname(rooDir)
+	// Extract parent directories (remove .bear from path)
+	for (const bearDir of subfolderBearDirs) {
+		const parentDir = path.dirname(bearDir)
 		directories.push(parentDir)
 	}
 
@@ -426,9 +426,9 @@ export async function getAgentsDirectoriesForCwd(cwd: string): Promise<string[]>
 }
 
 /**
- * Loads configuration from multiple .roo directories with project overriding global
+ * Loads configuration from multiple .bear directories with project overriding global
  *
- * @param relativePath - The relative path within each .roo directory (e.g., 'rules/rules.md')
+ * @param relativePath - The relative path within each .bear directory (e.g., 'rules/rules.md')
  * @param cwd - Current working directory (project path)
  * @returns Object with global and project content, plus merged content
  *
@@ -439,8 +439,8 @@ export async function getAgentsDirectoriesForCwd(cwd: string): Promise<string[]>
  *
  * // Returns:
  * // {
- * //   global: "Global rules content...",     // From ~/.roo/rules/rules.md
- * //   project: "Project rules content...",   // From /Users/john/my-project/.roo/rules/rules.md
+ * //   global: "Global rules content...",     // From ~/.bear/rules/rules.md
+ * //   project: "Project rules content...",   // From /Users/john/my-project/.bear/rules/rules.md
  * //   merged: "Global rules content...\n\n# Project-specific rules (override global):\n\nProject rules content..."
  * // }
  * ```
@@ -451,8 +451,8 @@ export async function getAgentsDirectoriesForCwd(cwd: string): Promise<string[]>
  * cwd: '/Users/john/my-project'
  *
  * Reads from:
- * - Global: /Users/john/.roo/rules/rules.md
- * - Project: /Users/john/my-project/.roo/rules/rules.md
+ * - Global: /Users/john/.bear/rules/rules.md
+ * - Project: /Users/john/my-project/.bear/rules/rules.md
  *
  * Other common relativePath examples:
  * - 'custom-instructions.md'
@@ -484,8 +484,8 @@ export async function loadConfiguration(
 	project: string | null
 	merged: string
 }> {
-	const globalDir = getGlobalRooDirectory()
-	const projectDir = getProjectRooDirectoryForCwd(cwd)
+	const globalDir = getGlobalBearDirectory()
+	const projectDir = getProjectBearDirectoryForCwd(cwd)
 
 	const globalFilePath = path.join(globalDir, relativePath)
 	const projectFilePath = path.join(projectDir, relativePath)
@@ -518,4 +518,4 @@ export async function loadConfiguration(
 }
 
 // Export with backward compatibility alias
-export const loadRooConfiguration: typeof loadConfiguration = loadConfiguration
+export const loadBearConfiguration: typeof loadConfiguration = loadConfiguration

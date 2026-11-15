@@ -11,7 +11,7 @@ import {
 	providerSettingsWithIdSchema,
 	isProviderName,
 	type ProviderSettingsWithId,
-} from "@roo-code/types"
+} from "@bear-code/types"
 
 import { ProviderSettingsManager, providerProfilesSchema } from "./ProviderSettingsManager"
 import { ContextProxy } from "./ContextProxy"
@@ -71,6 +71,27 @@ function sanitizeProviderConfig(configName: string, apiConfig: unknown): { confi
  * - Completely invalid profiles are skipped
  * - Warnings are returned for any issues encountered
  */
+/**
+ * Settings files exported from Roo Code use legacy names for a few global settings.
+ * Map them to the BearCode names so they are not dropped by schema validation.
+ */
+const LEGACY_GLOBAL_SETTING_KEYS: Record<string, string> = {
+	showRooIgnoredFiles: "showBearIgnoredFiles",
+}
+
+function renameLegacySettingKeys(rawData: any) {
+	const globalSettings = rawData?.globalSettings
+	if (globalSettings && typeof globalSettings === "object") {
+		for (const [legacyKey, key] of Object.entries(LEGACY_GLOBAL_SETTING_KEYS)) {
+			if (legacyKey in globalSettings && !(key in globalSettings)) {
+				globalSettings[key] = globalSettings[legacyKey]
+			}
+			delete globalSettings[legacyKey]
+		}
+	}
+	return rawData
+}
+
 export async function importSettingsFromPath(
 	filePath: string,
 	{ providerSettingsManager, contextProxy, customModesManager }: ImportOptions,
@@ -88,7 +109,7 @@ export async function importSettingsFromPath(
 	try {
 		const previousProviderProfiles = await providerSettingsManager.export()
 
-		const rawData = JSON.parse(await fs.readFile(filePath, "utf-8"))
+		const rawData = renameLegacySettingKeys(JSON.parse(await fs.readFile(filePath, "utf-8")))
 		const { providerProfiles: rawProviderProfiles, globalSettings = {} } = lenientSchema.parse(rawData)
 
 		// Track warnings for profiles that had issues
@@ -202,7 +223,7 @@ export async function importSettingsFromPath(
  */
 export const importSettings = async ({ providerSettingsManager, contextProxy, customModesManager }: ImportOptions) => {
 	// Use the last export path as a sensible default, falling back to Downloads
-	const defaultUri = resolveDefaultSaveUri(contextProxy, "lastSettingsExportPath", "roo-code-settings.json", {
+	const defaultUri = resolveDefaultSaveUri(contextProxy, "lastSettingsExportPath", "bear-code-settings.json", {
 		useWorkspace: false,
 		fallbackDir: path.join(os.homedir(), "Downloads"),
 	})
@@ -242,7 +263,7 @@ export const importSettingsFromFile = async (
 }
 
 export const exportSettings = async ({ providerSettingsManager, contextProxy }: ExportOptions) => {
-	const defaultUri = await resolveDefaultSaveUri(contextProxy, "lastSettingsExportPath", "roo-code-settings.json", {
+	const defaultUri = await resolveDefaultSaveUri(contextProxy, "lastSettingsExportPath", "bear-code-settings.json", {
 		useWorkspace: false,
 		fallbackDir: path.join(os.homedir(), "Downloads"),
 	})

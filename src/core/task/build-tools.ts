@@ -2,11 +2,11 @@ import path from "path"
 
 import type OpenAI from "openai"
 
-import type { ProviderSettings, ModeConfig, ModelInfo } from "@roo-code/types"
-import { customToolRegistry, formatNative } from "@roo-code/core"
+import type { ProviderSettings, ModeConfig, ModelInfo } from "@bear-code/types"
+import { customToolRegistry, formatNative } from "@bear-code/core"
 
 import type { ClineProvider } from "../webview/ClineProvider"
-import { getRooDirectoriesForCwd } from "../../services/roo-config/index.js"
+import { getBearDirectoriesForCwd } from "../../services/bear-config/index.js"
 
 import { getNativeTools, getMcpServerTools } from "../prompts/tools/native-tools"
 import {
@@ -132,7 +132,7 @@ export async function buildNativeToolsArrayWithRestrictions(options: BuildToolsO
 	let nativeCustomTools: OpenAI.Chat.ChatCompletionFunctionTool[] = []
 
 	if (experiments?.customTools) {
-		const toolDirs = getRooDirectoriesForCwd(cwd).map((dir) => path.join(dir, "tools"))
+		const toolDirs = getBearDirectoriesForCwd(cwd).map((dir) => path.join(dir, "tools"))
 		await customToolRegistry.loadFromDirectoriesIfStale(toolDirs)
 		const customTools = customToolRegistry.getAllSerialized()
 

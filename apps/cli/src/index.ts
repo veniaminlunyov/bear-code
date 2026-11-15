@@ -7,7 +7,7 @@ import { run, listCommands, listModes, listModels, listSessions, upgrade } from 
 const program = new Command()
 
 program
-	.name("roo")
+	.name("bear")
 	.description("BearCode CLI - starts an interactive session by default, use -p/--print for non-interactive output")
 	.version(VERSION)
 	.enablePositionalOptions()

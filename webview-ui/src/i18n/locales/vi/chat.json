@@ -93,7 +93,7 @@
 	"about": "BearCode là một đội ngũ phát triển AI đầy đủ trong trình chỉnh sửa của bạn.",
 	"docs": "Kiểm tra <DocsLink>tài liệu</DocsLink> của chúng tôi để tìm hiểu thêm.",
 	"onboarding": "Danh sách nhiệm vụ của bạn trong không gian làm việc này đang trống.",
-	"rooTips": {
+	"bearTips": {
 		"customizableModes": {
 			"title": "Chế độ có thể tùy chỉnh",
 			"description": "Các nhân vật chuyên biệt luôn bám sát nhiệm vụ và mang lại hiệu quả."
@@ -237,7 +237,7 @@
 	"response": "Phản hồi",
 	"arguments": "Tham số",
 	"text": {
-		"rooSaid": "Bear đã nói"
+		"bearSaid": "Bear đã nói"
 	},
 	"feedback": {
 		"youSaid": "Bạn đã nói"
@@ -331,26 +331,7 @@
 	},
 	"announcement": {
 		"title": "BearCode {{version}} Đã phát hành",
-		"support": "Hãy ủng hộ BearCode bằng cách gắn sao cho chúng tôi trên <githubLink>GitHub</githubLink>.",
-		"finalRelease": {
-			"title": "Bản phát hành BearCode cuối cùng",
-			"intro": "Đây là bản phát hành Roo Code cuối cùng. <announcementLink>Như chúng tôi đã thông báo vài tuần trước</announcementLink>, chúng tôi đã quyết định chuyển trọng tâm sang <roomoteLink>Roomote</roomoteLink>, nền tảng tác nhân đám mây của chúng tôi, thứ mà chúng tôi tin là tương lai của phát triển phần mềm. Cảm ơn bạn rất nhiều vì đã ủng hộ trong khoảng một năm vừa qua.",
-			"continuity": "Tiện ích mở rộng này sẽ tiếp tục hoạt động vô thời hạn, nhưng sẽ không nhận bản sửa lỗi, tính năng mới hoặc cập nhật mô hình.",
-			"alternatives": "Nếu bạn muốn sử dụng một tiện ích mở rộng, chúng tôi khuyên bạn nên xem <zooCodeLink>ZooCode</zooCodeLink> (một fork Roo Code do cộng đồng phát triển) và <clineLink>Cline</clineLink> (nơi Roo Code ban đầu bắt đầu).",
-			"signoff": "Chúc lập trình vui vẻ!"
-		},
-		"release": {
-			"heading": "Tính năng mới:",
-			"gpt55": "GPT-5.5 qua OpenAI Codex: Đã thêm hỗ trợ GPT-5.5 trong nhà cung cấp OpenAI Codex để bạn có thể sử dụng model mới nhất trực tiếp từ BearCode.",
-			"claudeOpus47": "Claude Opus 4.7 trên Vertex AI: Đã thêm Claude Opus 4.7 vào nhà cung cấp Vertex AI - model reasoning flagship mới nhất của Anthropic.",
-			"checkpointNav": "Điều hướng Checkpoint trước đó: Đã thêm các điều khiển trong chat để quay lại các checkpoint trước, với hỗ trợ i18n đầy đủ."
-		},
-		"cloudAgents": {
-			"heading": "Mới trên Cloud:",
-			"specialized": "Giới thiệu <bold>Explainer</bold>, <bold>Planner</bold> và <bold>Coder</bold> - ba agent đám mây chuyên biệt để nâng cao quy trình làm việc của bạn.",
-			"description": "Các agent làm việc cùng nhau trên đám mây và có thể được kích hoạt từ web hoặc qua Slack.",
-			"tryButton": "Dùng thử Agents trên Cloud"
-		}
+		"support": "Hãy ủng hộ BearCode bằng cách gắn sao cho chúng tôi trên <githubLink>GitHub</githubLink>."
 	},
 	"costs": {
 		"totalWithSubtasks": "Tổng chi phí (bao gồm các tác vụ phụ): ${{cost}}",

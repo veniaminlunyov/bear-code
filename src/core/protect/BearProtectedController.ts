@@ -7,7 +7,7 @@ export const SHIELD_SYMBOL = "\u{1F6E1}"
  * Controls write access to BearCode configuration files by enforcing protection patterns.
  * Prevents auto-approved modifications to sensitive BearCode configuration files.
  */
-export class RooProtectedController {
+export class BearProtectedController {
 	private cwd: string
 	private ignoreInstance: Ignore
 
@@ -35,7 +35,7 @@ export class RooProtectedController {
 		this.cwd = cwd
 		// Initialize ignore instance with protected patterns
 		this.ignoreInstance = ignore()
-		this.ignoreInstance.add(RooProtectedController.PROTECTED_PATTERNS)
+		this.ignoreInstance.add(BearProtectedController.PROTECTED_PATTERNS)
 	}
 
 	/**
@@ -105,7 +105,7 @@ export class RooProtectedController {
 	 * @returns Formatted instructions about file protection
 	 */
 	getInstructions(): string {
-		const patterns = RooProtectedController.PROTECTED_PATTERNS.join(", ")
+		const patterns = BearProtectedController.PROTECTED_PATTERNS.join(", ")
 		return `# Protected Files\n\n(The following BearCode configuration file patterns are write-protected and always require approval for modifications, regardless of autoapproval settings. When using list_files, you'll notice a ${SHIELD_SYMBOL} next to files that are write-protected.)\n\nProtected patterns: ${patterns}`
 	}
 
@@ -113,6 +113,6 @@ export class RooProtectedController {
 	 * Get the list of protected patterns (for testing/debugging)
 	 */
 	static getProtectedPatterns(): readonly string[] {
-		return RooProtectedController.PROTECTED_PATTERNS
+		return BearProtectedController.PROTECTED_PATTERNS
 	}
 }

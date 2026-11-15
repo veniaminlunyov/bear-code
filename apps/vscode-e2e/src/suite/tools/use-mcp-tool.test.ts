@@ -4,7 +4,7 @@ import * as path from "path"
 import * as os from "os"
 import * as vscode from "vscode"
 
-import { RooCodeEventName, type ClineMessage } from "@roo-code/types"
+import { BearCodeEventName, type ClineMessage } from "@bear-code/types"
 
 import { waitFor, sleep } from "../utils"
 import { setDefaultSuiteTimeout } from "../test-utils"
@@ -21,7 +21,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 
 	// Create a temporary directory and test files
 	suiteSetup(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "roo-test-mcp-"))
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "bear-test-mcp-"))
 
 		// Create test files in VSCode workspace directory
 		const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || tempDir
@@ -30,16 +30,16 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 		testFiles = {
 			simple: path.join(workspaceDir, `mcp-test-${Date.now()}.txt`),
 			testData: path.join(workspaceDir, `mcp-data-${Date.now()}.json`),
-			mcpConfig: path.join(workspaceDir, ".roo", "mcp.json"),
+			mcpConfig: path.join(workspaceDir, ".bear", "mcp.json"),
 		}
 
 		// Create initial test files
 		await fs.writeFile(testFiles.simple, "Initial content for MCP test")
 		await fs.writeFile(testFiles.testData, JSON.stringify({ test: "data", value: 42 }, null, 2))
 
-		// Create .roo directory and MCP configuration file
-		const rooDir = path.join(workspaceDir, ".roo")
-		await fs.mkdir(rooDir, { recursive: true })
+		// Create .bear directory and MCP configuration file
+		const bearDir = path.join(workspaceDir, ".bear")
+		await fs.mkdir(bearDir, { recursive: true })
 
 		const mcpConfig = {
 			mcpServers: {
@@ -74,11 +74,11 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 			}
 		}
 
-		// Clean up .roo directory
+		// Clean up .bear directory
 		const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || tempDir
-		const rooDir = path.join(workspaceDir, ".roo")
+		const bearDir = path.join(workspaceDir, ".bear")
 		try {
-			await fs.rm(rooDir, { recursive: true, force: true })
+			await fs.rm(bearDir, { recursive: true, force: true })
 		} catch {
 			// Directory might not exist
 		}
@@ -167,7 +167,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				console.error("Error:", message.text)
 			}
 		}
-		api.on(RooCodeEventName.Message, messageHandler)
+		api.on(BearCodeEventName.Message, messageHandler)
 
 		// Listen for task events
 		const taskStartedHandler = (id: string) => {
@@ -176,7 +176,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				console.log("Task started:", id)
 			}
 		}
-		api.on(RooCodeEventName.TaskStarted, taskStartedHandler)
+		api.on(BearCodeEventName.TaskStarted, taskStartedHandler)
 
 		const taskCompletedHandler = (id: string) => {
 			if (id === taskId) {
@@ -184,7 +184,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				console.log("Task completed:", id)
 			}
 		}
-		api.on(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+		api.on(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 		await sleep(2000) // Wait for BearCode to fully initialize
 
 		// Trigger MCP server detection by opening and modifying the file
@@ -284,9 +284,9 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 			console.log("Test passed! MCP read_file tool used successfully and task completed")
 		} finally {
 			// Clean up
-			api.off(RooCodeEventName.Message, messageHandler)
-			api.off(RooCodeEventName.TaskStarted, taskStartedHandler)
-			api.off(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+			api.off(BearCodeEventName.Message, messageHandler)
+			api.off(BearCodeEventName.TaskStarted, taskStartedHandler)
+			api.off(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 		}
 	})
 
@@ -344,7 +344,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				console.error("Error:", message.text)
 			}
 		}
-		api.on(RooCodeEventName.Message, messageHandler)
+		api.on(BearCodeEventName.Message, messageHandler)
 
 		// Listen for task completion
 		const taskCompletedHandler = (id: string) => {
@@ -352,7 +352,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				_taskCompleted = true
 			}
 		}
-		api.on(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+		api.on(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 
 		let taskId: string
 		try {
@@ -413,8 +413,8 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 			console.log("Test passed! MCP write_file tool used successfully and task completed")
 		} finally {
 			// Clean up
-			api.off(RooCodeEventName.Message, messageHandler)
-			api.off(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+			api.off(BearCodeEventName.Message, messageHandler)
+			api.off(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 		}
 	})
 
@@ -472,7 +472,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				console.error("Error:", message.text)
 			}
 		}
-		api.on(RooCodeEventName.Message, messageHandler)
+		api.on(BearCodeEventName.Message, messageHandler)
 
 		// Listen for task completion
 		const taskCompletedHandler = (id: string) => {
@@ -480,7 +480,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				_taskCompleted = true
 			}
 		}
-		api.on(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+		api.on(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 
 		let taskId: string
 		try {
@@ -515,12 +515,12 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				responseText.includes("mcp-test-") || responseText.includes(path.basename(testFiles.simple))
 			const hasDataFile =
 				responseText.includes("mcp-data-") || responseText.includes(path.basename(testFiles.testData))
-			const hasRooDir = responseText.includes(".roo")
+			const hasBearDir = responseText.includes(".bear")
 
-			// At least one of our test files or the .roo directory should be present
+			// At least one of our test files or the .bear directory should be present
 			assert.ok(
-				hasTestFile || hasDataFile || hasRooDir,
-				`MCP server response should contain our test files or .roo directory. Expected to find: '${path.basename(testFiles.simple)}', '${path.basename(testFiles.testData)}', or '.roo'. Got: ${responseText.substring(0, 200)}...`,
+				hasTestFile || hasDataFile || hasBearDir,
+				`MCP server response should contain our test files or .bear directory. Expected to find: '${path.basename(testFiles.simple)}', '${path.basename(testFiles.testData)}', or '.bear'. Got: ${responseText.substring(0, 200)}...`,
 			)
 
 			// Check for typical directory listing indicators
@@ -552,8 +552,8 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 			console.log("Test passed! MCP list_directory tool used successfully and task completed")
 		} finally {
 			// Clean up
-			api.off(RooCodeEventName.Message, messageHandler)
-			api.off(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+			api.off(BearCodeEventName.Message, messageHandler)
+			api.off(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 		}
 	})
 
@@ -611,7 +611,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				console.error("Error:", message.text)
 			}
 		}
-		api.on(RooCodeEventName.Message, messageHandler)
+		api.on(BearCodeEventName.Message, messageHandler)
 
 		// Listen for task completion
 		const taskCompletedHandler = (id: string) => {
@@ -619,7 +619,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				_taskCompleted = true
 			}
 		}
-		api.on(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+		api.on(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 
 		let taskId: string
 		try {
@@ -661,7 +661,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 			const hasTestFiles =
 				responseText.includes("mcp-test-") ||
 				responseText.includes("mcp-data-") ||
-				responseText.includes(".roo") ||
+				responseText.includes(".bear") ||
 				responseText.includes(".txt") ||
 				responseText.includes(".json") ||
 				responseText.length > 10 // At least some content indicating directory structure
@@ -691,8 +691,8 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 			console.log("Test passed! MCP directory_tree tool used successfully and task completed")
 		} finally {
 			// Clean up
-			api.off(RooCodeEventName.Message, messageHandler)
-			api.off(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+			api.off(BearCodeEventName.Message, messageHandler)
+			api.off(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 		}
 	})
 
@@ -730,7 +730,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				console.log("Attempt completion called:", message.text?.substring(0, 200))
 			}
 		}
-		api.on(RooCodeEventName.Message, messageHandler)
+		api.on(BearCodeEventName.Message, messageHandler)
 
 		// Listen for task completion
 		const taskCompletedHandler = (id: string) => {
@@ -738,7 +738,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				_taskCompleted = true
 			}
 		}
-		api.on(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+		api.on(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 
 		let taskId: string
 		try {
@@ -762,8 +762,8 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 			console.log("Test passed! MCP error handling verified and task completed")
 		} finally {
 			// Clean up
-			api.off(RooCodeEventName.Message, messageHandler)
-			api.off(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+			api.off(BearCodeEventName.Message, messageHandler)
+			api.off(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 		}
 	})
 
@@ -832,7 +832,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				console.error("Error:", message.text)
 			}
 		}
-		api.on(RooCodeEventName.Message, messageHandler)
+		api.on(BearCodeEventName.Message, messageHandler)
 
 		// Listen for task completion
 		const taskCompletedHandler = (id: string) => {
@@ -840,7 +840,7 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 				_taskCompleted = true
 			}
 		}
-		api.on(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+		api.on(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 
 		let taskId: string
 		try {
@@ -921,8 +921,8 @@ suite.skip("BearCode use_mcp_tool Tool", function () {
 			console.log("Test passed! MCP message format validation successful and task completed")
 		} finally {
 			// Clean up
-			api.off(RooCodeEventName.Message, messageHandler)
-			api.off(RooCodeEventName.TaskCompleted, taskCompletedHandler)
+			api.off(BearCodeEventName.Message, messageHandler)
+			api.off(BearCodeEventName.TaskCompleted, taskCompletedHandler)
 		}
 	})
 })

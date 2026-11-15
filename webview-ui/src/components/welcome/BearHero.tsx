@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-const RooHero = () => {
+const BearHero = () => {
 	const [imagesBaseUri] = useState(() => {
 		const w = window as any
 		return w.IMAGES_BASE_URI || ""
@@ -28,7 +28,7 @@ const RooHero = () => {
 			</div>
 			<div
 				className="w-[200%] -mt-0.25 h-0.5 overflow-hidden opacity-0 group-hover:opacity-70 transition-opacity duration-300"
-				data-testid="roo-hero-ground">
+				data-testid="bear-hero-ground">
 				<div className="w-full border-b-1 group-hover:border-b-1 border-dashed border-vscode-foreground animate-ground-slide" />
 			</div>
 			<div className="z-4 bg-gradient-to-r from-transparent to-vscode-sideBar-background absolute top-0 right-0 bottom-0 w-10 opacity-100" />
@@ -38,4 +38,4 @@ const RooHero = () => {
 	)
 }
 
-export default RooHero
+export default BearHero

@@ -1,4 +1,4 @@
-# @roo-code/types
+# @bear-code/types
 
 ## 0.0.1
 

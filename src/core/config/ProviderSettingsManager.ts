@@ -12,7 +12,7 @@ import {
 	type ProviderName,
 	isProviderName,
 	isRetiredProvider,
-} from "@roo-code/types"
+} from "@bear-code/types"
 
 import { Mode, modes } from "../../shared/modes"
 import { buildApiHandler } from "../../api"
@@ -42,7 +42,9 @@ export const providerProfilesSchema = z.object({
 export type ProviderProfiles = z.infer<typeof providerProfilesSchema>
 
 export class ProviderSettingsManager {
-	private static readonly SCOPE_PREFIX = "roo_cline_config_"
+	private static readonly SCOPE_PREFIX = "bear_code_config_"
+	/** Secret key used by BearCode 0.1.0 (inherited from Roo Code); migrated on first load. */
+	private static readonly LEGACY_SECRETS_KEY = "roo_cline_config_api_config"
 	private readonly defaultConfigId = this.generateId()
 
 	private readonly defaultModeApiConfigs: Record<string, string> = Object.fromEntries(
@@ -566,13 +568,31 @@ export class ProviderSettingsManager {
 		})
 	}
 
+	/**
+	 * Reads the stored provider profiles, moving them from the legacy secret key
+	 * to the current one if only the legacy key exists.
+	 */
+	private async readProfilesSecret(): Promise<string | undefined> {
+		const content = await this.context.secrets.get(this.secretsKey)
+		if (content) {
+			return content
+		}
+
+		const legacyContent = await this.context.secrets.get(ProviderSettingsManager.LEGACY_SECRETS_KEY)
+		if (legacyContent) {
+			await this.context.secrets.store(this.secretsKey, legacyContent)
+			await this.context.secrets.delete(ProviderSettingsManager.LEGACY_SECRETS_KEY)
+		}
+		return legacyContent
+	}
+
 	private get secretsKey() {
 		return `${ProviderSettingsManager.SCOPE_PREFIX}api_config`
 	}
 
 	private async load(): Promise<ProviderProfiles> {
 		try {
-			const content = await this.context.secrets.get(this.secretsKey)
+			const content = await this.readProfilesSecret()
 
 			if (!content) {
 				return this.defaultProviderProfiles

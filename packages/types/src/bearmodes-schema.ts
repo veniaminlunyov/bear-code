@@ -1,7 +1,7 @@
 /**
  * Builds the Zod schema for .bearmodes configuration files and converts it
  * to JSON Schema (draft-07). This module is the single source of truth for
- * both the generator script (scripts/generate-roomodes-schema.ts) and the
+ * both the generator script (scripts/generate-bearmodes-schema.ts) and the
  * drift-detection test.
  */
 
@@ -34,7 +34,7 @@ const exportedModeConfigSchema = modeConfigSchema.omit({ groups: true }).extend(
 })
 
 // Build the top-level .bearmodes schema.
-const roomodesZodSchema = z
+const bearmodesZodSchema = z
 	.object({
 		customModes: z.array(exportedModeConfigSchema),
 	})
@@ -44,13 +44,13 @@ const roomodesZodSchema = z
  * Generates the JSON Schema object for .bearmodes configuration files.
  * Includes metadata fields ($id, title, description).
  */
-export function generateRoomodesJsonSchema(): Record<string, unknown> {
-	const jsonSchema = zodToJsonSchema(roomodesZodSchema, {
+export function generateBearmodesJsonSchema(): Record<string, unknown> {
+	const jsonSchema = zodToJsonSchema(bearmodesZodSchema, {
 		$refStrategy: "none",
 		target: "jsonSchema7",
 	}) as Record<string, unknown>
 
-	jsonSchema["$id"] = "https://github.com/veniaminlunyov/bear-code/blob/main/schemas/roomodes.json"
+	jsonSchema["$id"] = "https://github.com/veniaminlunyov/bear-code/blob/main/schemas/bearmodes.json"
 	jsonSchema["title"] = "BearCode Custom Modes"
 	jsonSchema["description"] = "Schema for .bearmodes configuration files used by BearCode to define custom modes."
 

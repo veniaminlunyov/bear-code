@@ -259,7 +259,7 @@ const config: Config = {
 						from: ["/features/tools/write-to-file"],
 					},
 					{
-						to: "/advanced-usage/roo-code-nightly",
+						to: "/advanced-usage/bear-code-nightly",
 						from: ["/advanced-usage/prerelease-build"],
 					},
 					// Redirect removed Roo Code Router provider aliases
@@ -269,41 +269,41 @@ const config: Config = {
 					},
 					{
 						to: "/providers",
-						from: ["/providers/roo-code-cloud"],
+						from: ["/providers/bear-code-cloud"],
 					},
 					{
 						to: "/providers",
-						from: ["/roo-code-provider", "/roo-code-provider/overview"],
+						from: ["/bear-code-provider", "/bear-code-provider/overview"],
 					},
 					// Redirect removed Cloud, Router, Credits, and billing pages
 					{
 						to: "/",
 						from: [
 							"/sunset",
-							"/roo-code-cloud",
-							"/roo-code-cloud/overview",
-							"/roo-code-cloud/login",
-							"/roo-code-cloud/connect",
-							"/roo-code-cloud/cloud-agents",
-							"/roo-code-cloud/environments",
-							"/roo-code-cloud/task-sync",
-							"/roo-code-cloud/task-sharing",
-							"/roo-code-cloud/analytics",
-							"/roo-code-cloud/github-integration",
-							"/roo-code-cloud/slack-integration",
-							"/roo-code-cloud/team-plan",
-							"/roo-code-cloud/what-is-roo-code-cloud",
-							"/roo-code-cloud/dashboard",
-							"/roo-code-cloud/roomote-control",
+							"/bear-code-cloud",
+							"/bear-code-cloud/overview",
+							"/bear-code-cloud/login",
+							"/bear-code-cloud/connect",
+							"/bear-code-cloud/cloud-agents",
+							"/bear-code-cloud/environments",
+							"/bear-code-cloud/task-sync",
+							"/bear-code-cloud/task-sharing",
+							"/bear-code-cloud/analytics",
+							"/bear-code-cloud/github-integration",
+							"/bear-code-cloud/slack-integration",
+							"/bear-code-cloud/team-plan",
+							"/bear-code-cloud/what-is-bear-code-cloud",
+							"/bear-code-cloud/dashboard",
+							"/bear-code-cloud/roomote-control",
 						],
 					},
 					{
 						to: "/providers",
-						from: ["/roo-code-router", "/roo-code-router/overview", "/providers/roo-code-router"],
+						from: ["/bear-code-router", "/bear-code-router/overview", "/providers/bear-code-router"],
 					},
 					{
 						to: "/advanced-usage/rate-limits-costs",
-						from: ["/credits", "/credits/overview", "/roo-code-cloud/billing-subscriptions"],
+						from: ["/credits", "/credits/overview", "/bear-code-cloud/billing-subscriptions"],
 					},
 					// Redirect removed Human Relay provider page
 					{
@@ -371,8 +371,8 @@ const config: Config = {
 		navbar: {
 			logo: {
 				alt: "Roo Code Logo",
-				src: "img/roo-code-logo-dark.svg",
-				srcDark: "img/roo-code-logo-white.svg",
+				src: "img/bear-code-logo-dark.svg",
+				srcDark: "img/bear-code-logo-white.svg",
 			},
 			items: [
 				{
@@ -385,8 +385,8 @@ const config: Config = {
 			style: "dark",
 			logo: {
 				alt: "Roo Code Logo",
-				src: "img/roo-code-logo-dark.svg",
-				srcDark: "img/roo-code-logo-white.svg",
+				src: "img/bear-code-logo-dark.svg",
+				srcDark: "img/bear-code-logo-white.svg",
 				width: 120,
 				height: 24,
 			},

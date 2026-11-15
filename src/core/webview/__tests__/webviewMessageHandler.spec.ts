@@ -37,7 +37,7 @@ vi.mock("../diagnosticsHandler", () => ({
 	generateErrorDiagnostics: vi.fn().mockResolvedValue({ success: true, filePath: "/tmp/diagnostics.json" }),
 }))
 
-import type { ModelRecord } from "@roo-code/types"
+import type { ModelRecord } from "@bear-code/types"
 
 import { webviewMessageHandler } from "../webviewMessageHandler"
 import type { ClineProvider } from "../ClineProvider"
@@ -148,7 +148,7 @@ import * as fsUtils from "../../../utils/fs"
 import { getWorkspacePath } from "../../../utils/path"
 import { ensureSettingsDirectoryExists } from "../../../utils/globalContext"
 import { generateErrorDiagnostics } from "../diagnosticsHandler"
-import type { ModeConfig } from "@roo-code/types"
+import type { ModeConfig } from "@bear-code/types"
 
 vi.mock("../../../utils/fs")
 vi.mock("../../../utils/path")
@@ -218,7 +218,7 @@ describe("webviewMessageHandler - image mentions", () => {
 		const mockHandleWebviewAskResponse = vi.fn()
 		vi.mocked(mockClineProvider.getCurrentTask).mockReturnValue({
 			cwd: "/mock/workspace",
-			rooIgnoreController: undefined,
+			bearIgnoreController: undefined,
 			handleWebviewAskResponse: mockHandleWebviewAskResponse,
 		} as any)
 

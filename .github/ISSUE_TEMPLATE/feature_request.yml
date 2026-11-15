@@ -54,7 +54,7 @@ body:
           required: true
 
   - type: textarea
-    id: roo-code-tasks
+    id: bear-code-tasks
     attributes:
       label: BearCode Task Links (optional)
       description: If you explored this with BearCode, share public task links for context.

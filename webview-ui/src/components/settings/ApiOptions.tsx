@@ -32,7 +32,7 @@ import {
 	vercelAiGatewayDefaultModelId,
 	minimaxDefaultModelId,
 	unboundDefaultModelId,
-} from "@roo-code/types"
+} from "@bear-code/types"
 
 import {
 	getProviderServiceConfig,

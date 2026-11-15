@@ -46,6 +46,7 @@ logs
 .idea/
 .qodo/
 .vercel
+.bear/mcp.json
 .roo/mcp.json
 
 # Qdrant
@@ -54,4 +55,4 @@ qdrant_storage/
 # Architect plans
 plans/
 
-roo-cli-*.tar.gz*
+bear-cli-*.tar.gz*

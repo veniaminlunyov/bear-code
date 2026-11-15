@@ -2,7 +2,7 @@ import { BetaThinkingConfigParam } from "@anthropic-ai/sdk/resources/beta"
 import OpenAI from "openai"
 import type { GenerateContentConfig } from "@google/genai"
 
-import type { ModelInfo, ProviderSettings, ReasoningEffortExtended } from "@roo-code/types"
+import type { ModelInfo, ProviderSettings, ReasoningEffortExtended } from "@bear-code/types"
 
 import { shouldUseReasoningBudget, shouldUseReasoningEffort } from "../../shared/api"
 
@@ -12,7 +12,7 @@ export type OpenRouterReasoningParams = {
 	exclude?: boolean
 }
 
-export type RooReasoningParams = {
+export type BearReasoningParams = {
 	enabled?: boolean
 	effort?: ReasoningEffortExtended
 }
@@ -55,11 +55,11 @@ export const getOpenRouterReasoning = ({
 				: undefined
 			: undefined
 
-export const getRooReasoning = ({
+export const getBearReasoning = ({
 	model,
 	reasoningEffort,
 	settings,
-}: GetModelReasoningOptions): RooReasoningParams | undefined => {
+}: GetModelReasoningOptions): BearReasoningParams | undefined => {
 	// Check if model supports reasoning effort
 	if (!model.supportsReasoningEffort) {
 		return undefined

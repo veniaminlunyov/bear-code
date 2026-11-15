@@ -7,20 +7,20 @@ const {
 	mockReadFile,
 	mockReaddir,
 	mockLstat,
-	mockGetRooDirectoriesForCwd,
-	mockGetAllRooDirectoriesForCwd,
+	mockGetBearDirectoriesForCwd,
+	mockGetAllBearDirectoriesForCwd,
 	mockGetAgentsDirectoriesForCwd,
-	mockGetGlobalRooDirectory,
+	mockGetGlobalBearDirectory,
 } = vi.hoisted(() => ({
 	mockHomedir: vi.fn(),
 	mockStat: vi.fn(),
 	mockReadFile: vi.fn(),
 	mockReaddir: vi.fn(),
 	mockLstat: vi.fn(),
-	mockGetRooDirectoriesForCwd: vi.fn(),
-	mockGetAllRooDirectoriesForCwd: vi.fn(),
+	mockGetBearDirectoriesForCwd: vi.fn(),
+	mockGetAllBearDirectoriesForCwd: vi.fn(),
 	mockGetAgentsDirectoriesForCwd: vi.fn(),
-	mockGetGlobalRooDirectory: vi.fn(),
+	mockGetGlobalBearDirectory: vi.fn(),
 }))
 
 // Mock os module
@@ -41,12 +41,12 @@ vi.mock("fs/promises", () => ({
 	},
 }))
 
-// Mock the roo-config service
-vi.mock("../../../../services/roo-config", () => ({
-	getRooDirectoriesForCwd: mockGetRooDirectoriesForCwd,
-	getAllRooDirectoriesForCwd: mockGetAllRooDirectoriesForCwd,
+// Mock the bear-config service
+vi.mock("../../../../services/bear-config", () => ({
+	getBearDirectoriesForCwd: mockGetBearDirectoriesForCwd,
+	getAllBearDirectoriesForCwd: mockGetAllBearDirectoriesForCwd,
 	getAgentsDirectoriesForCwd: mockGetAgentsDirectoriesForCwd,
-	getGlobalRooDirectory: mockGetGlobalRooDirectory,
+	getGlobalBearDirectory: mockGetGlobalBearDirectory,
 }))
 
 import { loadRuleFiles, addCustomInstructions } from "../custom-instructions"
@@ -54,18 +54,18 @@ import { loadRuleFiles, addCustomInstructions } from "../custom-instructions"
 describe("custom-instructions global .bear support", () => {
 	const mockCwd = "/mock/project"
 	const mockHomeDir = "/mock/home"
-	const globalRooDir = path.join(mockHomeDir, ".bear")
-	const projectRooDir = path.join(mockCwd, ".bear")
+	const globalBearDir = path.join(mockHomeDir, ".bear")
+	const projectBearDir = path.join(mockCwd, ".bear")
 
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockHomedir.mockReturnValue(mockHomeDir)
-		mockGetRooDirectoriesForCwd.mockReturnValue([globalRooDir, projectRooDir])
-		// getAllRooDirectoriesForCwd is now async and returns the same directories by default
-		mockGetAllRooDirectoriesForCwd.mockResolvedValue([globalRooDir, projectRooDir])
+		mockGetBearDirectoriesForCwd.mockReturnValue([globalBearDir, projectBearDir])
+		// getAllBearDirectoriesForCwd is now async and returns the same directories by default
+		mockGetAllBearDirectoriesForCwd.mockResolvedValue([globalBearDir, projectBearDir])
 		// getAgentsDirectoriesForCwd returns parent directories (without .bear)
 		mockGetAgentsDirectoriesForCwd.mockResolvedValue([mockCwd])
-		mockGetGlobalRooDirectory.mockReturnValue(globalRooDir)
+		mockGetGlobalBearDirectory.mockReturnValue(globalBearDir)
 		// Default lstat to reject (file not found)
 		mockLstat.mockRejectedValue(new Error("ENOENT"))
 	})

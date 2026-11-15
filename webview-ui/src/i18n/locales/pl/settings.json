@@ -600,7 +600,7 @@
 			"label": "Limit kontekstu plików obszaru roboczego",
 			"description": "Maksymalna liczba plików do uwzględnienia w szczegółach bieżącego katalogu roboczego. Wyższe wartości zapewniają więcej kontekstu, ale zwiększają zużycie token."
 		},
-		"rooignore": {
+		"bearignore": {
 			"label": "Pokaż pliki .bearignore na listach i w wyszukiwaniach",
 			"description": "Gdy włączone, pliki pasujące do wzorców w .bearignore będą pokazywane na listach z symbolem kłódki. Gdy wyłączone, te pliki będą całkowicie ukryte z list plików i wyszukiwań."
 		},

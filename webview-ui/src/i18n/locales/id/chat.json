@@ -123,7 +123,7 @@
 	"about": "BearCode adalah seluruh tim pengembang AI di editor Anda.",
 	"docs": "Lihat <DocsLink>dokumentasi</DocsLink> kami untuk mempelajari lebih lanjut.",
 	"onboarding": "Daftar tugas Anda di ruang kerja ini kosong.",
-	"rooTips": {
+	"bearTips": {
 		"customizableModes": {
 			"title": "Mode yang dapat disesuaikan",
 			"description": "Persona khusus yang tetap mengerjakan tugas dan memberikan hasil."
@@ -287,7 +287,7 @@
 	"response": "Respons",
 	"arguments": "Argumen",
 	"text": {
-		"rooSaid": "Bear berkata"
+		"bearSaid": "Bear berkata"
 	},
 	"feedback": {
 		"youSaid": "Anda bilang"
@@ -359,26 +359,7 @@
 	},
 	"announcement": {
 		"title": "BearCode {{version}} Dirilis",
-		"support": "Dukung BearCode dengan memberi kami bintang di <githubLink>GitHub</githubLink>.",
-		"finalRelease": {
-			"title": "Rilis BearCode terakhir",
-			"intro": "Ini adalah rilis Roo Code terakhir. <announcementLink>Seperti yang kami umumkan beberapa minggu lalu</announcementLink>, kami memutuskan untuk mengalihkan fokus ke <roomoteLink>Roomote</roomoteLink>, platform agen cloud kami, yang kami yakini sebagai masa depan pengembangan perangkat lunak. Terima kasih banyak atas dukunganmu selama kira-kira setahun terakhir.",
-			"continuity": "Ekstensi ini seharusnya tetap berfungsi tanpa batas waktu, tetapi tidak akan menerima perbaikan bug, fitur baru, atau pembaruan model.",
-			"alternatives": "Jika kamu ingin menggunakan ekstensi, kami merekomendasikan <zooCodeLink>ZooCode</zooCodeLink> (fork Roo Code oleh komunitas) dan <clineLink>Cline</clineLink> (tempat Roo Code awalnya bermula).",
-			"signoff": "Selamat coding!"
-		},
-		"release": {
-			"heading": "Yang Baru:",
-			"gpt55": "GPT-5.5 via OpenAI Codex: Dukungan GPT-5.5 ditambahkan di provider OpenAI Codex agar kamu bisa menggunakan model terbaru langsung dari BearCode.",
-			"claudeOpus47": "Claude Opus 4.7 di Vertex AI: Claude Opus 4.7 ditambahkan ke provider Vertex AI untuk model reasoning andalan terbaru dari Anthropic.",
-			"checkpointNav": "Navigasi Checkpoint Sebelumnya: Menambahkan kontrol di chat untuk melompat kembali ke checkpoint sebelumnya, dengan dukungan i18n penuh."
-		},
-		"cloudAgents": {
-			"heading": "Baru di Cloud:",
-			"specialized": "Memperkenalkan <bold>Explainer</bold>, <bold>Planner</bold>, dan <bold>Coder</bold> - tiga agen cloud khusus untuk meningkatkan alur kerja Anda.",
-			"description": "Agen bekerja bersama di cloud dan dapat dipicu dari web atau melalui Slack.",
-			"tryButton": "Coba Agen Cloud"
-		}
+		"support": "Dukung BearCode dengan memberi kami bintang di <githubLink>GitHub</githubLink>."
 	},
 	"reasoning": {
 		"thinking": "Berpikir",

@@ -1,3 +1,3 @@
-# @roo-code/ipc
+# @bear-code/ipc
 
 ## 0.0.1

@@ -1,7 +1,7 @@
 import path from "path"
 import fs from "fs/promises"
 
-import { type ClineSayTool, DEFAULT_WRITE_DELAY_MS } from "@roo-code/types"
+import { type ClineSayTool, DEFAULT_WRITE_DELAY_MS } from "@bear-code/types"
 
 import { getReadablePath } from "../../utils/path"
 import { Task } from "../task/Task"
@@ -46,11 +46,11 @@ export class ApplyDiffTool extends BaseTool<"apply_diff"> {
 				return
 			}
 
-			const accessAllowed = task.rooIgnoreController?.validateAccess(relPath)
+			const accessAllowed = task.bearIgnoreController?.validateAccess(relPath)
 
 			if (!accessAllowed) {
-				await task.say("rooignore_error", relPath)
-				pushToolResult(formatResponse.rooIgnoreError(relPath))
+				await task.say("bearignore_error", relPath)
+				pushToolResult(formatResponse.bearIgnoreError(relPath))
 				return
 			}
 
@@ -134,7 +134,7 @@ export class ApplyDiffTool extends BaseTool<"apply_diff"> {
 			)
 
 			// Check if file is write-protected
-			const isWriteProtected = task.rooProtectedController?.isWriteProtected(relPath) || false
+			const isWriteProtected = task.bearProtectedController?.isWriteProtected(relPath) || false
 
 			const sharedMessageProps: ClineSayTool = {
 				tool: "appliedDiff",
@@ -224,7 +224,7 @@ export class ApplyDiffTool extends BaseTool<"apply_diff"> {
 
 			// Track file edit operation
 			if (relPath) {
-				await task.fileContextTracker.trackFileContext(relPath, "roo_edited" as RecordSource)
+				await task.fileContextTracker.trackFileContext(relPath, "bear_edited" as RecordSource)
 			}
 
 			// Used to determine if we should wait for busy terminal to update before sending api request

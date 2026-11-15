@@ -1,4 +1,4 @@
-// npx vitest run services/roo-config/__tests__/branded-paths.spec.ts
+// npx vitest run services/bear-config/__tests__/branded-paths.spec.ts
 
 import * as fs from "fs"
 import * as os from "os"
@@ -19,10 +19,10 @@ vi.mock("../../search/file-search", () => ({
 }))
 
 import {
-	discoverSubfolderRooDirectories,
-	getGlobalRooDirectory,
+	discoverSubfolderBearDirectories,
+	getGlobalBearDirectory,
 	getProjectModesFilePath,
-	getProjectRooDirectoryForCwd,
+	getProjectBearDirectoryForCwd,
 	isProjectModesFile,
 	resolveBrandedPath,
 	resolveWorkspaceConfigPath,
@@ -60,15 +60,15 @@ describe("BearCode config names with legacy Roo Code fallback", () => {
 
 	describe("config directories", () => {
 		it("uses .bear for project and global dirs by default", () => {
-			expect(getProjectRooDirectoryForCwd(tmp)).toBe(path.join(tmp, ".bear"))
-			expect(getGlobalRooDirectory()).toBe(path.join(tmp, "home", ".bear"))
+			expect(getProjectBearDirectoryForCwd(tmp)).toBe(path.join(tmp, ".bear"))
+			expect(getGlobalBearDirectory()).toBe(path.join(tmp, "home", ".bear"))
 		})
 
 		it("falls back to existing legacy .roo dirs", () => {
 			fs.mkdirSync(path.join(tmp, ".roo"))
 			fs.mkdirSync(path.join(tmp, "home", ".roo"))
-			expect(getProjectRooDirectoryForCwd(tmp)).toBe(path.join(tmp, ".roo"))
-			expect(getGlobalRooDirectory()).toBe(path.join(tmp, "home", ".roo"))
+			expect(getProjectBearDirectoryForCwd(tmp)).toBe(path.join(tmp, ".roo"))
+			expect(getGlobalBearDirectory()).toBe(path.join(tmp, "home", ".roo"))
 		})
 	})
 
@@ -106,7 +106,7 @@ describe("BearCode config names with legacy Roo Code fallback", () => {
 		})
 	})
 
-	describe("discoverSubfolderRooDirectories", () => {
+	describe("discoverSubfolderBearDirectories", () => {
 		it("finds .bear and legacy .roo subfolders, preferring .bear in the same folder", async () => {
 			mockExecuteRipgrep.mockResolvedValue([
 				{ path: ".bear/rules/root.md", type: "file", label: "root.md" },
@@ -115,7 +115,7 @@ describe("BearCode config names with legacy Roo Code fallback", () => {
 				{ path: "pkg-b/.roo/rules/old.md", type: "file", label: "old.md" },
 			])
 
-			const dirs = await discoverSubfolderRooDirectories(tmp)
+			const dirs = await discoverSubfolderBearDirectories(tmp)
 
 			expect(dirs).toEqual([path.join(tmp, "pkg-a", ".roo"), path.join(tmp, "pkg-b", ".bear")])
 		})

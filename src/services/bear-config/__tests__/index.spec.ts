@@ -27,21 +27,21 @@ vi.mock("../../search/file-search", () => ({
 }))
 
 import {
-	getGlobalRooDirectory,
+	getGlobalBearDirectory,
 	getGlobalAgentsDirectory,
-	getProjectRooDirectoryForCwd,
+	getProjectBearDirectoryForCwd,
 	getProjectAgentsDirectoryForCwd,
 	directoryExists,
 	fileExists,
 	readFileIfExists,
-	getRooDirectoriesForCwd,
-	getAllRooDirectoriesForCwd,
+	getBearDirectoriesForCwd,
+	getAllBearDirectoriesForCwd,
 	getAgentsDirectoriesForCwd,
-	discoverSubfolderRooDirectories,
+	discoverSubfolderBearDirectories,
 	loadConfiguration,
 } from "../index"
 
-describe("RooConfigService", () => {
+describe("BearConfigService", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockHomedir.mockReturnValue("/mock/home")
@@ -51,23 +51,23 @@ describe("RooConfigService", () => {
 		vi.restoreAllMocks()
 	})
 
-	describe("getGlobalRooDirectory", () => {
+	describe("getGlobalBearDirectory", () => {
 		it("should return correct path for global .bear directory", () => {
-			const result = getGlobalRooDirectory()
+			const result = getGlobalBearDirectory()
 			expect(result).toBe(path.join("/mock/home", ".bear"))
 		})
 
 		it("should handle different home directories", () => {
 			mockHomedir.mockReturnValue("/different/home")
-			const result = getGlobalRooDirectory()
+			const result = getGlobalBearDirectory()
 			expect(result).toBe(path.join("/different/home", ".bear"))
 		})
 	})
 
-	describe("getProjectRooDirectoryForCwd", () => {
+	describe("getProjectBearDirectoryForCwd", () => {
 		it("should return correct path for given cwd", () => {
 			const cwd = "/custom/project/path"
-			const result = getProjectRooDirectoryForCwd(cwd)
+			const result = getProjectBearDirectoryForCwd(cwd)
 			expect(result).toBe(path.join(cwd, ".bear"))
 		})
 	})
@@ -236,11 +236,11 @@ describe("RooConfigService", () => {
 		})
 	})
 
-	describe("getRooDirectoriesForCwd", () => {
+	describe("getBearDirectoriesForCwd", () => {
 		it("should return directories for given cwd", () => {
 			const cwd = "/custom/project/path"
 
-			const result = getRooDirectoriesForCwd(cwd)
+			const result = getBearDirectoriesForCwd(cwd)
 
 			expect(result).toEqual([path.join("/mock/home", ".bear"), path.join(cwd, ".bear")])
 		})
@@ -330,11 +330,11 @@ describe("RooConfigService", () => {
 		})
 	})
 
-	describe("discoverSubfolderRooDirectories", () => {
+	describe("discoverSubfolderBearDirectories", () => {
 		it("should return empty array when no subfolder .bear directories found", async () => {
 			mockExecuteRipgrep.mockResolvedValue([])
 
-			const result = await discoverSubfolderRooDirectories("/project/path")
+			const result = await discoverSubfolderBearDirectories("/project/path")
 
 			expect(result).toEqual([])
 		})
@@ -346,7 +346,7 @@ describe("RooConfigService", () => {
 				{ path: "package-b/.bear/rules-code/rule.md", type: "file" },
 			])
 
-			const result = await discoverSubfolderRooDirectories("/project/path")
+			const result = await discoverSubfolderBearDirectories("/project/path")
 
 			expect(result).toEqual([
 				path.join("/project/path", "package-a", ".bear"),
@@ -361,7 +361,7 @@ describe("RooConfigService", () => {
 				{ path: "mango/.bear/rules/rule.md", type: "file" },
 			])
 
-			const result = await discoverSubfolderRooDirectories("/project/path")
+			const result = await discoverSubfolderBearDirectories("/project/path")
 
 			expect(result).toEqual([
 				path.join("/project/path", "apple", ".bear"),
@@ -377,7 +377,7 @@ describe("RooConfigService", () => {
 				{ path: "subfolder/.bear/rules/rule.md", type: "file" },
 			])
 
-			const result = await discoverSubfolderRooDirectories("/project/path")
+			const result = await discoverSubfolderBearDirectories("/project/path")
 
 			// Should only include subfolder, not root
 			expect(result).toEqual([path.join("/project/path", "subfolder", ".bear")])
@@ -389,7 +389,7 @@ describe("RooConfigService", () => {
 				{ path: "packages/utils/.bear/rules-code/rule.md", type: "file" },
 			])
 
-			const result = await discoverSubfolderRooDirectories("/project/path")
+			const result = await discoverSubfolderBearDirectories("/project/path")
 
 			expect(result).toEqual([
 				path.join("/project/path", "packages/core", ".bear"),
@@ -400,7 +400,7 @@ describe("RooConfigService", () => {
 		it("should return empty array on ripgrep error", async () => {
 			mockExecuteRipgrep.mockRejectedValue(new Error("ripgrep failed"))
 
-			const result = await discoverSubfolderRooDirectories("/project/path")
+			const result = await discoverSubfolderBearDirectories("/project/path")
 
 			expect(result).toEqual([])
 		})
@@ -412,7 +412,7 @@ describe("RooConfigService", () => {
 				{ path: "package-a/.bear/rules-code/rule3.md", type: "file" },
 			])
 
-			const result = await discoverSubfolderRooDirectories("/project/path")
+			const result = await discoverSubfolderBearDirectories("/project/path")
 
 			// Should only include package-a/.bear once
 			expect(result).toEqual([path.join("/project/path", "package-a", ".bear")])
@@ -427,7 +427,7 @@ describe("RooConfigService", () => {
 				{ path: "package-d/.bear/config/settings.json", type: "file" },
 			])
 
-			const result = await discoverSubfolderRooDirectories("/project/path")
+			const result = await discoverSubfolderBearDirectories("/project/path")
 
 			expect(result).toEqual([
 				path.join("/project/path", "package-a", ".bear"),
@@ -438,11 +438,11 @@ describe("RooConfigService", () => {
 		})
 	})
 
-	describe("getAllRooDirectoriesForCwd", () => {
+	describe("getAllBearDirectoriesForCwd", () => {
 		it("should return global, project, and subfolder directories", async () => {
 			mockExecuteRipgrep.mockResolvedValueOnce([{ path: "subfolder/.bear/rules/rule.md", type: "file" }])
 
-			const result = await getAllRooDirectoriesForCwd("/project/path")
+			const result = await getAllBearDirectoriesForCwd("/project/path")
 
 			expect(result).toEqual([
 				path.join("/mock/home", ".bear"), // global
@@ -454,7 +454,7 @@ describe("RooConfigService", () => {
 		it("should return only global and project when no subfolders", async () => {
 			mockExecuteRipgrep.mockResolvedValue([])
 
-			const result = await getAllRooDirectoriesForCwd("/project/path")
+			const result = await getAllBearDirectoriesForCwd("/project/path")
 
 			expect(result).toEqual([path.join("/mock/home", ".bear"), path.join("/project/path", ".bear")])
 		})
@@ -465,7 +465,7 @@ describe("RooConfigService", () => {
 				{ path: "apple/.bear/rules/rule.md", type: "file" },
 			])
 
-			const result = await getAllRooDirectoriesForCwd("/project/path")
+			const result = await getAllBearDirectoriesForCwd("/project/path")
 
 			expect(result).toEqual([
 				path.join("/mock/home", ".bear"), // global first

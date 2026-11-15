@@ -80,16 +80,16 @@ vi.mock("vscode", () => ({
 	RelativePattern: vi.fn(),
 }))
 
-// Global roo directory - computed once
-const GLOBAL_ROO_DIR = p(HOME_DIR, ".bear")
+// Global bear directory - computed once
+const GLOBAL_BEAR_DIR = p(HOME_DIR, ".bear")
 const GLOBAL_AGENTS_DIR = p(HOME_DIR, ".agents")
 
-// Mock roo-config
-vi.mock("../../roo-config", () => ({
-	getGlobalRooDirectory: () => GLOBAL_ROO_DIR,
+// Mock bear-config
+vi.mock("../../bear-config", () => ({
+	getGlobalBearDirectory: () => GLOBAL_BEAR_DIR,
 	getGlobalAgentsDirectory: () => GLOBAL_AGENTS_DIR,
 	getProjectAgentsDirectoryForCwd: (cwd: string) => p(cwd, ".agents"),
-	getProjectRooDirectoryForCwd: (cwd: string) => p(cwd, ".bear"),
+	getProjectBearDirectoryForCwd: (cwd: string) => p(cwd, ".bear"),
 	directoryExists: mockDirectoryExists,
 	fileExists: mockFileExists,
 }))
@@ -118,11 +118,11 @@ describe("SkillsManager", () => {
 	let mockProvider: Partial<ClineProvider>
 
 	// Pre-computed paths for tests
-	const globalSkillsDir = p(GLOBAL_ROO_DIR, "skills")
-	const globalSkillsCodeDir = p(GLOBAL_ROO_DIR, "skills-code")
-	const globalSkillsArchitectDir = p(GLOBAL_ROO_DIR, "skills-architect")
-	const projectRooDir = p(PROJECT_DIR, ".bear")
-	const projectSkillsDir = p(projectRooDir, "skills")
+	const globalSkillsDir = p(GLOBAL_BEAR_DIR, "skills")
+	const globalSkillsCodeDir = p(GLOBAL_BEAR_DIR, "skills-code")
+	const globalSkillsArchitectDir = p(GLOBAL_BEAR_DIR, "skills-architect")
+	const projectBearDir = p(PROJECT_DIR, ".bear")
+	const projectSkillsDir = p(projectBearDir, "skills")
 	// .agents directory paths
 	const globalAgentsSkillsDir = p(GLOBAL_AGENTS_DIR, "skills")
 	const globalAgentsSkillsCodeDir = p(GLOBAL_AGENTS_DIR, "skills-code")
@@ -721,8 +721,8 @@ Instructions here...`
 		it("should prioritize .bear skills over .agents skills with same name", async () => {
 			const agentSkillDir = p(globalAgentsSkillsDir, "common-skill")
 			const agentSkillMd = p(agentSkillDir, "SKILL.md")
-			const rooSkillDir = p(globalSkillsDir, "common-skill")
-			const rooSkillMd = p(rooSkillDir, "SKILL.md")
+			const bearSkillDir = p(globalSkillsDir, "common-skill")
+			const bearSkillMd = p(bearSkillDir, "SKILL.md")
 
 			mockDirectoryExists.mockImplementation(async (dir: string) => {
 				return dir === globalAgentsSkillsDir || dir === globalSkillsDir
@@ -738,14 +738,14 @@ Instructions here...`
 			})
 
 			mockStat.mockImplementation(async (pathArg: string) => {
-				if (pathArg === agentSkillDir || pathArg === rooSkillDir) {
+				if (pathArg === agentSkillDir || pathArg === bearSkillDir) {
 					return { isDirectory: () => true }
 				}
 				throw new Error("Not found")
 			})
 
 			mockFileExists.mockImplementation(async (file: string) => {
-				return file === agentSkillMd || file === rooSkillMd
+				return file === agentSkillMd || file === bearSkillMd
 			})
 
 			mockReadFile.mockImplementation(async (file: string) => {
@@ -757,7 +757,7 @@ description: Agent version (should be overridden)
 
 # Agent Common Skill`
 				}
-				if (file === rooSkillMd) {
+				if (file === bearSkillMd) {
 					return `---
 name: common-skill
 description: Bear version (should take priority)
@@ -1204,13 +1204,13 @@ Instructions`)
 
 			const createdPath = await skillsManager.createSkill("new-skill", "global", "A new skill description")
 
-			expect(createdPath).toBe(p(GLOBAL_ROO_DIR, "skills", "new-skill", "SKILL.md"))
-			expect(mockMkdir).toHaveBeenCalledWith(p(GLOBAL_ROO_DIR, "skills", "new-skill"), { recursive: true })
+			expect(createdPath).toBe(p(GLOBAL_BEAR_DIR, "skills", "new-skill", "SKILL.md"))
+			expect(mockMkdir).toHaveBeenCalledWith(p(GLOBAL_BEAR_DIR, "skills", "new-skill"), { recursive: true })
 			expect(mockWriteFile).toHaveBeenCalled()
 
 			// Verify the content written
 			const writeCall = mockWriteFile.mock.calls[0]
-			expect(writeCall[0]).toBe(p(GLOBAL_ROO_DIR, "skills", "new-skill", "SKILL.md"))
+			expect(writeCall[0]).toBe(p(GLOBAL_BEAR_DIR, "skills", "new-skill", "SKILL.md"))
 			expect(writeCall[1]).toContain("name: new-skill")
 			expect(writeCall[1]).toContain("description: A new skill description")
 		})
@@ -1226,7 +1226,7 @@ Instructions`)
 			const createdPath = await skillsManager.createSkill("code-skill", "global", "A code skill", ["code"])
 
 			// Skills are always created in the generic skills directory now; mode info is in frontmatter
-			expect(createdPath).toBe(p(GLOBAL_ROO_DIR, "skills", "code-skill", "SKILL.md"))
+			expect(createdPath).toBe(p(GLOBAL_BEAR_DIR, "skills", "code-skill", "SKILL.md"))
 
 			// Verify frontmatter contains modeSlugs
 			const writeCall = mockWriteFile.mock.calls[0]
@@ -1364,8 +1364,8 @@ Instructions`)
 		it("should move a skill from generic to mode-specific directory", async () => {
 			const sourceDir = p(globalSkillsDir, "test-skill")
 			const testSkillMd = p(sourceDir, "SKILL.md")
-			const destDir = p(GLOBAL_ROO_DIR, "skills-code", "test-skill")
-			const destSkillsDir = p(GLOBAL_ROO_DIR, "skills-code")
+			const destDir = p(GLOBAL_BEAR_DIR, "skills-code", "test-skill")
+			const destSkillsDir = p(GLOBAL_BEAR_DIR, "skills-code")
 
 			// Setup: skill exists in generic skills directory
 			mockDirectoryExists.mockImplementation(async (dir: string) => {
@@ -1418,11 +1418,11 @@ Instructions`)
 		})
 
 		it("should move a skill from one mode to another", async () => {
-			const sourceSkillsDir = p(GLOBAL_ROO_DIR, "skills-code")
+			const sourceSkillsDir = p(GLOBAL_BEAR_DIR, "skills-code")
 			const sourceDir = p(sourceSkillsDir, "test-skill")
 			const testSkillMd = p(sourceDir, "SKILL.md")
-			const destDir = p(GLOBAL_ROO_DIR, "skills-architect", "test-skill")
-			const destSkillsDir = p(GLOBAL_ROO_DIR, "skills-architect")
+			const destDir = p(GLOBAL_BEAR_DIR, "skills-architect", "test-skill")
+			const destSkillsDir = p(GLOBAL_BEAR_DIR, "skills-architect")
 
 			// Setup: skill exists in code mode directory
 			mockDirectoryExists.mockImplementation(async (dir: string) => {
@@ -1475,7 +1475,7 @@ Instructions`)
 		})
 
 		it("should move a skill from mode-specific to generic directory", async () => {
-			const sourceSkillsDir = p(GLOBAL_ROO_DIR, "skills-code")
+			const sourceSkillsDir = p(GLOBAL_BEAR_DIR, "skills-code")
 			const sourceDir = p(sourceSkillsDir, "test-skill")
 			const testSkillMd = p(sourceDir, "SKILL.md")
 			const destDir = p(globalSkillsDir, "test-skill")
@@ -1586,7 +1586,7 @@ Instructions`)
 		it("should throw error if skill already exists at destination", async () => {
 			const sourceDir = p(globalSkillsDir, "test-skill")
 			const testSkillMd = p(sourceDir, "SKILL.md")
-			const destDir = p(GLOBAL_ROO_DIR, "skills-code", "test-skill")
+			const destDir = p(GLOBAL_BEAR_DIR, "skills-code", "test-skill")
 			const destSkillMd = p(destDir, "SKILL.md")
 
 			// Setup: skill exists in both locations
@@ -1631,11 +1631,11 @@ Instructions`)
 		})
 
 		it("should clean up empty source skills directory after moving", async () => {
-			const sourceSkillsDir = p(GLOBAL_ROO_DIR, "skills-code")
+			const sourceSkillsDir = p(GLOBAL_BEAR_DIR, "skills-code")
 			const sourceDir = p(sourceSkillsDir, "test-skill")
 			const testSkillMd = p(sourceDir, "SKILL.md")
-			const destDir = p(GLOBAL_ROO_DIR, "skills-architect", "test-skill")
-			const destSkillsDir = p(GLOBAL_ROO_DIR, "skills-architect")
+			const destDir = p(GLOBAL_BEAR_DIR, "skills-architect", "test-skill")
+			const destSkillsDir = p(GLOBAL_BEAR_DIR, "skills-architect")
 
 			// Setup: skill exists in code mode directory
 			mockDirectoryExists.mockImplementation(async (dir: string) => {
@@ -1694,11 +1694,11 @@ Instructions`)
 		})
 
 		it("should not clean up source skills directory if it still has other skills", async () => {
-			const sourceSkillsDir = p(GLOBAL_ROO_DIR, "skills-code")
+			const sourceSkillsDir = p(GLOBAL_BEAR_DIR, "skills-code")
 			const sourceDir = p(sourceSkillsDir, "test-skill")
 			const testSkillMd = p(sourceDir, "SKILL.md")
-			const destDir = p(GLOBAL_ROO_DIR, "skills-architect", "test-skill")
-			const destSkillsDir = p(GLOBAL_ROO_DIR, "skills-architect")
+			const destDir = p(GLOBAL_BEAR_DIR, "skills-architect", "test-skill")
+			const destSkillsDir = p(GLOBAL_BEAR_DIR, "skills-architect")
 
 			// Setup: skill exists in code mode directory along with another skill
 			mockDirectoryExists.mockImplementation(async (dir: string) => {

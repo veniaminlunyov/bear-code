@@ -2,7 +2,7 @@
 
 import { ExtensionContext } from "vscode"
 
-import type { ProviderSettings } from "@roo-code/types"
+import type { ProviderSettings } from "@bear-code/types"
 
 import { ProviderSettingsManager, ProviderProfiles } from "../ProviderSettingsManager"
 
@@ -36,6 +36,53 @@ describe("ProviderSettingsManager", () => {
 		mockGlobalState.update.mockResolvedValue(undefined)
 
 		providerSettingsManager = new ProviderSettingsManager(mockContext)
+	})
+
+	describe("secret storage key migration", () => {
+		const KEY = "bear_code_config_api_config"
+		const LEGACY_KEY = "roo_cline_config_api_config"
+		const storedProfiles = JSON.stringify({
+			currentApiConfigName: "work",
+			apiConfigs: { work: { id: "work-id", apiProvider: "anthropic", apiKey: "sk-test" } },
+			migrations: {
+				rateLimitSecondsMigrated: true,
+				openAiHeadersMigrated: true,
+				consecutiveMistakeLimitMigrated: true,
+				todoListEnabledMigrated: true,
+				claudeCodeLegacySettingsMigrated: true,
+			},
+		})
+
+		it("moves provider profiles from the legacy secret key to the current one", async () => {
+			const secrets = new Map<string, string>([[LEGACY_KEY, storedProfiles]])
+			mockSecrets.get.mockImplementation(async (key: string) => secrets.get(key) ?? null)
+			mockSecrets.store.mockImplementation(async (key: string, value: string) => {
+				secrets.set(key, value)
+			})
+			mockSecrets.delete.mockImplementation(async (key: string) => {
+				secrets.delete(key)
+			})
+
+			const configs = await providerSettingsManager.listConfig()
+
+			expect(configs.map((c) => c.name)).toEqual(["work"])
+			expect(secrets.has(KEY)).toBe(true)
+			expect(secrets.has(LEGACY_KEY)).toBe(false)
+			expect(JSON.parse(secrets.get(KEY)!).apiConfigs.work.apiKey).toBe("sk-test")
+		})
+
+		it("prefers the current secret key when both exist", async () => {
+			const secrets = new Map<string, string>([
+				[KEY, storedProfiles],
+				[LEGACY_KEY, storedProfiles.replace('"work"', '"old"')],
+			])
+			mockSecrets.get.mockImplementation(async (key: string) => secrets.get(key) ?? null)
+
+			const configs = await providerSettingsManager.listConfig()
+
+			expect(configs.map((c) => c.name)).toEqual(["work"])
+			expect(mockSecrets.delete).not.toHaveBeenCalledWith(LEGACY_KEY)
+		})
 	})
 
 	describe("initialize", () => {
@@ -338,7 +385,7 @@ describe("ProviderSettingsManager", () => {
 				},
 			}
 
-			expect(mockSecrets.store.mock.calls[0][0]).toEqual("roo_cline_config_api_config")
+			expect(mockSecrets.store.mock.calls[0][0]).toEqual("bear_code_config_api_config")
 			expect(storedConfig).toEqual(expectedConfig)
 		})
 
@@ -388,7 +435,7 @@ describe("ProviderSettingsManager", () => {
 				},
 			}
 
-			expect(mockSecrets.store.mock.calls[0][0]).toEqual("roo_cline_config_api_config")
+			expect(mockSecrets.store.mock.calls[0][0]).toEqual("bear_code_config_api_config")
 			expect(storedConfig).toEqual(expectedConfig)
 		})
 
@@ -432,7 +479,7 @@ describe("ProviderSettingsManager", () => {
 
 			const storedConfig = JSON.parse(mockSecrets.store.mock.calls[mockSecrets.store.mock.calls.length - 1][1])
 			expect(mockSecrets.store.mock.calls[mockSecrets.store.mock.calls.length - 1][0]).toEqual(
-				"roo_cline_config_api_config",
+				"bear_code_config_api_config",
 			)
 			expect(storedConfig).toEqual(expectedConfig)
 		})
@@ -835,7 +882,7 @@ describe("ProviderSettingsManager", () => {
 			await providerSettingsManager.resetAllConfigs()
 
 			// Should have called delete with the correct config key
-			expect(mockSecrets.delete).toHaveBeenCalledWith("roo_cline_config_api_config")
+			expect(mockSecrets.delete).toHaveBeenCalledWith("bear_code_config_api_config")
 		})
 	})
 

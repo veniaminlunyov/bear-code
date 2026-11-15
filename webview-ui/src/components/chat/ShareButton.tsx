@@ -1,4 +1,4 @@
-import { type HistoryItem } from "@roo-code/types"
+import { type HistoryItem } from "@bear-code/types"
 
 interface ShareButtonProps {
 	item?: HistoryItem

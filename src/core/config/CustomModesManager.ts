@@ -5,18 +5,18 @@ import * as fs from "fs/promises"
 import * as yaml from "yaml"
 import stripBom from "strip-bom"
 
-import { type ModeConfig, type PromptComponent, customModesSettingsSchema, modeConfigSchema } from "@roo-code/types"
+import { type ModeConfig, type PromptComponent, customModesSettingsSchema, modeConfigSchema } from "@bear-code/types"
 
 import { fileExistsAtPath } from "../../utils/fs"
 import { getWorkspacePath } from "../../utils/path"
 import {
-	getGlobalRooDirectory,
-	getProjectRooDirectoryForCwd,
+	getGlobalBearDirectory,
+	getProjectBearDirectoryForCwd,
 	getProjectModesFilePath,
 	isProjectModesFile,
 	MODES_FILENAME,
 	LEGACY_MODES_FILENAME,
-} from "../../services/roo-config"
+} from "../../services/bear-config"
 import { logger } from "../../utils/logging"
 import { GlobalFileNames } from "../../shared/globalFileNames"
 import { ensureSettingsDirectoryExists } from "../../utils/globalContext"
@@ -94,7 +94,7 @@ export class CustomModesManager {
 		}
 	}
 
-	private async getWorkspaceRoomodes(): Promise<string | undefined> {
+	private async getWorkspaceBearmodes(): Promise<string | undefined> {
 		const workspaceFolders = vscode.workspace.workspaceFolders
 
 		if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -102,9 +102,9 @@ export class CustomModesManager {
 		}
 
 		const workspaceRoot = getWorkspacePath()
-		const roomodesPath = getProjectModesFilePath(workspaceRoot)
-		const exists = await fileExistsAtPath(roomodesPath)
-		return exists ? roomodesPath : undefined
+		const bearmodesPath = getProjectModesFilePath(workspaceRoot)
+		const exists = await fileExistsAtPath(bearmodesPath)
+		return exists ? bearmodesPath : undefined
 	}
 
 	/**
@@ -158,7 +158,7 @@ export class CustomModesManager {
 			// Ensure we never return null or undefined
 			return parsed ?? {}
 		} catch (yamlError) {
-			// For .roomodes files, try JSON as fallback
+			// For .bearmodes files, try JSON as fallback
 			if (isProjectModesFile(filePath)) {
 				try {
 					// Try parsing the original content as JSON (not the cleaned content)
@@ -177,7 +177,7 @@ export class CustomModesManager {
 				}
 			}
 
-			// For non-.roomodes files, just log and return empty object
+			// For non-.bearmodes files, just log and return empty object
 			const errorMsg = yamlError instanceof Error ? yamlError.message : String(yamlError)
 			console.error(`[CustomModesManager] Failed to parse YAML from ${filePath}:`, errorMsg)
 			return {}
@@ -199,7 +199,7 @@ export class CustomModesManager {
 			if (!result.success) {
 				console.error(`[CustomModesManager] Schema validation failed for ${filePath}:`, result.error)
 
-				// Show user-friendly error for .roomodes files
+				// Show user-friendly error for .bearmodes files
 				if (isProjectModesFile(filePath)) {
 					const issues = result.error.issues
 						.map((issue) => `• ${issue.path.join(".")}: ${issue.message}`)
@@ -212,8 +212,8 @@ export class CustomModesManager {
 			}
 
 			// Determine source based on file path
-			const isRoomodes = isProjectModesFile(filePath)
-			const source = isRoomodes ? ("project" as const) : ("global" as const)
+			const isBearmodes = isProjectModesFile(filePath)
+			const source = isBearmodes ? ("project" as const) : ("global" as const)
 
 			// Add source to each mode
 			return result.data.customModes.map((mode) => ({ ...mode, source }))
@@ -298,12 +298,12 @@ export class CustomModesManager {
 					return
 				}
 
-				// Get modes from .roomodes if it exists (takes precedence)
-				const roomodesPath = await this.getWorkspaceRoomodes()
-				const roomodesModes = roomodesPath ? await this.loadModesFromFile(roomodesPath) : []
+				// Get modes from .bearmodes if it exists (takes precedence)
+				const bearmodesPath = await this.getWorkspaceBearmodes()
+				const bearmodesModes = bearmodesPath ? await this.loadModesFromFile(bearmodesPath) : []
 
-				// Merge modes from both sources (.roomodes takes precedence)
-				const mergedModes = await this.mergeCustomModes(roomodesModes, result.data.customModes)
+				// Merge modes from both sources (.bearmodes takes precedence)
+				const mergedModes = await this.mergeCustomModes(bearmodesModes, result.data.customModes)
 				await this.context.globalState.update("customModes", mergedModes)
 				this.clearCache()
 				await this.onUpdate()
@@ -317,24 +317,24 @@ export class CustomModesManager {
 		this.disposables.push(settingsWatcher.onDidDelete(handleSettingsChange))
 		this.disposables.push(settingsWatcher)
 
-		// Watch .roomodes file - watch the path even if it doesn't exist yet
+		// Watch .bearmodes file - watch the path even if it doesn't exist yet
 		const workspaceFolders = vscode.workspace.workspaceFolders
 		if (workspaceFolders && workspaceFolders.length > 0) {
 			const workspaceRoot = getWorkspacePath()
 			// Re-resolve on every event: the active file may switch between
-			// .bearmodes and the legacy .roomodes when either is created or deleted.
-			const handleRoomodesChange = async () => {
+			// .bearmodes and the legacy .bearmodes when either is created or deleted.
+			const handleBearmodesChange = async () => {
 				try {
 					const settingsModes = await this.loadModesFromFile(settingsPath)
-					const roomodesPath = getProjectModesFilePath(workspaceRoot)
+					const bearmodesPath = getProjectModesFilePath(workspaceRoot)
 
-					if (!(await fileExistsAtPath(roomodesPath))) {
+					if (!(await fileExistsAtPath(bearmodesPath))) {
 						// No project modes file left, refresh with only settings modes
 						await this.context.globalState.update("customModes", settingsModes)
 					} else {
-						const roomodesModes = await this.loadModesFromFile(roomodesPath)
+						const bearmodesModes = await this.loadModesFromFile(bearmodesPath)
 						// Project modes take precedence
-						const mergedModes = await this.mergeCustomModes(roomodesModes, settingsModes)
+						const mergedModes = await this.mergeCustomModes(bearmodesModes, settingsModes)
 						await this.context.globalState.update("customModes", mergedModes)
 					}
 
@@ -347,11 +347,11 @@ export class CustomModesManager {
 
 			// Watch both names - watch the paths even if they don't exist yet
 			for (const fileName of [MODES_FILENAME, LEGACY_MODES_FILENAME]) {
-				const roomodesWatcher = vscode.workspace.createFileSystemWatcher(path.join(workspaceRoot, fileName))
-				this.disposables.push(roomodesWatcher.onDidChange(handleRoomodesChange))
-				this.disposables.push(roomodesWatcher.onDidCreate(handleRoomodesChange))
-				this.disposables.push(roomodesWatcher.onDidDelete(handleRoomodesChange))
-				this.disposables.push(roomodesWatcher)
+				const bearmodesWatcher = vscode.workspace.createFileSystemWatcher(path.join(workspaceRoot, fileName))
+				this.disposables.push(bearmodesWatcher.onDidChange(handleBearmodesChange))
+				this.disposables.push(bearmodesWatcher.onDidCreate(handleBearmodesChange))
+				this.disposables.push(bearmodesWatcher.onDidDelete(handleBearmodesChange))
+				this.disposables.push(bearmodesWatcher)
 			}
 		}
 	}
@@ -368,16 +368,16 @@ export class CustomModesManager {
 		const settingsPath = await this.getCustomModesFilePath()
 		const settingsModes = await this.loadModesFromFile(settingsPath)
 
-		// Get modes from .roomodes if it exists.
-		const roomodesPath = await this.getWorkspaceRoomodes()
-		const roomodesModes = roomodesPath ? await this.loadModesFromFile(roomodesPath) : []
+		// Get modes from .bearmodes if it exists.
+		const bearmodesPath = await this.getWorkspaceBearmodes()
+		const bearmodesModes = bearmodesPath ? await this.loadModesFromFile(bearmodesPath) : []
 
 		// Create maps to store modes by source.
 		const projectModes = new Map<string, ModeConfig>()
 		const globalModes = new Map<string, ModeConfig>()
 
 		// Add project modes (they take precedence).
-		for (const mode of roomodesModes) {
+		for (const mode of bearmodesModes) {
 			projectModes.set(mode.slug, { ...mode, source: "project" as const })
 		}
 
@@ -390,7 +390,7 @@ export class CustomModesManager {
 
 		// Combine modes in the correct order: project modes first, then global modes.
 		const mergedModes = [
-			...roomodesModes.map((mode) => ({ ...mode, source: "project" as const })),
+			...bearmodesModes.map((mode) => ({ ...mode, source: "project" as const })),
 			...settingsModes
 				.filter((mode) => !projectModes.has(mode.slug))
 				.map((mode) => ({ ...mode, source: "global" as const })),
@@ -498,11 +498,11 @@ export class CustomModesManager {
 
 	private async refreshMergedState(): Promise<void> {
 		const settingsPath = await this.getCustomModesFilePath()
-		const roomodesPath = await this.getWorkspaceRoomodes()
+		const bearmodesPath = await this.getWorkspaceBearmodes()
 
 		const settingsModes = await this.loadModesFromFile(settingsPath)
-		const roomodesModes = roomodesPath ? await this.loadModesFromFile(roomodesPath) : []
-		const mergedModes = await this.mergeCustomModes(roomodesModes, settingsModes)
+		const bearmodesModes = bearmodesPath ? await this.loadModesFromFile(bearmodesPath) : []
+		const mergedModes = await this.mergeCustomModes(bearmodesModes, settingsModes)
 
 		await this.context.globalState.update("customModes", mergedModes)
 
@@ -514,13 +514,13 @@ export class CustomModesManager {
 	public async deleteCustomMode(slug: string): Promise<void> {
 		try {
 			const settingsPath = await this.getCustomModesFilePath()
-			const roomodesPath = await this.getWorkspaceRoomodes()
+			const bearmodesPath = await this.getWorkspaceBearmodes()
 
 			const settingsModes = await this.loadModesFromFile(settingsPath)
-			const roomodesModes = roomodesPath ? await this.loadModesFromFile(roomodesPath) : []
+			const bearmodesModes = bearmodesPath ? await this.loadModesFromFile(bearmodesPath) : []
 
 			// Find the mode in either file
-			const projectMode = roomodesModes.find((m) => m.slug === slug)
+			const projectMode = bearmodesModes.find((m) => m.slug === slug)
 			const globalMode = settingsModes.find((m) => m.slug === slug)
 
 			if (!projectMode && !globalMode) {
@@ -532,8 +532,8 @@ export class CustomModesManager {
 
 			await this.queueWrite(async () => {
 				// Delete from project first if it exists there
-				if (projectMode && roomodesPath) {
-					await this.updateModesInFile(roomodesPath, (modes) => modes.filter((m) => m.slug !== slug))
+				if (projectMode && bearmodesPath) {
+					await this.updateModesInFile(bearmodesPath, (modes) => modes.filter((m) => m.slug !== slug))
 				}
 
 				// Delete from global settings if it exists there
@@ -571,13 +571,13 @@ export class CustomModesManager {
 			if (scope === "project") {
 				const workspacePath = getWorkspacePath()
 				if (workspacePath) {
-					rulesFolderPath = path.join(getProjectRooDirectoryForCwd(workspacePath), `rules-${slug}`)
+					rulesFolderPath = path.join(getProjectBearDirectoryForCwd(workspacePath), `rules-${slug}`)
 				} else {
 					return // No workspace, can't delete project rules
 				}
 			} else {
 				// Global scope - use the global config directory
-				rulesFolderPath = path.join(getGlobalRooDirectory(), `rules-${slug}`)
+				rulesFolderPath = path.join(getGlobalBearDirectory(), `rules-${slug}`)
 			}
 
 			// Check if the rules folder exists and delete it
@@ -616,7 +616,7 @@ export class CustomModesManager {
 	}
 
 	/**
-	 * Checks if a mode has associated rules files in the .roo/rules-{slug}/ directory
+	 * Checks if a mode has associated rules files in the .bear/rules-{slug}/ directory
 	 * @param slug - The mode identifier to check
 	 * @returns True if the mode has rules files with content, false otherwise
 	 */
@@ -627,30 +627,30 @@ export class CustomModesManager {
 			const mode = allModes.find((m) => m.slug === slug)
 
 			if (!mode) {
-				// If not in custom modes, check if it's in .roomodes (project-specific)
+				// If not in custom modes, check if it's in .bearmodes (project-specific)
 				const workspacePath = getWorkspacePath()
 				if (!workspacePath) {
 					return false
 				}
 
-				const roomodesPath = getProjectModesFilePath(workspacePath)
+				const bearmodesPath = getProjectModesFilePath(workspacePath)
 				try {
-					const roomodesExists = await fileExistsAtPath(roomodesPath)
-					if (roomodesExists) {
-						const roomodesContent = await fs.readFile(roomodesPath, "utf-8")
-						const roomodesData = yaml.parse(roomodesContent)
-						const roomodesModes = roomodesData?.customModes || []
+					const bearmodesExists = await fileExistsAtPath(bearmodesPath)
+					if (bearmodesExists) {
+						const bearmodesContent = await fs.readFile(bearmodesPath, "utf-8")
+						const bearmodesData = yaml.parse(bearmodesContent)
+						const bearmodesModes = bearmodesData?.customModes || []
 
-						// Check if this specific mode exists in .roomodes
-						const modeInRoomodes = roomodesModes.find((m: any) => m.slug === slug)
-						if (!modeInRoomodes) {
+						// Check if this specific mode exists in .bearmodes
+						const modeInBearmodes = bearmodesModes.find((m: any) => m.slug === slug)
+						if (!modeInBearmodes) {
 							return false // Mode not found anywhere
 						}
 					} else {
-						return false // No .roomodes file and not in custom modes
+						return false // No .bearmodes file and not in custom modes
 					}
 				} catch (error) {
-					return false // Cannot read .roomodes and not in custom modes
+					return false // Cannot read .bearmodes and not in custom modes
 				}
 			}
 
@@ -659,16 +659,16 @@ export class CustomModesManager {
 			const isGlobalMode = mode?.source === "global"
 
 			if (isGlobalMode) {
-				// For global modes, check in global .roo directory
-				const globalRooDir = getGlobalRooDirectory()
-				modeRulesDir = path.join(globalRooDir, `rules-${slug}`)
+				// For global modes, check in global .bear directory
+				const globalBearDir = getGlobalBearDirectory()
+				modeRulesDir = path.join(globalBearDir, `rules-${slug}`)
 			} else {
-				// For project modes, check in workspace .roo directory
+				// For project modes, check in workspace .bear directory
 				const workspacePath = getWorkspacePath()
 				if (!workspacePath) {
 					return false
 				}
-				modeRulesDir = path.join(getProjectRooDirectoryForCwd(workspacePath), `rules-${slug}`)
+				modeRulesDir = path.join(getProjectBearDirectoryForCwd(workspacePath), `rules-${slug}`)
 			}
 
 			try {
@@ -728,16 +728,16 @@ export class CustomModesManager {
 				// Only check workspace-based modes if workspace is available
 				const workspacePath = getWorkspacePath()
 				if (workspacePath) {
-					const roomodesPath = getProjectModesFilePath(workspacePath)
+					const bearmodesPath = getProjectModesFilePath(workspacePath)
 					try {
-						const roomodesExists = await fileExistsAtPath(roomodesPath)
-						if (roomodesExists) {
-							const roomodesContent = await fs.readFile(roomodesPath, "utf-8")
-							const roomodesData = yaml.parse(roomodesContent)
-							const roomodesModes = roomodesData?.customModes || []
+						const bearmodesExists = await fileExistsAtPath(bearmodesPath)
+						if (bearmodesExists) {
+							const bearmodesContent = await fs.readFile(bearmodesPath, "utf-8")
+							const bearmodesData = yaml.parse(bearmodesContent)
+							const bearmodesModes = bearmodesData?.customModes || []
 
-							// Find the mode in .roomodes
-							mode = roomodesModes.find((m: any) => m.slug === slug)
+							// Find the mode in .bearmodes
+							mode = bearmodesModes.find((m: any) => m.slug === slug)
 						}
 					} catch (error) {
 						// Continue to check built-in modes
@@ -760,8 +760,8 @@ export class CustomModesManager {
 			const isGlobalMode = mode.source === "global"
 			let baseDir: string
 			if (isGlobalMode) {
-				// For global modes, use the global .roo directory
-				baseDir = getGlobalRooDirectory()
+				// For global modes, use the global .bear directory
+				baseDir = getGlobalBearDirectory()
 			} else {
 				// For project modes, use the workspace directory
 				const workspacePath = getWorkspacePath()
@@ -771,10 +771,10 @@ export class CustomModesManager {
 				baseDir = workspacePath
 			}
 
-			// Check for .roo/rules-{slug}/ directory (or rules-{slug}/ for global)
+			// Check for .bear/rules-{slug}/ directory (or rules-{slug}/ for global)
 			const modeRulesDir = isGlobalMode
 				? path.join(baseDir, `rules-${slug}`)
-				: path.join(getProjectRooDirectoryForCwd(baseDir), `rules-${slug}`)
+				: path.join(getProjectBearDirectoryForCwd(baseDir), `rules-${slug}`)
 
 			let rulesFiles: RuleFile[] = []
 			try {
@@ -854,11 +854,11 @@ export class CustomModesManager {
 		let rulesFolderPath: string
 
 		if (source === "global") {
-			baseDir = getGlobalRooDirectory()
+			baseDir = getGlobalBearDirectory()
 			rulesFolderPath = path.join(baseDir, `rules-${importMode.slug}`)
 		} else {
 			const workspacePath = getWorkspacePath()
-			baseDir = getProjectRooDirectoryForCwd(workspacePath)
+			baseDir = getProjectBearDirectoryForCwd(workspacePath)
 			rulesFolderPath = path.join(baseDir, `rules-${importMode.slug}`)
 		}
 

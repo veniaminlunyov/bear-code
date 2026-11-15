@@ -17,7 +17,7 @@ if (fs.existsSync(envPath)) {
 	}
 }
 
-import { customToolRegistry } from "@roo-code/core"
+import { customToolRegistry } from "@bear-code/core"
 
 import "./utils/path" // Necessary to have access to String.prototype.toPosix.
 import { initializeNetworkProxy } from "./utils/networkProxy"
@@ -233,8 +233,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Allows other extensions to activate once Bear is ready.
 	vscode.commands.executeCommand(`${Package.name}.activationCompleted`)
 
-	// Implements the `RooCodeAPI` interface.
-	const socketPath = process.env.ROO_CODE_IPC_SOCKET_PATH
+	// Implements the `BearCodeAPI` interface.
+	const socketPath = process.env.BEAR_CODE_IPC_SOCKET_PATH
 	const enableLogging = typeof socketPath === "string"
 
 	// Watch the core files and automatically reload the extension host.

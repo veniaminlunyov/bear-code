@@ -1,8 +1,8 @@
-// npx vitest core/ignore/__tests__/RooIgnoreController.spec.ts
+// npx vitest core/ignore/__tests__/BearIgnoreController.spec.ts
 
 import type { Mock } from "vitest"
 
-import { RooIgnoreController, LOCK_TEXT_SYMBOL } from "../RooIgnoreController"
+import { BearIgnoreController, LOCK_TEXT_SYMBOL } from "../BearIgnoreController"
 import * as vscode from "vscode"
 import * as path from "path"
 import * as fs from "fs/promises"
@@ -42,9 +42,9 @@ vi.mock("vscode", () => {
 	}
 })
 
-describe("RooIgnoreController", () => {
+describe("BearIgnoreController", () => {
 	const TEST_CWD = "/test/path"
-	let controller: RooIgnoreController
+	let controller: BearIgnoreController
 	let mockFileExists: Mock<typeof fileExistsAtPath>
 	let mockReadFile: Mock<typeof fs.readFile>
 	let mockWatcher: any
@@ -73,7 +73,7 @@ describe("RooIgnoreController", () => {
 		mockRealpathSync.mockImplementation((filePath) => filePath.toString())
 
 		// Create controller
-		controller = new RooIgnoreController(TEST_CWD)
+		controller = new BearIgnoreController(TEST_CWD)
 	})
 
 	describe("initialization", () => {
@@ -93,7 +93,7 @@ describe("RooIgnoreController", () => {
 			expect(mockReadFile).toHaveBeenCalledWith(path.join(TEST_CWD, ".bearignore"), "utf8")
 
 			// Verify content was stored
-			expect(controller.rooIgnoreContent).toBe("node_modules\n.git\nsecrets.json")
+			expect(controller.bearIgnoreContent).toBe("node_modules\n.git\nsecrets.json")
 
 			// Test that ignore patterns were applied
 			expect(controller.validateAccess("node_modules/package.json")).toBe(false)
@@ -113,7 +113,7 @@ describe("RooIgnoreController", () => {
 			await controller.initialize()
 
 			// Verify no content was stored
-			expect(controller.rooIgnoreContent).toBeUndefined()
+			expect(controller.bearIgnoreContent).toBeUndefined()
 
 			// All files should be accessible
 			expect(controller.validateAccess("node_modules/package.json")).toBe(true)
@@ -215,7 +215,7 @@ describe("RooIgnoreController", () => {
 		it("should allow all access when no .bearignore content", async () => {
 			// Create a new controller with no .bearignore
 			mockFileExists.mockResolvedValue(false)
-			const emptyController = new RooIgnoreController(TEST_CWD)
+			const emptyController = new BearIgnoreController(TEST_CWD)
 			await emptyController.initialize()
 
 			// All paths should be allowed
@@ -308,7 +308,7 @@ describe("RooIgnoreController", () => {
 		it("should allow all commands when no .bearignore exists", async () => {
 			// Create a new controller with no .bearignore
 			mockFileExists.mockResolvedValue(false)
-			const emptyController = new RooIgnoreController(TEST_CWD)
+			const emptyController = new BearIgnoreController(TEST_CWD)
 			await emptyController.initialize()
 
 			// All commands should be allowed
@@ -445,18 +445,18 @@ describe("RooIgnoreController", () => {
 			await controller.initialize()
 
 			// Verify initial state
-			expect(controller.rooIgnoreContent).toBeUndefined()
+			expect(controller.bearIgnoreContent).toBeUndefined()
 			expect(controller.validateAccess("node_modules/package.json")).toBe(true)
 
 			// Setup for the test
 			mockFileExists.mockResolvedValue(false) // Initially no file exists
 
 			// Create and initialize controller with no .bearignore
-			controller = new RooIgnoreController(TEST_CWD)
+			controller = new BearIgnoreController(TEST_CWD)
 			await controller.initialize()
 
 			// Initial state check
-			expect(controller.rooIgnoreContent).toBeUndefined()
+			expect(controller.bearIgnoreContent).toBeUndefined()
 
 			// Now simulate file creation
 			mockFileExists.mockResolvedValue(true)
@@ -466,7 +466,7 @@ describe("RooIgnoreController", () => {
 			await controller.initialize()
 
 			// Now verify content was updated
-			expect(controller.rooIgnoreContent).toBe("node_modules")
+			expect(controller.bearIgnoreContent).toBe("node_modules")
 
 			// Verify access validation changed
 			expect(controller.validateAccess("node_modules/package.json")).toBe(false)
@@ -493,7 +493,7 @@ describe("RooIgnoreController", () => {
 			await controller.initialize()
 
 			// Verify content was updated
-			expect(controller.rooIgnoreContent).toBe("node_modules\n.git")
+			expect(controller.bearIgnoreContent).toBe("node_modules\n.git")
 
 			// Verify access validation changed
 			expect(controller.validateAccess("node_modules/package.json")).toBe(false)
@@ -520,7 +520,7 @@ describe("RooIgnoreController", () => {
 			await onDeleteHandler()
 
 			// Verify content was reset
-			expect(controller.rooIgnoreContent).toBeUndefined()
+			expect(controller.bearIgnoreContent).toBeUndefined()
 
 			// Verify access validation changed
 			expect(controller.validateAccess("node_modules/package.json")).toBe(true)

@@ -1,9 +1,9 @@
-// npx vitest core/prompts/__tests__/responses-rooignore.spec.ts
+// npx vitest core/prompts/__tests__/responses-bearignore.spec.ts
 
 import type { Mock } from "vitest"
 
 import { formatResponse } from "../responses"
-import { RooIgnoreController, LOCK_TEXT_SYMBOL } from "../../ignore/RooIgnoreController"
+import { BearIgnoreController, LOCK_TEXT_SYMBOL } from "../../ignore/BearIgnoreController"
 import { fileExistsAtPath } from "../../../utils/fs"
 import * as fs from "fs/promises"
 import { toPosix } from "./utils"
@@ -26,7 +26,7 @@ vi.mock("vscode", () => {
 	}
 })
 
-describe("RooIgnore Response Formatting", () => {
+describe("BearIgnore Response Formatting", () => {
 	const TEST_CWD = "/test/path"
 	let mockFileExists: Mock<typeof fileExistsAtPath>
 	let mockReadFile: Mock<typeof fs.readFile>
@@ -44,12 +44,12 @@ describe("RooIgnore Response Formatting", () => {
 		mockReadFile.mockResolvedValue("node_modules\n.git\nsecrets/**\n*.log")
 	})
 
-	describe("formatResponse.rooIgnoreError", () => {
+	describe("formatResponse.bearIgnoreError", () => {
 		/**
 		 * Tests the error message format for ignored files
 		 */
 		it("should format error message for ignored files", () => {
-			const errorMessage = formatResponse.rooIgnoreError("secrets/api-keys.json")
+			const errorMessage = formatResponse.bearIgnoreError("secrets/api-keys.json")
 
 			// Verify error message format (JSON)
 			const parsed = JSON.parse(errorMessage) as any
@@ -68,20 +68,20 @@ describe("RooIgnore Response Formatting", () => {
 
 			// Test each path
 			for (const testPath of paths) {
-				const errorMessage = formatResponse.rooIgnoreError(testPath)
+				const errorMessage = formatResponse.bearIgnoreError(testPath)
 				const parsed = JSON.parse(errorMessage) as any
 				expect(parsed.path).toBe(testPath)
 			}
 		})
 	})
 
-	describe("formatResponse.formatFilesList with RooIgnoreController", () => {
+	describe("formatResponse.formatFilesList with BearIgnoreController", () => {
 		/**
-		 * Tests file listing with rooignore controller
+		 * Tests file listing with bearignore controller
 		 */
 		it("should format files list with lock symbols for ignored files", async () => {
 			// Create controller
-			const controller = new RooIgnoreController(TEST_CWD)
+			const controller = new BearIgnoreController(TEST_CWD)
 			await controller.initialize()
 
 			// Mock validateAccess to control which files are ignored
@@ -121,11 +121,11 @@ describe("RooIgnore Response Formatting", () => {
 		})
 
 		/**
-		 * Tests formatFilesList when showRooIgnoredFiles is set to false
+		 * Tests formatFilesList when showBearIgnoredFiles is set to false
 		 */
-		it("should hide ignored files when showRooIgnoredFiles is false", async () => {
+		it("should hide ignored files when showBearIgnoredFiles is false", async () => {
 			// Create controller
-			const controller = new RooIgnoreController(TEST_CWD)
+			const controller = new BearIgnoreController(TEST_CWD)
 			await controller.initialize()
 
 			// Mock validateAccess to control which files are ignored
@@ -147,13 +147,13 @@ describe("RooIgnore Response Formatting", () => {
 				"secrets/keys.json", // ignored
 			]
 
-			// Format with controller and showRooIgnoredFiles = false
+			// Format with controller and showBearIgnoredFiles = false
 			const result = formatResponse.formatFilesList(
 				TEST_CWD,
 				files,
 				false,
 				controller as any,
-				false, // showRooIgnoredFiles = false
+				false, // showBearIgnoredFiles = false
 			)
 
 			// Should contain allowed files
@@ -172,11 +172,11 @@ describe("RooIgnore Response Formatting", () => {
 		})
 
 		/**
-		 * Tests formatFilesList handles truncation correctly with RooIgnoreController
+		 * Tests formatFilesList handles truncation correctly with BearIgnoreController
 		 */
-		it("should handle truncation with RooIgnoreController", async () => {
+		it("should handle truncation with BearIgnoreController", async () => {
 			// Create controller
-			const controller = new RooIgnoreController(TEST_CWD)
+			const controller = new BearIgnoreController(TEST_CWD)
 			await controller.initialize()
 
 			// Format with controller and truncation flag
@@ -196,9 +196,9 @@ describe("RooIgnore Response Formatting", () => {
 		/**
 		 * Tests formatFilesList handles empty results
 		 */
-		it("should handle empty file list with RooIgnoreController", async () => {
+		it("should handle empty file list with BearIgnoreController", async () => {
 			// Create controller
-			const controller = new RooIgnoreController(TEST_CWD)
+			const controller = new BearIgnoreController(TEST_CWD)
 			await controller.initialize()
 
 			// Format with empty files array
@@ -215,7 +215,7 @@ describe("RooIgnore Response Formatting", () => {
 		 */
 		it("should format .bearignore instructions for the LLM", async () => {
 			// Create controller
-			const controller = new RooIgnoreController(TEST_CWD)
+			const controller = new BearIgnoreController(TEST_CWD)
 			await controller.initialize()
 
 			// Get instructions
@@ -242,7 +242,7 @@ describe("RooIgnore Response Formatting", () => {
 			mockFileExists.mockResolvedValue(false)
 
 			// Create controller without .bearignore
-			const controller = new RooIgnoreController(TEST_CWD)
+			const controller = new BearIgnoreController(TEST_CWD)
 			await controller.initialize()
 
 			// Should return undefined

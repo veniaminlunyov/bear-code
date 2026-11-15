@@ -7,7 +7,7 @@ import { ApiMessage } from "../task-persistence/apiMessages"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
 import { findLast } from "../../shared/array"
 import { supportPrompt } from "../../shared/support-prompt"
-import { RooIgnoreController } from "../ignore/RooIgnoreController"
+import { BearIgnoreController } from "../ignore/BearIgnoreController"
 import { generateFoldedFileContext } from "./foldedFileContext"
 
 export type { FoldedFileContextResult, FoldedFileContextOptions } from "./foldedFileContext"
@@ -228,9 +228,9 @@ export type SummarizeConversationOptions = {
 	customCondensingPrompt?: string
 	metadata?: ApiHandlerCreateMessageMetadata
 	environmentDetails?: string
-	filesReadByRoo?: string[]
+	filesReadByBear?: string[]
 	cwd?: string
-	rooIgnoreController?: RooIgnoreController
+	bearIgnoreController?: BearIgnoreController
 }
 
 /**
@@ -261,9 +261,9 @@ export async function summarizeConversation(options: SummarizeConversationOption
 		customCondensingPrompt,
 		metadata,
 		environmentDetails,
-		filesReadByRoo,
+		filesReadByBear,
 		cwd,
-		rooIgnoreController,
+		bearIgnoreController,
 	} = options
 
 	const response: SummarizeResponse = { messages, cost: 0, summary: "" }
@@ -409,11 +409,11 @@ ${commandBlocks}
 
 	// Generate and add folded file context (smart code folding) if file paths are provided
 	// Each file gets its own <system-reminder> block as a separate content block
-	if (filesReadByRoo && filesReadByRoo.length > 0 && cwd) {
+	if (filesReadByBear && filesReadByBear.length > 0 && cwd) {
 		try {
-			const foldedResult = await generateFoldedFileContext(filesReadByRoo, {
+			const foldedResult = await generateFoldedFileContext(filesReadByBear, {
 				cwd,
-				rooIgnoreController,
+				bearIgnoreController,
 			})
 			if (foldedResult.sections.length > 0) {
 				for (const section of foldedResult.sections) {

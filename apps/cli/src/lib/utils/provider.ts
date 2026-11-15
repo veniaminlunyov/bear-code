@@ -1,4 +1,4 @@
-import { RooCodeSettings } from "@roo-code/types"
+import { BearCodeSettings } from "@bear-code/types"
 
 import type { SupportedProvider } from "@/types/index.js"
 
@@ -23,8 +23,8 @@ export function getProviderSettings(
 	provider: SupportedProvider,
 	apiKey: string | undefined,
 	model: string | undefined,
-): RooCodeSettings {
-	const config: RooCodeSettings = { apiProvider: provider }
+): BearCodeSettings {
+	const config: BearCodeSettings = { apiProvider: provider }
 
 	switch (provider) {
 		case "anthropic":

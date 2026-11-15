@@ -193,7 +193,7 @@ function ChatHistoryItem({ message }: ChatHistoryItemProps) {
 					<Text bold color="yellow">
 						Bear said:
 					</Text>
-					<Text color={theme.rooText}>
+					<Text color={theme.bearText}>
 						{content}
 						<Newline />
 					</Text>

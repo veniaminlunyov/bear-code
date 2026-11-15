@@ -3,14 +3,14 @@
 The Roo Code extension exposes an API that can be used by other extensions.
 To use this API in your extension:
 
-1. Install `@roo-code/types` with npm, pnpm, or yarn.
-2. Import the `RooCodeAPI` type.
+1. Install `@bear-code/types` with npm, pnpm, or yarn.
+2. Import the `BearCodeAPI` type.
 3. Load the extension API.
 
 ```typescript
-import { RooCodeAPI } from "@roo-code/types"
+import { BearCodeAPI } from "@bear-code/types"
 
-const extension = vscode.extensions.getExtension<RooCodeAPI>("bearcode.bear-code")
+const extension = vscode.extensions.getExtension<BearCodeAPI>("bearcode.bear-code")
 
 if (!extension?.isActive) {
 	throw new Error("Extension is not activated")
@@ -44,4 +44,4 @@ await api.pressSecondaryButton()
 "extensionDependencies": ["bearcode.bear-code"]
 ```
 
-For detailed information on the available methods and their usage, refer to the `roo-code.d.ts` file.
+For detailed information on the available methods and their usage, refer to the `bear-code.d.ts` file.

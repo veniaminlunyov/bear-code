@@ -27,7 +27,7 @@ export class FileContextTracker {
 	// File tracking and watching
 	private fileWatchers = new Map<string, vscode.FileSystemWatcher>()
 	private recentlyModifiedFiles = new Set<string>()
-	private recentlyEditedByRoo = new Set<string>()
+	private recentlyEditedByBear = new Set<string>()
 	private checkpointPossibleFiles = new Set<string>()
 
 	constructor(provider: ClineProvider, taskId: string) {
@@ -64,8 +64,8 @@ export class FileContextTracker {
 
 		// Track file changes
 		watcher.onDidChange(() => {
-			if (this.recentlyEditedByRoo.has(filePath)) {
-				this.recentlyEditedByRoo.delete(filePath) // This was an edit by Bear, no need to inform Bear
+			if (this.recentlyEditedByBear.has(filePath)) {
+				this.recentlyEditedByBear.delete(filePath) // This was an edit by Bear, no need to inform Bear
 			} else {
 				this.recentlyModifiedFiles.add(filePath) // This was a user edit, we will inform Bear
 				this.trackFileContext(filePath, "user_edited") // Update the task metadata with file tracking
@@ -165,8 +165,8 @@ export class FileContextTracker {
 				path: filePath,
 				record_state: "active",
 				record_source: source,
-				roo_read_date: getLatestDateForField(filePath, "roo_read_date"),
-				roo_edit_date: getLatestDateForField(filePath, "roo_edit_date"),
+				bear_read_date: getLatestDateForField(filePath, "bear_read_date"),
+				bear_edit_date: getLatestDateForField(filePath, "bear_edit_date"),
 				user_edit_date: getLatestDateForField(filePath, "user_edit_date"),
 			}
 
@@ -177,18 +177,18 @@ export class FileContextTracker {
 					this.recentlyModifiedFiles.add(filePath)
 					break
 
-				// roo_edited: Bear has edited the file
-				case "roo_edited":
-					newEntry.roo_read_date = now
-					newEntry.roo_edit_date = now
+				// bear_edited: Bear has edited the file
+				case "bear_edited":
+					newEntry.bear_read_date = now
+					newEntry.bear_edit_date = now
 					this.checkpointPossibleFiles.add(filePath)
-					this.markFileAsEditedByRoo(filePath)
+					this.markFileAsEditedByBear(filePath)
 					break
 
 				// read_tool/file_mentioned: Bear has read the file via a tool or file mention
 				case "read_tool":
 				case "file_mentioned":
-					newEntry.roo_read_date = now
+					newEntry.bear_read_date = now
 					break
 			}
 
@@ -215,30 +215,30 @@ export class FileContextTracker {
 	 * @param sinceTimestamp - Optional timestamp to filter files read after this time
 	 * @returns Array of unique file paths that have been read, most recent first
 	 */
-	async getFilesReadByRoo(sinceTimestamp?: number): Promise<string[]> {
+	async getFilesReadByBear(sinceTimestamp?: number): Promise<string[]> {
 		try {
 			const metadata = await this.getTaskMetadata(this.taskId)
 
 			const readEntries = metadata.files_in_context.filter((entry) => {
 				// Only include files that were read by Bear (not user edits)
-				const isReadByRoo = entry.record_source === "read_tool" || entry.record_source === "file_mentioned"
-				if (!isReadByRoo) {
+				const isReadByBear = entry.record_source === "read_tool" || entry.record_source === "file_mentioned"
+				if (!isReadByBear) {
 					return false
 				}
 
 				// If sinceTimestamp is provided, only include files read after that time
-				if (sinceTimestamp && entry.roo_read_date) {
-					return entry.roo_read_date >= sinceTimestamp
+				if (sinceTimestamp && entry.bear_read_date) {
+					return entry.bear_read_date >= sinceTimestamp
 				}
 
 				return true
 			})
 
-			// Sort by roo_read_date descending (most recent first)
+			// Sort by bear_read_date descending (most recent first)
 			// Entries without a date go to the end
 			readEntries.sort((a, b) => {
-				const dateA = a.roo_read_date ?? 0
-				const dateB = b.roo_read_date ?? 0
+				const dateA = a.bear_read_date ?? 0
+				const dateB = b.bear_read_date ?? 0
 				return dateB - dateA
 			})
 
@@ -266,8 +266,8 @@ export class FileContextTracker {
 	}
 
 	// Marks a file as edited by Bear to prevent false positives in file watchers
-	markFileAsEditedByRoo(filePath: string): void {
-		this.recentlyEditedByRoo.add(filePath)
+	markFileAsEditedByBear(filePath: string): void {
+		this.recentlyEditedByBear.add(filePath)
 	}
 
 	// Disposes all file watchers

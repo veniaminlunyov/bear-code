@@ -26,7 +26,7 @@ import type {
 	McpServer,
 	McpTool,
 	McpToolCallResponse,
-} from "@roo-code/types"
+} from "@bear-code/types"
 
 import { t } from "../../i18n"
 
@@ -35,7 +35,7 @@ import { ClineProvider } from "../../core/webview/ClineProvider"
 import { GlobalFileNames } from "../../shared/globalFileNames"
 
 import { fileExistsAtPath } from "../../utils/fs"
-import { getProjectRooDirectoryForCwd } from "../roo-config"
+import { getProjectBearDirectoryForCwd } from "../bear-config"
 import { arePathsEqual, getWorkspacePath } from "../../utils/path"
 import { injectVariables } from "../../utils/config"
 import { safeWriteJson } from "../../utils/safeWriteJson"
@@ -594,7 +594,7 @@ export class McpHub {
 	// Get project-level MCP configuration path
 	private async getProjectMcpPath(): Promise<string | null> {
 		const workspacePath = this.providerRef.deref()?.cwd ?? getWorkspacePath()
-		const projectMcpDir = getProjectRooDirectoryForCwd(workspacePath)
+		const projectMcpDir = getProjectBearDirectoryForCwd(workspacePath)
 		const projectMcpPath = path.join(projectMcpDir, "mcp.json")
 
 		try {

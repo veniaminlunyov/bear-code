@@ -1,7 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI from "openai"
 
-import { isRetiredProvider, type ProviderSettings, type ModelInfo } from "@roo-code/types"
+import { isRetiredProvider, type ProviderSettings, type ModelInfo } from "@bear-code/types"
 
 import { ApiStream } from "./transform/stream"
 
@@ -43,7 +43,6 @@ export interface SingleCompletionHandler {
 export interface ApiHandlerCreateMessageMetadata {
 	/**
 	 * Task ID used for tracking and provider-specific features:
-	 * - Roo: Sent as X-Roo-Task-ID header
 	 * - Requesty: Sent as trace_id
 	 */
 	taskId: string

@@ -1,7 +1,7 @@
 // pnpm --filter bear-code test core/webview/__tests__/ClineProvider.taskHistory.spec.ts
 
 import * as vscode from "vscode"
-import type { HistoryItem, ExtensionMessage } from "@roo-code/types"
+import type { HistoryItem, ExtensionMessage } from "@bear-code/types"
 
 import { ContextProxy } from "../../config/ContextProxy"
 import { ClineProvider } from "../ClineProvider"

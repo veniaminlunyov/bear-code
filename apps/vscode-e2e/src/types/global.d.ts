@@ -1,8 +1,8 @@
-import type { RooCodeAPI } from "@roo-code/types"
+import type { BearCodeAPI } from "@bear-code/types"
 
 declare global {
 	// eslint-disable-next-line no-var
-	var api: RooCodeAPI
+	var api: BearCodeAPI
 }
 
 export {}

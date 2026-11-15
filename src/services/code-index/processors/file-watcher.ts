@@ -7,7 +7,7 @@ import {
 	INITIAL_RETRY_DELAY_MS,
 } from "../constants"
 import { createHash } from "crypto"
-import { RooIgnoreController } from "../../../core/ignore/RooIgnoreController"
+import { BearIgnoreController } from "../../../core/ignore/BearIgnoreController"
 import { v5 as uuidv5 } from "uuid"
 import { Ignore } from "ignore"
 import { scannerExtensions } from "../shared/supported-extensions"
@@ -32,7 +32,7 @@ import { Package } from "../../../shared/package"
 export class FileWatcher implements IFileWatcher {
 	private ignoreInstance?: Ignore
 	private fileWatcher?: vscode.FileSystemWatcher
-	private ignoreController: RooIgnoreController
+	private ignoreController: BearIgnoreController
 	private accumulatedEvents: Map<string, { uri: vscode.Uri; type: "create" | "change" | "delete" }> = new Map()
 	private batchProcessDebounceTimer?: NodeJS.Timeout
 	private readonly BATCH_DEBOUNCE_DELAY_MS = 500
@@ -77,10 +77,10 @@ export class FileWatcher implements IFileWatcher {
 		private embedder?: IEmbedder,
 		private vectorStore?: IVectorStore,
 		ignoreInstance?: Ignore,
-		ignoreController?: RooIgnoreController,
+		ignoreController?: BearIgnoreController,
 		batchSegmentThreshold?: number,
 	) {
-		this.ignoreController = ignoreController || new RooIgnoreController(workspacePath)
+		this.ignoreController = ignoreController || new BearIgnoreController(workspacePath)
 		if (ignoreInstance) {
 			this.ignoreInstance = ignoreInstance
 		}

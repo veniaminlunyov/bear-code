@@ -1,12 +1,12 @@
 import path from "path"
-import { RooProtectedController } from "../RooProtectedController"
+import { BearProtectedController } from "../BearProtectedController"
 
-describe("RooProtectedController", () => {
+describe("BearProtectedController", () => {
 	const TEST_CWD = "/test/workspace"
-	let controller: RooProtectedController
+	let controller: BearProtectedController
 
 	beforeEach(() => {
-		controller = new RooProtectedController(TEST_CWD)
+		controller = new BearProtectedController(TEST_CWD)
 	})
 
 	describe("isWriteProtected", () => {
@@ -71,7 +71,7 @@ describe("RooProtectedController", () => {
 		})
 
 		it("should not protect files that contain 'roo' but don't start with .bear", () => {
-			expect(controller.isWriteProtected("src/roo-utils.ts")).toBe(false)
+			expect(controller.isWriteProtected("src/bear-utils.ts")).toBe(false)
 			expect(controller.isWriteProtected("config/roo.config.js")).toBe(false)
 		})
 
@@ -152,7 +152,7 @@ describe("RooProtectedController", () => {
 
 	describe("getProtectedPatterns", () => {
 		it("should return the list of protected patterns", () => {
-			const patterns = RooProtectedController.getProtectedPatterns()
+			const patterns = BearProtectedController.getProtectedPatterns()
 
 			expect(patterns).toEqual([
 				".bearignore",

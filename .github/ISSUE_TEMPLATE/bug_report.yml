@@ -105,7 +105,7 @@ body:
       description: Exact model name (e.g., Claude 3.7 Sonnet). Use N/A if irrelevant.
 
   - type: textarea
-    id: roo-code-tasks
+    id: bear-code-tasks
     attributes:
       label: BearCode Task Links (optional)
       description: If you have any publicly shared BearCode task links that demonstrate the issue, paste them here.

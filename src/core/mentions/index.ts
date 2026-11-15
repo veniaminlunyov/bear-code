@@ -15,7 +15,7 @@ import { DEFAULT_LINE_LIMIT } from "../prompts/tools/native-tools/read_file"
 
 import { FileContextTracker } from "../context-tracking/FileContextTracker"
 
-import { RooIgnoreController } from "../ignore/RooIgnoreController"
+import { BearIgnoreController } from "../ignore/BearIgnoreController"
 import { getCommand, type Command } from "../../services/command/commands"
 import { buildSkillResult, resolveSkillContentForMode, type SkillLookup } from "../../services/skills/skillInvocation"
 import type { SkillContent } from "../../shared/skills"
@@ -100,8 +100,8 @@ export async function parseMentions(
 	text: string,
 	cwd: string,
 	fileContextTracker?: FileContextTracker,
-	rooIgnoreController?: RooIgnoreController,
-	showRooIgnoredFiles: boolean = false,
+	bearIgnoreController?: BearIgnoreController,
+	showBearIgnoredFiles: boolean = false,
 	includeDiagnosticMessages: boolean = true,
 	maxDiagnosticMessages: number = 50,
 	skillsManager?: SkillLookup,
@@ -187,8 +187,8 @@ export async function parseMentions(
 				const fileResult = await getFileOrFolderContentWithMetadata(
 					mentionPath,
 					cwd,
-					rooIgnoreController,
-					showRooIgnoredFiles,
+					bearIgnoreController,
+					showBearIgnoredFiles,
 					fileContextTracker,
 				)
 				contentBlocks.push(fileResult)
@@ -265,8 +265,8 @@ export async function parseMentions(
 async function getFileOrFolderContentWithMetadata(
 	mentionPath: string,
 	cwd: string,
-	rooIgnoreController?: any,
-	showRooIgnoredFiles: boolean = false,
+	bearIgnoreController?: any,
+	showBearIgnoredFiles: boolean = false,
 	fileContextTracker?: FileContextTracker,
 ): Promise<MentionContentBlock> {
 	const unescapedPath = unescapeSpaces(mentionPath)
@@ -287,7 +287,7 @@ async function getFileOrFolderContentWithMetadata(
 					content: `[read_file for '${mentionPath}']\nNote: Binary file omitted from context.`,
 				}
 			}
-			if (rooIgnoreController && !rooIgnoreController.validateAccess(unescapedPath)) {
+			if (bearIgnoreController && !bearIgnoreController.validateAccess(unescapedPath)) {
 				return {
 					type: "file",
 					path: mentionPath,
@@ -334,11 +334,11 @@ async function getFileOrFolderContentWithMetadata(
 				const entryPath = path.join(absPath, entry.name)
 
 				let isIgnored = false
-				if (rooIgnoreController) {
-					isIgnored = !rooIgnoreController.validateAccess(entryPath)
+				if (bearIgnoreController) {
+					isIgnored = !bearIgnoreController.validateAccess(entryPath)
 				}
 
-				if (isIgnored && !showRooIgnoredFiles) {
+				if (isIgnored && !showBearIgnoredFiles) {
 					continue
 				}
 

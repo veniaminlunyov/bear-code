@@ -1,4 +1,4 @@
-import { RooCodeEventName, type RooCodeAPI } from "@roo-code/types"
+import { BearCodeEventName, type BearCodeAPI } from "@bear-code/types"
 
 type WaitForOptions = {
 	timeout?: number
@@ -40,24 +40,24 @@ export const waitFor = (
 }
 
 type WaitUntilAbortedOptions = WaitForOptions & {
-	api: RooCodeAPI
+	api: BearCodeAPI
 	taskId: string
 }
 
 export const waitUntilAborted = async ({ api, taskId, ...options }: WaitUntilAbortedOptions) => {
 	const set = new Set<string>()
-	api.on(RooCodeEventName.TaskAborted, (taskId) => set.add(taskId))
+	api.on(BearCodeEventName.TaskAborted, (taskId) => set.add(taskId))
 	await waitFor(() => set.has(taskId), options)
 }
 
 type WaitUntilCompletedOptions = WaitForOptions & {
-	api: RooCodeAPI
+	api: BearCodeAPI
 	taskId: string
 }
 
 export const waitUntilCompleted = async ({ api, taskId, ...options }: WaitUntilCompletedOptions) => {
 	const set = new Set<string>()
-	api.on(RooCodeEventName.TaskCompleted, (taskId) => set.add(taskId))
+	api.on(BearCodeEventName.TaskCompleted, (taskId) => set.add(taskId))
 	await waitFor(() => set.has(taskId), options)
 }
 
