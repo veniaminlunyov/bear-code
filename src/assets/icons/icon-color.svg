@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- BearCode color icon source: render to icon.png (128x128) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7A4E33"/>
+      <stop offset="1" stop-color="#4A2E1F"/>
+    </linearGradient>
+    <mask id="bear-cutouts">
+      <rect width="96" height="96" fill="#fff"/>
+      <circle cx="22" cy="24" r="6" fill="#000"/>
+      <circle cx="74" cy="24" r="6" fill="#000"/>
+      <circle cx="35" cy="47" r="4.5" fill="#000"/>
+      <circle cx="61" cy="47" r="4.5" fill="#000"/>
+      <ellipse cx="48" cy="65" rx="15" ry="11.5" fill="#000"/>
+    </mask>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <g transform="translate(16 18)">
+    <g mask="url(#bear-cutouts)" fill="#F4E4D0">
+      <circle cx="22" cy="24" r="13"/>
+      <circle cx="74" cy="24" r="13"/>
+      <ellipse cx="48" cy="54" rx="36" ry="32"/>
+    </g>
+    <ellipse cx="48" cy="65" rx="15" ry="11.5" fill="#D9B48F"/>
+    <circle cx="22" cy="24" r="6" fill="#D9B48F"/>
+    <circle cx="74" cy="24" r="6" fill="#D9B48F"/>
+    <circle cx="35" cy="47" r="4.5" fill="#2B1A10"/>
+    <circle cx="61" cy="47" r="4.5" fill="#2B1A10"/>
+    <ellipse cx="48" cy="60" rx="6" ry="4.2" fill="#2B1A10"/>
+    <path d="M48 64v5.5M42 71.5c3 2.6 9 2.6 12 0" stroke="#2B1A10" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>

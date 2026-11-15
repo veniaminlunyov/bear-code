@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <!-- BearCode monochrome mark (activity bar icon, used as a mask by VS Code) -->
+  <defs>
+    <mask id="bear-cutouts">
+      <rect width="96" height="96" fill="#fff"/>
+      <circle cx="22" cy="24" r="6" fill="#000"/>
+      <circle cx="74" cy="24" r="6" fill="#000"/>
+      <circle cx="35" cy="47" r="4.5" fill="#000"/>
+      <circle cx="61" cy="47" r="4.5" fill="#000"/>
+      <ellipse cx="48" cy="65" rx="15" ry="11.5" fill="#000"/>
+      <ellipse cx="48" cy="60" rx="6" ry="4.2" fill="#fff"/>
+      <path d="M48 64v5.5M42 71.5c3 2.6 9 2.6 12 0" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    </mask>
+  </defs>
+  <g mask="url(#bear-cutouts)" fill="#000">
+    <circle cx="22" cy="24" r="13"/>
+    <circle cx="74" cy="24" r="13"/>
+    <ellipse cx="48" cy="54" rx="36" ry="32"/>
+  </g>
+</svg>
