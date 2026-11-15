@@ -271,6 +271,10 @@ export class UseMcpToolTool extends BaseTool<"use_mcp_tool"> {
 					const { blob: _, ...rest } = item.resource
 					return JSON.stringify(rest, null, 2)
 				}
+				if (item.type === "resource_link") {
+					const { uri, name, description, mimeType } = item
+					return JSON.stringify({ type: "resource_link", uri, name, description, mimeType }, null, 2)
+				}
 				if (item.type === "image") {
 					// Handle image content (MCP image content has mimeType and data properties)
 					if (item.mimeType && item.data) {

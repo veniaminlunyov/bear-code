@@ -1038,3 +1038,64 @@ describe("worktree path comparison", () => {
 		}
 	})
 })
+
+describe("git environment sanitization", () => {
+	// simple-git v4 refuses to run while these are set; checkpoints must still work, and the
+	// shadow repo must not invoke user editors, pagers, ssh or askpass helpers.
+	const unsafeEnv: Record<string, string> = {
+		EDITOR: "vim",
+		VISUAL: "code --wait",
+		GIT_EDITOR: "vim",
+		GIT_PAGER: "less",
+		GIT_ASKPASS: "/usr/bin/false",
+		SSH_ASKPASS: "/usr/bin/false",
+		GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no",
+		GIT_CONFIG_COUNT: "1",
+		GIT_CONFIG_KEY_0: "core.pager",
+		GIT_CONFIG_VALUE_0: "cat",
+	}
+	const savedEnv: Record<string, string | undefined> = {}
+
+	beforeEach(() => {
+		for (const [key, value] of Object.entries(unsafeEnv)) {
+			savedEnv[key] = process.env[key]
+			process.env[key] = value
+		}
+	})
+
+	afterEach(() => {
+		for (const key of Object.keys(unsafeEnv)) {
+			if (savedEnv[key] === undefined) {
+				delete process.env[key]
+			} else {
+				process.env[key] = savedEnv[key]
+			}
+		}
+		vitest.restoreAllMocks()
+	})
+
+	it("creates checkpoints when editor/pager/ssh/askpass/config env vars are set", async () => {
+		const shadowDir = path.join(tmpDir, `sanitized-env-shadow-${Date.now()}`)
+		const workspaceDir = path.join(tmpDir, `sanitized-env-workspace-${Date.now()}`)
+
+		try {
+			const { testFile } = await initWorkspaceRepo({ workspaceDir })
+
+			vitest.spyOn(fileSearch, "executeRipgrep").mockImplementation(() => Promise.resolve([]))
+
+			const service = new RepoPerTaskCheckpointService("sanitized-env", shadowDir, workspaceDir, () => {})
+			await service.initShadowGit()
+
+			await fs.writeFile(testFile, "Changed with unsafe env set")
+			const commit = await service.saveCheckpoint("checkpoint with unsafe env")
+			expect(commit?.commit).toBeTruthy()
+
+			// No user templates/hooks are copied into the shadow repo (`git init --template=`).
+			const hooksDir = path.join(shadowDir, "tasks", "sanitized-env", "checkpoints", ".git", "hooks")
+			expect(await fileExistsAtPath(hooksDir)).toBe(false)
+		} finally {
+			await fs.rm(shadowDir, { recursive: true, force: true })
+			await fs.rm(workspaceDir, { recursive: true, force: true })
+		}
+	})
+})
