@@ -1,6 +1,28 @@
 {
 	"title": "Modi",
 	"done": "Fertig",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ Architekt",
+			"description": "Planen und entwerfen vor der Umsetzung"
+		},
+		"code": {
+			"name": "💻 Code",
+			"description": "Code schreiben, ändern und refaktorieren"
+		},
+		"ask": {
+			"name": "❓ Frage",
+			"description": "Antworten und Erklärungen erhalten"
+		},
+		"debug": {
+			"name": "🪲 Debug",
+			"description": "Softwareprobleme diagnostizieren und beheben"
+		},
+		"orchestrator": {
+			"name": "🪃 Orchestrator",
+			"description": "Aufgaben über mehrere Modi hinweg koordinieren"
+		}
+	},
 	"modes": {
 		"title": "Modi",
 		"createNewMode": "Neuen Modus erstellen",

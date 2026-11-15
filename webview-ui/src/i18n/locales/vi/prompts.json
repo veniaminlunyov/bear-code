@@ -1,6 +1,28 @@
 {
 	"title": "Chế độ",
 	"done": "Hoàn thành",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ Kiến trúc sư",
+			"description": "Lập kế hoạch và thiết kế trước khi triển khai"
+		},
+		"code": {
+			"name": "💻 Mã",
+			"description": "Viết, sửa đổi và tái cấu trúc mã"
+		},
+		"ask": {
+			"name": "❓ Hỏi",
+			"description": "Nhận câu trả lời và giải thích"
+		},
+		"debug": {
+			"name": "🪲 Gỡ lỗi",
+			"description": "Chẩn đoán và khắc phục sự cố phần mềm"
+		},
+		"orchestrator": {
+			"name": "🪃 Bộ điều phối",
+			"description": "Điều phối công việc giữa nhiều chế độ"
+		}
+	},
 	"modes": {
 		"title": "Chế độ",
 		"createNewMode": "Tạo chế độ mới",

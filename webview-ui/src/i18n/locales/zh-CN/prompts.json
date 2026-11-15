@@ -1,6 +1,28 @@
 {
 	"title": "模式",
 	"done": "完成",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ 架构师",
+			"description": "在实现之前进行规划和设计"
+		},
+		"code": {
+			"name": "💻 代码",
+			"description": "编写、修改和重构代码"
+		},
+		"ask": {
+			"name": "❓ 提问",
+			"description": "获取答案和解释"
+		},
+		"debug": {
+			"name": "🪲 调试",
+			"description": "诊断并修复软件问题"
+		},
+		"orchestrator": {
+			"name": "🪃 编排器",
+			"description": "在多个模式之间协调任务"
+		}
+	},
 	"modes": {
 		"title": "模式配置",
 		"createNewMode": "新建模式",

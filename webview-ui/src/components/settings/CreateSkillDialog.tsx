@@ -4,6 +4,7 @@ import { validateSkillName as validateSkillNameShared, SkillNameValidationError 
 import { getAllModes } from "@bear/modes"
 
 import { useAppTranslation } from "@/i18n/TranslationContext"
+import { localizeModes } from "@/i18n/modeTranslations"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import {
 	Button,
@@ -89,8 +90,8 @@ export const CreateSkillDialog: React.FC<CreateSkillDialogProps> = ({
 
 	// Get available modes for the checkboxes (built-in + custom modes)
 	const availableModes = useMemo(() => {
-		return getAllModes(customModes).map((m) => ({ slug: m.slug, name: m.name }))
-	}, [customModes])
+		return localizeModes(getAllModes(customModes), t).map((m) => ({ slug: m.slug, name: m.name }))
+	}, [customModes, t])
 
 	const resetForm = useCallback(() => {
 		setName("")

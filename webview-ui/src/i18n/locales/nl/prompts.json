@@ -1,6 +1,28 @@
 {
 	"title": "Modi",
 	"done": "Gereed",
+	"builtinModes": {
+		"architect": {
+			"name": "🏗️ Architect",
+			"description": "Plan en ontwerp voordat je implementeert"
+		},
+		"code": {
+			"name": "💻 Code",
+			"description": "Schrijf, wijzig en refactor code"
+		},
+		"ask": {
+			"name": "❓ Vraag",
+			"description": "Krijg antwoorden en uitleg"
+		},
+		"debug": {
+			"name": "🪲 Debug",
+			"description": "Diagnosticeer en los softwareproblemen op"
+		},
+		"orchestrator": {
+			"name": "🪃 Orkestrator",
+			"description": "Coördineer taken over meerdere modi"
+		}
+	},
 	"modes": {
 		"title": "Modi",
 		"createNewMode": "Nieuwe modus aanmaken",

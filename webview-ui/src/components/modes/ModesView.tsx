@@ -27,6 +27,7 @@ import { TOOL_GROUPS } from "@bear/tools"
 import { vscode } from "@src/utils/vscode"
 import { buildDocLink } from "@src/utils/docLinks"
 import { useAppTranslation } from "@src/i18n/TranslationContext"
+import { localizeModes, resolveModeDescription } from "@src/i18n/modeTranslations"
 import { useExtensionState } from "@src/context/ExtensionStateContext"
 import { Section } from "@src/components/settings/Section"
 import {
@@ -84,7 +85,7 @@ const ModesView = () => {
 	const [visualMode, setVisualMode] = useState(mode)
 
 	// Build modes fresh each render so search reflects inline rename updates immediately
-	const modes = getAllModes(customModes)
+	const modes = localizeModes(getAllModes(customModes), t)
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 	const [selectedPromptContent, setSelectedPromptContent] = useState("")
@@ -999,7 +1000,16 @@ const ModesView = () => {
 						value={(() => {
 							const customMode = findModeBySlug(visualMode, customModes)
 							const prompt = customModePrompts?.[visualMode] as PromptComponent
-							return customMode?.description ?? prompt?.description ?? getDescription(visualMode)
+							const mode = modes.find((m) => m.slug === visualMode)
+							return (
+								customMode?.description ??
+								resolveModeDescription(
+									mode ?? { slug: visualMode, description: getDescription(visualMode) },
+									prompt?.description,
+									t,
+								) ??
+								getDescription(visualMode)
+							)
 						})()}
 						onChange={(e) => {
 							const value =
