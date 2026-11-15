@@ -2,9 +2,9 @@
 
 ## 0.1.0
 
-- Первая версия BearCode — форк Roo Code 3.53.0 (upstream commit b867ec9).
-- Новый ID расширения `bearcode.bear-code`, команды и настройки `bear-code.*`.
-- Новое имя, иконки и тексты интерфейса на всех языках.
-- Конфигурация проекта: `.bear/`, `.bearmodes`, `.bearignore`, `.bearrules` с fallback на `.roo*`.
+- First BearCode release — a fork of Roo Code 3.53.0 (upstream commit b867ec9).
+- New extension ID `bearcode.bear-code`; commands and settings `bear-code.*`.
+- New name, icons, and UI strings in all languages.
+- Project configuration: `.bear/`, `.bearmodes`, `.bearignore`, `.bearrules` with fallback to `.roo*`.
 
-История изменений Roo Code до форка — в `CHANGELOG.roo-code.md`.
+The Roo Code changelog prior to the fork is in `CHANGELOG.roo-code.md`.
