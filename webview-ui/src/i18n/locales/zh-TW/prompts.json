@@ -23,6 +23,36 @@
 			"description": "在多個模式之間協調任務"
 		}
 	},
+	"customModes": {
+		"translate": {
+			"name": "🌐 Translate",
+			"description": "Translate and manage localization files"
+		},
+		"issue-fixer": {
+			"name": "🔧 Issue Fixer",
+			"description": "Fix GitHub issues and implement features"
+		},
+		"pr-fixer": {
+			"name": "🛠️ PR Fixer",
+			"description": "Fix pull requests"
+		},
+		"merge-resolver": {
+			"name": "🔀 Merge Resolver",
+			"description": "Resolve merge conflicts intelligently using git history"
+		},
+		"docs-extractor": {
+			"name": "📚 Docs Extractor",
+			"description": "Extract feature details or verify documentation accuracy"
+		},
+		"issue-investigator": {
+			"name": "🕵️ Issue Investigator",
+			"description": "Investigates GitHub issues"
+		},
+		"issue-writer": {
+			"name": "📝 Issue Writer",
+			"description": "Create well-structured GitHub issues"
+		}
+	},
 	"modes": {
 		"title": "模式",
 		"createNewMode": "建立新模式",

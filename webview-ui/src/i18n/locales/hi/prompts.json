@@ -23,6 +23,36 @@
 			"description": "कई मोड्स के बीच कार्यों का समन्वय करें"
 		}
 	},
+	"customModes": {
+		"translate": {
+			"name": "🌐 Translate",
+			"description": "Translate and manage localization files"
+		},
+		"issue-fixer": {
+			"name": "🔧 Issue Fixer",
+			"description": "Fix GitHub issues and implement features"
+		},
+		"pr-fixer": {
+			"name": "🛠️ PR Fixer",
+			"description": "Fix pull requests"
+		},
+		"merge-resolver": {
+			"name": "🔀 Merge Resolver",
+			"description": "Resolve merge conflicts intelligently using git history"
+		},
+		"docs-extractor": {
+			"name": "📚 Docs Extractor",
+			"description": "Extract feature details or verify documentation accuracy"
+		},
+		"issue-investigator": {
+			"name": "🕵️ Issue Investigator",
+			"description": "Investigates GitHub issues"
+		},
+		"issue-writer": {
+			"name": "📝 Issue Writer",
+			"description": "Create well-structured GitHub issues"
+		}
+	},
 	"modes": {
 		"title": "मोड्स",
 		"createNewMode": "नया मोड बनाएँ",
