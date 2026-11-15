@@ -1,0 +1,11 @@
+BearCode
+Copyright 2026 BearCode contributors
+
+This product is a fork of Roo Code (https://github.com/RooCodeInc/Roo-Code),
+Copyright 2025 Roo Code, Inc., licensed under the Apache License, Version 2.0.
+Roo Code is itself derived from Cline (https://github.com/cline/cline),
+licensed under the Apache License, Version 2.0.
+
+Changes from upstream: rebranding (name, identifiers, icons, UI strings),
+BearCode configuration file names (.bear/, .bearmodes, .bearignore, .bearrules)
+with fallback to the Roo Code names, and removal of the upstream release announcement.
