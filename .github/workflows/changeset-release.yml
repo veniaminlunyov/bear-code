@@ -1,0 +1,51 @@
+name: Changeset Release
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [closed]
+
+env:
+  REPO_PATH: ${{ github.repository }}
+
+jobs:
+  # Job 1: Create version bump PR when changesets are merged to main
+  changeset-pr-version-bump:
+    if: >
+      ( github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      !contains(github.event.pull_request.title, 'Changeset version bump') ) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+
+      # Check if there are any new changesets to process
+      - name: Check for changesets
+        id: check-changesets
+        run: |
+          NEW_CHANGESETS=$(find .changeset -name "*.md" ! -name "README.md" | wc -l | tr -d ' ')
+          echo "Changesets diff with previous version: $NEW_CHANGESETS"
+          echo "new_changesets=$NEW_CHANGESETS" >> $GITHUB_OUTPUT
+
+      # Create version bump PR using changesets/action if there are new changesets
+      - name: Changeset Pull Request
+        if: steps.check-changesets.outputs.new_changesets != '0'
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          commit: "changeset version bump"
+          title: "Changeset version bump"
+          version: pnpm changeset:version # This performs the changeset version bump
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

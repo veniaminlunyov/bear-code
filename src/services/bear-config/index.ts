@@ -1,0 +1,521 @@
+import * as path from "path"
+import * as os from "os"
+import * as fsSync from "fs"
+import fs from "fs/promises"
+
+/**
+ * BearCode configuration file and directory names.
+ *
+ * BearCode is a fork of Roo Code. New files are always created with the BearCode
+ * names below; the legacy Roo Code names are still read when the BearCode
+ * counterpart does not exist, so existing projects keep working unchanged.
+ */
+export const CONFIG_DIR_NAME = ".bear"
+export const LEGACY_CONFIG_DIR_NAME = ".roo"
+export const MODES_FILENAME = ".bearmodes"
+export const LEGACY_MODES_FILENAME = ".roomodes"
+export const IGNORE_FILENAME = ".bearignore"
+export const LEGACY_IGNORE_FILENAME = ".rooignore"
+export const RULES_FILENAME = ".bearrules"
+export const LEGACY_RULES_FILENAME = ".roorules"
+
+/**
+ * Resolves a BearCode config entry inside `baseDir` with fallback to its legacy Roo Code name.
+ *
+ * Returns `baseDir/name` if it exists, otherwise `baseDir/legacyName` if that exists,
+ * otherwise `baseDir/name` (so that newly created files use the BearCode name).
+ */
+export function resolveBrandedPath(baseDir: string, name: string, legacyName: string): string {
+	const preferred = path.join(baseDir, name)
+	if (fsSync.existsSync(preferred)) {
+		return preferred
+	}
+	const legacy = path.join(baseDir, legacyName)
+	if (fsSync.existsSync(legacy)) {
+		return legacy
+	}
+	return preferred
+}
+
+/** Resolves the project modes file (`.bearmodes`, falling back to `.roomodes`). */
+export function getProjectModesFilePath(workspaceRoot: string): string {
+	return resolveBrandedPath(workspaceRoot, MODES_FILENAME, LEGACY_MODES_FILENAME)
+}
+
+/** True if `filePath` points to a project modes file (`.bearmodes` or legacy `.roomodes`). */
+export function isProjectModesFile(filePath: string): boolean {
+	return filePath.endsWith(MODES_FILENAME) || filePath.endsWith(LEGACY_MODES_FILENAME)
+}
+
+/**
+ * Resolves a workspace-relative path to an absolute path, applying the legacy fallback
+ * for BearCode config entries: `.bearmodes` may resolve to `.bearmodes`, and `.bear/...`
+ * may resolve to `.roo/...` when only the legacy variant exists.
+ */
+export function resolveWorkspaceConfigPath(cwd: string, relativePath: string): string {
+	const segments = path
+		.normalize(relativePath)
+		.split(/[/\\]/)
+		.filter((segment) => segment && segment !== ".")
+	if (segments[0] === MODES_FILENAME && segments.length === 1) {
+		return getProjectModesFilePath(cwd)
+	}
+	if (segments[0] === CONFIG_DIR_NAME) {
+		return path.join(getProjectBearDirectoryForCwd(cwd), ...segments.slice(1))
+	}
+	return path.join(cwd, relativePath)
+}
+
+/**
+ * Gets the global .bear directory path (falls back to an existing legacy ~/.roo)
+ *
+ * @returns The absolute path to the global .bear directory
+ *
+ * @example Platform-specific paths:
+ * ```
+ * // macOS/Linux: ~/.bear/
+ * // Example: /Users/john/.bear
+ *
+ * // Windows: %USERPROFILE%\.bear\
+ * // Example: C:\Users\john\.bear
+ * ```
+ *
+ * @example Usage:
+ * ```typescript
+ * const globalDir = getGlobalBearDirectory()
+ * // Returns: "/Users/john/.bear" (on macOS/Linux)
+ * // Returns: "C:\\Users\\john\\.bear" (on Windows)
+ * ```
+ */
+export function getGlobalBearDirectory(): string {
+	const homeDir = os.homedir()
+	return resolveBrandedPath(homeDir, CONFIG_DIR_NAME, LEGACY_CONFIG_DIR_NAME)
+}
+
+/**
+ * Gets the global .agents directory path based on the current platform.
+ * This is a shared directory for agent skills across different AI coding tools.
+ *
+ * @returns The absolute path to the global .agents directory
+ *
+ * @example Platform-specific paths:
+ * ```
+ * // macOS/Linux: ~/.agents/
+ * // Example: /Users/john/.agents
+ *
+ * // Windows: %USERPROFILE%\.agents\
+ * // Example: C:\Users\john\.agents
+ * ```
+ *
+ * @example Usage:
+ * ```typescript
+ * const globalAgentsDir = getGlobalAgentsDirectory()
+ * // Returns: "/Users/john/.agents" (on macOS/Linux)
+ * // Returns: "C:\\Users\\john\\.agents" (on Windows)
+ * ```
+ */
+export function getGlobalAgentsDirectory(): string {
+	const homeDir = os.homedir()
+	return path.join(homeDir, ".agents")
+}
+
+/**
+ * Gets the project-local .agents directory path for a given cwd.
+ * This is a shared directory for agent skills across different AI coding tools.
+ *
+ * @param cwd - Current working directory (project path)
+ * @returns The absolute path to the project-local .agents directory
+ *
+ * @example
+ * ```typescript
+ * const projectAgentsDir = getProjectAgentsDirectoryForCwd('/Users/john/my-project')
+ * // Returns: "/Users/john/my-project/.agents"
+ * ```
+ */
+export function getProjectAgentsDirectoryForCwd(cwd: string): string {
+	return path.join(cwd, ".agents")
+}
+
+/**
+ * Gets the project-local .bear directory path for a given cwd
+ *
+ * @param cwd - Current working directory (project path)
+ * @returns The absolute path to the project-local .bear directory
+ *
+ * @example
+ * ```typescript
+ * const projectDir = getProjectBearDirectoryForCwd('/Users/john/my-project')
+ * // Returns: "/Users/john/my-project/.bear"
+ *
+ * const windowsProjectDir = getProjectBearDirectoryForCwd('C:\\Users\\john\\my-project')
+ * // Returns: "C:\\Users\\john\\my-project\\.bear"
+ * ```
+ *
+ * @example Directory structure:
+ * ```
+ * /Users/john/my-project/
+ * ├── .bear/                    # Project-local configuration directory
+ * │   ├── rules/
+ * │   │   └── rules.md
+ * │   ├── custom-instructions.md
+ * │   └── config/
+ * │       └── settings.json
+ * ├── src/
+ * │   └── index.ts
+ * └── package.json
+ * ```
+ */
+export function getProjectBearDirectoryForCwd(cwd: string): string {
+	return resolveBrandedPath(cwd, CONFIG_DIR_NAME, LEGACY_CONFIG_DIR_NAME)
+}
+
+/**
+ * Checks if a directory exists
+ */
+export async function directoryExists(dirPath: string): Promise<boolean> {
+	try {
+		const stat = await fs.stat(dirPath)
+		return stat.isDirectory()
+	} catch (error: any) {
+		// Only catch expected "not found" errors
+		if (error.code === "ENOENT" || error.code === "ENOTDIR") {
+			return false
+		}
+		// Re-throw unexpected errors (permission, I/O, etc.)
+		throw error
+	}
+}
+
+/**
+ * Checks if a file exists
+ */
+export async function fileExists(filePath: string): Promise<boolean> {
+	try {
+		const stat = await fs.stat(filePath)
+		return stat.isFile()
+	} catch (error: any) {
+		// Only catch expected "not found" errors
+		if (error.code === "ENOENT" || error.code === "ENOTDIR") {
+			return false
+		}
+		// Re-throw unexpected errors (permission, I/O, etc.)
+		throw error
+	}
+}
+
+/**
+ * Reads a file safely, returning null if it doesn't exist
+ */
+export async function readFileIfExists(filePath: string): Promise<string | null> {
+	try {
+		return await fs.readFile(filePath, "utf-8")
+	} catch (error: any) {
+		// Only catch expected "not found" errors
+		if (error.code === "ENOENT" || error.code === "ENOTDIR" || error.code === "EISDIR") {
+			return null
+		}
+		// Re-throw unexpected errors (permission, I/O, etc.)
+		throw error
+	}
+}
+
+/**
+ * Discovers all .bear directories in subdirectories of the workspace
+ *
+ * @param cwd - Current working directory (workspace root)
+ * @returns Array of absolute paths to .bear directories found in subdirectories,
+ *          sorted alphabetically. Does not include the root .bear directory.
+ *
+ * @example
+ * ```typescript
+ * const subfolderDirs = await discoverSubfolderBearDirectories('/Users/john/monorepo')
+ * // Returns:
+ * // [
+ * //   '/Users/john/monorepo/package-a/.bear',
+ * //   '/Users/john/monorepo/package-b/.bear',
+ * //   '/Users/john/monorepo/packages/shared/.bear'
+ * // ]
+ * ```
+ *
+ * @example Directory structure:
+ * ```
+ * /Users/john/monorepo/
+ * ├── .bear/                    # Root .bear (NOT included - use getProjectBearDirectoryForCwd)
+ * ├── package-a/
+ * │   └── .bear/                # Included
+ * │       └── rules/
+ * ├── package-b/
+ * │   └── .bear/                # Included
+ * │       └── rules-code/
+ * └── packages/
+ *     └── shared/
+ *         └── .bear/            # Included (nested)
+ *             └── rules/
+ * ```
+ */
+export async function discoverSubfolderBearDirectories(cwd: string): Promise<string[]> {
+	try {
+		// Dynamic import to avoid vscode dependency at module load time
+		// This is necessary because file-search.ts imports vscode, which is not
+		// available in the webview context
+		const { executeRipgrep } = await import("../search/file-search")
+
+		// Use ripgrep to find any file inside any .bear (or legacy .roo) directory
+		// This efficiently discovers all config folders regardless of their content
+		const args = [
+			"--files",
+			"--hidden",
+			"--follow",
+			"-g",
+			`**/${CONFIG_DIR_NAME}/**`,
+			"-g",
+			`**/${LEGACY_CONFIG_DIR_NAME}/**`,
+			"-g",
+			"!node_modules/**",
+			"-g",
+			"!.git/**",
+			cwd,
+		]
+
+		const results = await executeRipgrep({ args, workspacePath: cwd })
+
+		// Collect the parent folders that contain a config directory, remembering
+		// which variants exist so that .bear wins over legacy .roo in the same folder.
+		const foundByParent = new Map<string, Set<string>>()
+
+		for (const result of results) {
+			// Match paths like "subfolder/.bear/anything" or "subfolder/nested/.bear/anything"
+			// Handle both forward slashes (Unix) and backslashes (Windows)
+			const match = result.path.match(/^(.+?)[/\\](\.bear|\.roo)[/\\]/)
+			if (match) {
+				const parent = match[1]
+				const variants = foundByParent.get(parent) ?? new Set<string>()
+				variants.add(match[2])
+				foundByParent.set(parent, variants)
+			}
+		}
+
+		const bearDirs = new Set<string>()
+		const rootBearDirs = new Set([path.join(cwd, CONFIG_DIR_NAME), path.join(cwd, LEGACY_CONFIG_DIR_NAME)])
+
+		for (const [parent, variants] of foundByParent) {
+			const dirName = variants.has(CONFIG_DIR_NAME) ? CONFIG_DIR_NAME : LEGACY_CONFIG_DIR_NAME
+			const bearDir = path.join(cwd, parent, dirName)
+			// Exclude the root config directory (already handled by getProjectBearDirectoryForCwd)
+			if (!rootBearDirs.has(bearDir)) {
+				bearDirs.add(bearDir)
+			}
+		}
+
+		// Return sorted alphabetically
+		return Array.from(bearDirs).sort()
+	} catch (error) {
+		// If discovery fails (e.g., ripgrep not available), return empty array
+		return []
+	}
+}
+
+/**
+ * Gets the ordered list of .bear directories to check (global first, then project-local)
+ *
+ * @param cwd - Current working directory (project path)
+ * @returns Array of directory paths to check in order [global, project-local]
+ *
+ * @example
+ * ```typescript
+ * // For a project at /Users/john/my-project
+ * const directories = getBearDirectoriesForCwd('/Users/john/my-project')
+ * // Returns:
+ * // [
+ * //   '/Users/john/.bear',           // Global directory
+ * //   '/Users/john/my-project/.bear' // Project-local directory
+ * // ]
+ * ```
+ *
+ * @example Directory structure:
+ * ```
+ * /Users/john/
+ * ├── .bear/                    # Global configuration
+ * │   ├── rules/
+ * │   │   └── rules.md
+ * │   └── custom-instructions.md
+ * └── my-project/
+ *     ├── .bear/                # Project-specific configuration
+ *     │   ├── rules/
+ *     │   │   └── rules.md     # Overrides global rules
+ *     │   └── project-notes.md
+ *     └── src/
+ *         └── index.ts
+ * ```
+ */
+export function getBearDirectoriesForCwd(cwd: string): string[] {
+	const directories: string[] = []
+
+	// Add global directory first
+	directories.push(getGlobalBearDirectory())
+
+	// Add project-local directory second
+	directories.push(getProjectBearDirectoryForCwd(cwd))
+
+	return directories
+}
+
+/**
+ * Gets the ordered list of all .bear directories including subdirectories
+ *
+ * @param cwd - Current working directory (project path)
+ * @returns Array of directory paths in order: [global, project-local, ...subfolders (alphabetically)]
+ *
+ * @example
+ * ```typescript
+ * // For a monorepo at /Users/john/monorepo with .bear in subfolders
+ * const directories = await getAllBearDirectoriesForCwd('/Users/john/monorepo')
+ * // Returns:
+ * // [
+ * //   '/Users/john/.bear',                    // Global directory
+ * //   '/Users/john/monorepo/.bear',           // Project-local directory
+ * //   '/Users/john/monorepo/package-a/.bear', // Subfolder (alphabetical)
+ * //   '/Users/john/monorepo/package-b/.bear'  // Subfolder (alphabetical)
+ * // ]
+ * ```
+ */
+export async function getAllBearDirectoriesForCwd(cwd: string): Promise<string[]> {
+	const directories: string[] = []
+
+	// Add global directory first
+	directories.push(getGlobalBearDirectory())
+
+	// Add project-local directory second
+	directories.push(getProjectBearDirectoryForCwd(cwd))
+
+	// Discover and add subfolder .bear directories
+	const subfolderDirs = await discoverSubfolderBearDirectories(cwd)
+	directories.push(...subfolderDirs)
+
+	return directories
+}
+
+/**
+ * Gets parent directories containing .bear folders, in order from root to subfolders
+ *
+ * @param cwd - Current working directory (project path)
+ * @returns Array of parent directory paths (not .bear paths) containing AGENTS.md or .bear
+ *
+ * @example
+ * ```typescript
+ * const dirs = await getAgentsDirectoriesForCwd('/Users/john/monorepo')
+ * // Returns: ['/Users/john/monorepo', '/Users/john/monorepo/package-a', ...]
+ * ```
+ */
+export async function getAgentsDirectoriesForCwd(cwd: string): Promise<string[]> {
+	const directories: string[] = []
+
+	// Always include the root directory
+	directories.push(cwd)
+
+	// Get all subfolder .bear directories
+	const subfolderBearDirs = await discoverSubfolderBearDirectories(cwd)
+
+	// Extract parent directories (remove .bear from path)
+	for (const bearDir of subfolderBearDirs) {
+		const parentDir = path.dirname(bearDir)
+		directories.push(parentDir)
+	}
+
+	return directories
+}
+
+/**
+ * Loads configuration from multiple .bear directories with project overriding global
+ *
+ * @param relativePath - The relative path within each .bear directory (e.g., 'rules/rules.md')
+ * @param cwd - Current working directory (project path)
+ * @returns Object with global and project content, plus merged content
+ *
+ * @example
+ * ```typescript
+ * // Load rules configuration for a project
+ * const config = await loadConfiguration('rules/rules.md', '/Users/john/my-project')
+ *
+ * // Returns:
+ * // {
+ * //   global: "Global rules content...",     // From ~/.bear/rules/rules.md
+ * //   project: "Project rules content...",   // From /Users/john/my-project/.bear/rules/rules.md
+ * //   merged: "Global rules content...\n\n# Project-specific rules (override global):\n\nProject rules content..."
+ * // }
+ * ```
+ *
+ * @example File paths resolved:
+ * ```
+ * relativePath: 'rules/rules.md'
+ * cwd: '/Users/john/my-project'
+ *
+ * Reads from:
+ * - Global: /Users/john/.bear/rules/rules.md
+ * - Project: /Users/john/my-project/.bear/rules/rules.md
+ *
+ * Other common relativePath examples:
+ * - 'custom-instructions.md'
+ * - 'config/settings.json'
+ * - 'templates/component.tsx'
+ * ```
+ *
+ * @example Merging behavior:
+ * ```
+ * // If only global exists:
+ * { global: "content", project: null, merged: "content" }
+ *
+ * // If only project exists:
+ * { global: null, project: "content", merged: "content" }
+ *
+ * // If both exist:
+ * {
+ *   global: "global content",
+ *   project: "project content",
+ *   merged: "global content\n\n# Project-specific rules (override global):\n\nproject content"
+ * }
+ * ```
+ */
+export async function loadConfiguration(
+	relativePath: string,
+	cwd: string,
+): Promise<{
+	global: string | null
+	project: string | null
+	merged: string
+}> {
+	const globalDir = getGlobalBearDirectory()
+	const projectDir = getProjectBearDirectoryForCwd(cwd)
+
+	const globalFilePath = path.join(globalDir, relativePath)
+	const projectFilePath = path.join(projectDir, relativePath)
+
+	// Read global configuration
+	const globalContent = await readFileIfExists(globalFilePath)
+
+	// Read project-local configuration
+	const projectContent = await readFileIfExists(projectFilePath)
+
+	// Merge configurations - project overrides global
+	let merged = ""
+
+	if (globalContent) {
+		merged += globalContent
+	}
+
+	if (projectContent) {
+		if (merged) {
+			merged += "\n\n# Project-specific rules (override global):\n\n"
+		}
+		merged += projectContent
+	}
+
+	return {
+		global: globalContent,
+		project: projectContent,
+		merged: merged || "",
+	}
+}
+
+// Export with backward compatibility alias
+export const loadBearConfiguration: typeof loadConfiguration = loadConfiguration
