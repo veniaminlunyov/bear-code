@@ -1,5 +1,11 @@
 # BearCode Changelog
 
+## 0.1.1
+
+### Patch Changes
+
+- Localize built-in mode names and descriptions in the WebView UI, and add the missing `customModes` translations for all non-English locales so the translation check passes.
+
 ## 0.1.0
 
 - First BearCode release — a fork of Roo Code 3.53.0 (upstream commit b867ec9).
