@@ -1098,6 +1098,30 @@ describe("reopenParentFromDelegation across panels", () => {
 		vi.mocked(readApiMessages).mockResolvedValue([])
 	})
 
+	it.each([
+		["a fresh hand-back", [], 1],
+		["a retry of the same child", [{ ts: 5, type: "say", say: "subtask_result", text: "done" }], 1],
+		[
+			"the same text from another child",
+			[{ ts: 5, type: "say", say: "subtask_result", text: "done", childTaskId: "c0" }],
+			2,
+		],
+	])("links the subtask_result row to its child on %s", async (_label, existing, expectedRows) => {
+		vi.mocked(readTaskMessages).mockResolvedValue(existing as any)
+		vi.mocked(saveTaskMessages).mockClear()
+
+		await (ClineProvider.prototype as any).reopenParentFromDelegation.call(buildProvider(), {
+			parentTaskId: "p1",
+			childTaskId: "c1",
+			completionResultSummary: "done",
+		})
+
+		const [{ messages }] = vi.mocked(saveTaskMessages).mock.calls[0] as any
+		const results = messages.filter((m: any) => m.say === "subtask_result")
+		expect(results).toHaveLength(expectedRows)
+		expect(results.at(-1).childTaskId).toBe("c1")
+	})
+
 	it("adds the result to the turn's flushed results instead of a second user message", async () => {
 		// update_todo_list ran before new_task; its result was flushed before the parent closed.
 		vi.mocked(readApiMessages).mockResolvedValue([
@@ -1203,5 +1227,51 @@ describe("reopenParentFromDelegation across panels", () => {
 		// The hand-back waited for the detach and then saw an active parent.
 		await expect(handBack).resolves.toBe(false)
 		expect((panelC as any).createTaskWithHistoryItem).not.toHaveBeenCalled()
+	})
+})
+
+describe("subtask links in the parent's chat", () => {
+	const newTaskAsk = (ts: number, content: string, childTaskId?: string) => ({
+		ts,
+		type: "ask",
+		ask: "tool",
+		text: JSON.stringify({ tool: "newTask", mode: "code", content }),
+		...(childTaskId ? { childTaskId } : {}),
+	})
+
+	const stamp = (messages: any[], message: string) => {
+		vi.mocked(readTaskMessages).mockResolvedValueOnce(messages as any)
+		vi.mocked(saveTaskMessages).mockClear()
+		const provider = { contextProxy: { globalStorageUri: { fsPath: "/storage" } }, log: vi.fn() }
+		return (ClineProvider.prototype as any).stampDelegationChildLink.call(provider, "p1", message, "child-2")
+	}
+
+	it("stamps the newest newTask approval that this delegation answers", async () => {
+		const rejected = { ...newTaskAsk(1, "First try"), isAnswered: true }
+		const approved = newTaskAsk(3, "Do \\\\@file")
+		await stamp([rejected, { ts: 2, type: "say", say: "text", text: "x" }, approved], "Do \\@file")
+
+		const [{ messages }] = vi.mocked(saveTaskMessages).mock.calls[0] as any
+		expect(messages.map((m: any) => m.childTaskId)).toEqual([undefined, undefined, "child-2"])
+	})
+
+	it("does not walk past the newest newTask approval to an earlier one", async () => {
+		await stamp([newTaskAsk(1, "Do work"), newTaskAsk(2, "Something else")], "Do work")
+		expect(saveTaskMessages).not.toHaveBeenCalled()
+	})
+
+	it("keeps an existing stamp", async () => {
+		await stamp([newTaskAsk(1, "Do work", "child-1")], "Do work")
+		expect(saveTaskMessages).not.toHaveBeenCalled()
+	})
+
+	it("logs instead of failing the delegation when the messages cannot be read", async () => {
+		vi.mocked(readTaskMessages).mockRejectedValueOnce(new Error("EACCES"))
+		const provider = { contextProxy: { globalStorageUri: { fsPath: "/storage" } }, log: vi.fn() }
+
+		await expect(
+			(ClineProvider.prototype as any).stampDelegationChildLink.call(provider, "p1", "Do work", "child-2"),
+		).resolves.toBeUndefined()
+		expect(provider.log).toHaveBeenCalledWith(expect.stringContaining("EACCES"))
 	})
 })

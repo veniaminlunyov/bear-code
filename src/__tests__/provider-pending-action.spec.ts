@@ -150,6 +150,7 @@ describe("ClineProvider pending subtask approvals", () => {
 					apiConfiguration: {},
 				}),
 				mirrorExecutionContextToProvider: vi.fn(),
+				stampDelegationChildLink: vi.fn(),
 				deleteTaskWithId: vi.fn(),
 				getTaskWithId: vi.fn(async (id: string) => ({ historyItem: store.records[id] })),
 				createTaskWithHistoryItem: vi.fn(),

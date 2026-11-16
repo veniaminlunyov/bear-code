@@ -68,6 +68,7 @@ const handoffContext = {
 const handoffStubs = () => ({
 	resolveHandoffExecutionContext: vi.fn().mockResolvedValue(handoffContext),
 	mirrorExecutionContextToProvider: vi.fn().mockResolvedValue(undefined),
+	stampDelegationChildLink: vi.fn().mockResolvedValue(undefined),
 })
 
 const params = {
@@ -143,6 +144,13 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 		// The child's context is chosen from the parent and only mirrored into the UI.
 		expect(stubs.resolveHandoffExecutionContext).toHaveBeenCalledWith(parentTask, "code")
 		expect(stubs.mirrorExecutionContextToProvider).toHaveBeenCalledWith(handoffContext)
+
+		// The approval row is linked to its child once the delegation is committed,
+		// before the child runs.
+		expect(stubs.stampDelegationChildLink).toHaveBeenCalledWith("parent-1", "Do something", "child-1")
+		expect(stubs.stampDelegationChildLink.mock.invocationCallOrder[0]).toBeLessThan(
+			childStart.mock.invocationCallOrder[0],
+		)
 	})
 
 	it("posts taskHistoryItemUpdated to the webview when the view is launched", async () => {
@@ -235,6 +243,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 	})
 
 	it("rolls back the handoff and rethrows when the parent metadata write fails", async () => {
+		const rollbackStubs = handoffStubs()
 		const callOrder: string[] = []
 		const childStart = vi.fn()
 		const writeError = new Error("disk full")
@@ -252,7 +261,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 				current = { taskId: "child-1", start: childStart }
 				return current
 			}),
-			...handoffStubs(),
+			...rollbackStubs,
 			deleteTaskWithId: vi.fn(async (id: string, cascade: boolean) => {
 				callOrder.push(`deleteTaskWithId:${id}:${cascade}`)
 			}),
@@ -278,6 +287,8 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 			expect.anything(),
 		)
 		// Parent close, child close, child delete (no cascade), parent restore.
+		// A rolled-back delegation must not link the approval row to the deleted child.
+		expect(rollbackStubs.stampDelegationChildLink).not.toHaveBeenCalled()
 		expect(callOrder).toEqual([
 			"removeClineFromStack",
 			"removeClineFromStack",

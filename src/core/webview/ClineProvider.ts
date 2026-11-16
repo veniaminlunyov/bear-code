@@ -3194,6 +3194,11 @@ export class ClineProvider
 			}
 		}
 
+		// Link the approval row to its child, now that the delegation is committed (a
+		// rolled-back one must not link to a deleted child). The chat otherwise matches
+		// newTask rows to childIds by position, which breaks after a rejected new_task.
+		await this.stampDelegationChildLink(parentTaskId, message, child.taskId)
+
 		// 6) Start the child task now that parent metadata is safely persisted.
 		child.start()
 
@@ -3205,6 +3210,55 @@ export class ClineProvider
 		}
 
 		return child
+	}
+
+	/**
+	 * Stamp `childTaskId` on the parent's newest newTask approval row when it is
+	 * the one this delegation answers. Never walks past the newest newTask row, so
+	 * an earlier rejected approval is not linked to this child.
+	 */
+	private async stampDelegationChildLink(parentTaskId: string, message: string, childTaskId: string): Promise<void> {
+		try {
+			const globalStoragePath = this.contextProxy.globalStorageUri.fsPath
+			const parentMessages = await readTaskMessages({ taskId: parentTaskId, globalStoragePath })
+
+			for (let index = parentMessages.length - 1; index >= 0; index--) {
+				const candidate = parentMessages[index]
+
+				if (candidate.ask !== "tool" || !candidate.text) {
+					continue
+				}
+
+				let tool: { tool?: unknown; content?: unknown } | null
+
+				try {
+					tool = JSON.parse(candidate.text)
+				} catch {
+					continue
+				}
+
+				if (tool?.tool !== "newTask") {
+					continue
+				}
+
+				// NewTaskTool shows the raw content but delegates with one level of "\\@" unescaped.
+				const matchesDelegation =
+					typeof tool.content === "string" && tool.content.replace(/\\\\@/g, "\\@") === message
+
+				if (matchesDelegation && !candidate.childTaskId) {
+					candidate.childTaskId = childTaskId
+					await saveTaskMessages({ messages: parentMessages, taskId: parentTaskId, globalStoragePath })
+				}
+
+				break
+			}
+		} catch (error) {
+			this.log(
+				`[delegateParentAndOpenChild] Failed to save the child link for parent ${parentTaskId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			)
+		}
 	}
 
 	/**
@@ -3455,6 +3509,7 @@ export class ClineProvider
 					say: "subtask_result",
 					text: completionResultSummary,
 					ts,
+					childTaskId,
 				}
 				const lastParentClineMessage = parentClineMessages.at(-1)
 
@@ -3462,9 +3517,13 @@ export class ClineProvider
 				if (
 					lastParentClineMessage?.type !== "say" ||
 					lastParentClineMessage.say !== "subtask_result" ||
-					lastParentClineMessage.text !== completionResultSummary
+					lastParentClineMessage.text !== completionResultSummary ||
+					(lastParentClineMessage.childTaskId !== undefined &&
+						lastParentClineMessage.childTaskId !== childTaskId)
 				) {
 					parentClineMessages.push(subtaskUiMessage)
+				} else {
+					lastParentClineMessage.childTaskId = childTaskId
 				}
 
 				await saveTaskMessages({ messages: parentClineMessages, taskId: parentTaskId, globalStoragePath })
