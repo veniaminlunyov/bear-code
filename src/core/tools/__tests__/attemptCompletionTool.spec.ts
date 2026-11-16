@@ -538,4 +538,76 @@ describe("attemptCompletionTool", () => {
 			})
 		})
 	})
+
+	describe("subtask hand-back to the parent", () => {
+		const block: AttemptCompletionToolUse = {
+			type: "tool_use",
+			name: "attempt_completion",
+			params: { result: "child result" },
+			nativeArgs: { result: "child result" },
+			partial: false,
+		}
+
+		const setup = (parentHistory: Record<string, unknown>, reopenResult: boolean = true) => {
+			const callOrder: string[] = []
+			const reopenParentFromDelegation = vi.fn(async () => {
+				callOrder.push("reopen")
+				return reopenResult
+			})
+			const provider = {
+				getTaskWithId: vi.fn(async (id: string) => ({
+					historyItem:
+						id === "task_1" ? { id, status: "active", parentTaskId: "parent_1" } : { id, ...parentHistory },
+				})),
+				reopenParentFromDelegation,
+			}
+
+			;(mockTask as any).parentTaskId = "parent_1"
+			;(mockTask as any).providerRef = { deref: () => provider }
+			mockAskFinishSubTaskApproval.mockResolvedValue(true)
+			mockPushToolResult.mockImplementation((result: string) => callOrder.push(`push:${result}`))
+
+			const callbacks: AttemptCompletionCallbacks = {
+				askApproval: mockAskApproval,
+				handleError: mockHandleError,
+				pushToolResult: mockPushToolResult,
+				askFinishSubTaskApproval: mockAskFinishSubTaskApproval,
+				toolDescription: mockToolDescription,
+			}
+
+			return { callOrder, reopenParentFromDelegation, callbacks }
+		}
+
+		it("pushes the tool result only after the parent was reopened", async () => {
+			const { callOrder, callbacks } = setup({ status: "delegated", awaitingChildId: "task_1" })
+
+			await attemptCompletionTool.handle(mockTask as Task, block, callbacks)
+
+			expect(callOrder).toEqual(["reopen", "push:"])
+			expect(mockTask.ask).not.toHaveBeenCalled()
+		})
+
+		it("falls back to a normal completion when the reopen is refused", async () => {
+			const { callOrder, callbacks } = setup({ status: "delegated", awaitingChildId: "task_1" }, false)
+
+			await attemptCompletionTool.handle(mockTask as Task, block, callbacks)
+
+			// No empty tool_result for the hand-back; the completion_result ask runs instead.
+			expect(callOrder).toEqual(["reopen"])
+			expect(mockTask.ask).toHaveBeenCalledWith("completion_result", "", false)
+		})
+
+		it.each([
+			["detached", { status: "active", awaitingChildId: undefined }],
+			["awaiting another child", { status: "delegated", awaitingChildId: "task_2" }],
+		])("skips the hand-back when the parent is %s", async (_label, parentHistory) => {
+			const { reopenParentFromDelegation, callbacks } = setup(parentHistory)
+
+			await attemptCompletionTool.handle(mockTask as Task, block, callbacks)
+
+			expect(mockAskFinishSubTaskApproval).not.toHaveBeenCalled()
+			expect(reopenParentFromDelegation).not.toHaveBeenCalled()
+			expect(mockTask.ask).toHaveBeenCalledWith("completion_result", "", false)
+		})
+	})
 })

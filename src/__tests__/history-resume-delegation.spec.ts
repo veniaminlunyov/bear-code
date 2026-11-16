@@ -512,7 +512,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 				childTaskId: "child-rpd06",
 				completionResultSummary: "Subtask finished despite overwrite failures",
 			}),
-		).resolves.toBeUndefined()
+		).resolves.toBe(true)
 
 		expect(parentInstance.overwriteClineMessages).toHaveBeenCalledTimes(1)
 		expect(parentInstance.overwriteApiConversationHistory).toHaveBeenCalledTimes(1)
@@ -718,7 +718,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 				childTaskId: "child-rpd04",
 				completionResultSummary: "Child completion with persistence failure",
 			}),
-		).resolves.toBeUndefined()
+		).resolves.toBe(true)
 
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining(
@@ -869,7 +869,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 				childTaskId: "c5",
 				completionResultSummary: "Result",
 			}),
-		).resolves.toBeUndefined()
+		).resolves.toBe(true)
 
 		// Verify saves still occurred with just the injected message
 		expect(saveTaskMessages).toHaveBeenCalledWith(
@@ -892,5 +892,116 @@ describe("History resume delegation - parent metadata transitions", () => {
 				],
 			}),
 		)
+	})
+
+	describe("reopenParentFromDelegation guard", () => {
+		const makeProvider = (parentHistory: Record<string, unknown> | Error) => {
+			const getTaskWithId = vi.fn(async () => {
+				if (parentHistory instanceof Error) throw parentHistory
+				return {
+					historyItem: {
+						id: "p-guard",
+						ts: 1,
+						task: "P",
+						tokensIn: 0,
+						tokensOut: 0,
+						totalCost: 0,
+						...parentHistory,
+					},
+				}
+			})
+
+			return {
+				contextProxy: { globalStorageUri: { fsPath: "/tmp" } },
+				getTaskWithId,
+				emit: vi.fn(),
+				log: vi.fn(),
+				getCurrentTask: vi.fn(() => ({ taskId: "c-guard" })),
+				removeClineFromStack: vi.fn(),
+				createTaskWithHistoryItem: vi.fn(),
+				updateTaskHistory: vi.fn(),
+				taskHistoryStore: legacyHistoryStore,
+			} as unknown as ClineProvider
+		}
+
+		const reopen = (provider: ClineProvider) =>
+			(ClineProvider.prototype as any).reopenParentFromDelegation.call(provider, {
+				parentTaskId: "p-guard",
+				childTaskId: "c-guard",
+				completionResultSummary: "late result",
+			})
+
+		it.each([
+			["the parent was detached (active)", { status: "active", awaitingChildId: undefined }],
+			["the parent delegated to another child", { status: "delegated", awaitingChildId: "c-other" }],
+			["the parent completed", { status: "completed", awaitingChildId: "c-guard" }],
+		])("returns false and leaves the parent untouched when %s", async (_label, parentHistory) => {
+			const provider = makeProvider(parentHistory)
+
+			await expect(reopen(provider)).resolves.toBe(false)
+
+			expect(saveTaskMessages).not.toHaveBeenCalled()
+			expect(saveApiMessages).not.toHaveBeenCalled()
+			expect((provider as any).updateTaskHistory).not.toHaveBeenCalled()
+			expect((provider as any).removeClineFromStack).not.toHaveBeenCalled()
+			expect((provider as any).createTaskWithHistoryItem).not.toHaveBeenCalled()
+			expect((provider as any).emit).not.toHaveBeenCalled()
+		})
+
+		it("returns false when the parent no longer exists", async () => {
+			const provider = makeProvider(new Error("Task not found"))
+
+			await expect(reopen(provider)).resolves.toBe(false)
+			expect(saveTaskMessages).not.toHaveBeenCalled()
+		})
+
+		it("rethrows other lookup errors", async () => {
+			const provider = makeProvider(new Error("EACCES"))
+
+			await expect(reopen(provider)).rejects.toThrow("EACCES")
+		})
+
+		it("does not duplicate subtask_result or the text fallback on a retried hand-back", async () => {
+			const fallback = "Subtask c-guard completed.\n\nResult:\nlate result"
+			vi.mocked(readTaskMessages).mockResolvedValue([
+				{ type: "say", say: "subtask_result", text: "late result", ts: 1 },
+			] as any)
+			vi.mocked(readApiMessages).mockResolvedValue([
+				{ role: "user", content: [{ type: "text", text: fallback }], ts: 1 },
+			] as any)
+
+			const provider = makeProvider({ status: "delegated", awaitingChildId: "c-guard" })
+
+			await expect(reopen(provider)).resolves.toBe(true)
+
+			expect(vi.mocked(saveTaskMessages).mock.calls[0][0].messages).toHaveLength(1)
+			expect(vi.mocked(saveApiMessages).mock.calls[0][0].messages).toHaveLength(1)
+		})
+
+		it("serializes hand-backs for the same parent so only the first one reopens it", async () => {
+			// Both completions read the parent after the previous transition wrote it.
+			let parentRecord: Record<string, unknown> = { status: "delegated", awaitingChildId: "c-guard" }
+			const provider = makeProvider({})
+			;(provider as any).getTaskWithId = vi.fn(async () => ({
+				historyItem: {
+					id: "p-guard",
+					ts: 1,
+					task: "P",
+					tokensIn: 0,
+					tokensOut: 0,
+					totalCost: 0,
+					...parentRecord,
+				},
+			}))
+			;(provider as any).updateTaskHistory = vi.fn(async (item: Record<string, unknown>) => {
+				if (item.id === "p-guard") parentRecord = item
+				return []
+			})
+
+			const results = await Promise.all([reopen(provider), reopen(provider)])
+
+			expect(results).toEqual([true, false])
+			expect((provider as any).createTaskWithHistoryItem).toHaveBeenCalledTimes(1)
+		})
 	})
 })
