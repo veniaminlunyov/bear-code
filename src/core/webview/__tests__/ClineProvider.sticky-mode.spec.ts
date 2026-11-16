@@ -57,23 +57,25 @@ vi.mock("vscode", () => ({
 let taskIdCounter = 0
 
 vi.mock("../../task/Task", () => ({
-	Task: vi.fn().mockImplementation((options) => ({
-		taskId: options.taskId || `test-task-id-${++taskIdCounter}`,
-		saveClineMessages: vi.fn(),
-		clineMessages: [],
-		apiConversationHistory: [],
-		overwriteClineMessages: vi.fn(),
-		overwriteApiConversationHistory: vi.fn(),
-		abortTask: vi.fn(),
-		handleWebviewAskResponse: vi.fn(),
-		getTaskNumber: vi.fn().mockReturnValue(0),
-		setTaskNumber: vi.fn(),
-		setParentTask: vi.fn(),
-		setRootTask: vi.fn(),
-		emit: vi.fn(),
-		parentTask: options.parentTask,
-		updateApiConfiguration: vi.fn(),
-	})),
+	Task: vi.fn().mockImplementation(function (options) {
+		return {
+			taskId: options.taskId || `test-task-id-${++taskIdCounter}`,
+			saveClineMessages: vi.fn(),
+			clineMessages: [],
+			apiConversationHistory: [],
+			overwriteClineMessages: vi.fn(),
+			overwriteApiConversationHistory: vi.fn(),
+			abortTask: vi.fn(),
+			handleWebviewAskResponse: vi.fn(),
+			getTaskNumber: vi.fn().mockReturnValue(0),
+			setTaskNumber: vi.fn(),
+			setParentTask: vi.fn(),
+			setRootTask: vi.fn(),
+			emit: vi.fn(),
+			parentTask: options.parentTask,
+			updateApiConfiguration: vi.fn(),
+		}
+	}),
 }))
 
 vi.mock("../../prompts/sections/custom-instructions")
@@ -89,10 +91,12 @@ vi.mock("../../../api", () => ({
 }))
 
 vi.mock("../../../integrations/workspace/WorkspaceTracker", () => ({
-	default: vi.fn().mockImplementation(() => ({
-		initializeFilePaths: vi.fn(),
-		dispose: vi.fn(),
-	})),
+	default: vi.fn().mockImplementation(function () {
+		return {
+			initializeFilePaths: vi.fn(),
+			dispose: vi.fn(),
+		}
+	}),
 }))
 
 vi.mock("../../diff/strategies/multi-search-replace", () => ({

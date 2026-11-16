@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config"
+import { configDefaults, defineConfig } from "vitest/config"
 import path from "path"
 import { resolveVerbosity } from "./utils/vitest-verbosity"
 
@@ -7,6 +7,8 @@ const { silent, reporters, onConsoleLog } = resolveVerbosity()
 export default defineConfig({
 	test: {
 		globals: true,
+		// vitest 4 no longer excludes build output by default.
+		exclude: [...configDefaults.exclude, "**/dist/**"],
 		setupFiles: ["./vitest.setup.ts"],
 		watch: false,
 		reporters,

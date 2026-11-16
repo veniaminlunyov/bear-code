@@ -1,4 +1,3 @@
-import * as actualFsPromises from "fs/promises"
 import * as fsSyncActual from "fs"
 import { Writable } from "stream"
 import * as path from "path"
@@ -6,6 +5,10 @@ import * as os from "os"
 
 import { safeWriteJson } from "../safeWriteJson"
 
+// "fs/promises" is mocked below, so a static import would yield the vi.fn() wrappers.
+// Since vitest 4, vi.spyOn() on an existing mock returns that same mock, so delegating
+// to a wrapper from a mockImplementation would recurse forever. Use the real module.
+const actualFsPromises = await vi.importActual<typeof import("fs/promises")>("fs/promises")
 const originalFsPromisesRename = actualFsPromises.rename
 const originalFsPromisesUnlink = actualFsPromises.unlink
 const originalFsPromisesWriteFile = actualFsPromises.writeFile

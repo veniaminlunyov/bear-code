@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest"
 import * as vscode from "vscode"
 
 import { API } from "../api"
@@ -12,8 +12,8 @@ describe("API - SendMessage Command", () => {
 	let api: API
 	let mockOutputChannel: vscode.OutputChannel
 	let mockProvider: ClineProvider
-	let mockPostMessageToWebview: ReturnType<typeof vi.fn>
-	let mockLog: ReturnType<typeof vi.fn>
+	let mockPostMessageToWebview: Mock
+	let mockLog: Mock
 
 	beforeEach(() => {
 		// Setup mocks

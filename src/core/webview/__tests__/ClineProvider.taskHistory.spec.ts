@@ -157,10 +157,12 @@ vi.mock("../../prompts/system", () => ({
 
 vi.mock("../../../integrations/workspace/WorkspaceTracker", () => {
 	return {
-		default: vi.fn().mockImplementation(() => ({
-			initializeFilePaths: vi.fn(),
-			dispose: vi.fn(),
-		})),
+		default: vi.fn().mockImplementation(function () {
+			return {
+				initializeFilePaths: vi.fn(),
+				dispose: vi.fn(),
+			}
+		}),
 	}
 })
 
