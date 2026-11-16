@@ -2104,12 +2104,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// the assistant message with the tool call. The history is only rewritten
 		// once there is an answer, so a reload while waiting loses nothing.
 		const { historyBeforeResults, existingResults, interruptedResults } = location
-		const baseResults = [...existingResults, ...interruptedResults]
+		// tool_result blocks must come before any other block of the user message.
+		const existingToolResults = existingResults.filter((block) => block.type === "tool_result")
+		const existingOther = existingResults.filter((block) => block.type !== "tool_result")
+		const baseResults = [...existingToolResults, ...interruptedResults, ...existingOther]
 
 		const continueWith = async (result: Anthropic.ToolResultBlockParam) => {
 			await this.settlePendingAction(action.actionId)
 			await this.overwriteApiConversationHistory(historyBeforeResults)
-			await this.initiateTaskLoop([...baseResults, result])
+			await this.initiateTaskLoop([...existingToolResults, ...interruptedResults, result, ...existingOther])
 		}
 
 		let { response, text, images } = await this.ask("tool", action.approvalText, false, undefined, false, {

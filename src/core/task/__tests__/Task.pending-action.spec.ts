@@ -137,6 +137,27 @@ describe("Task pending subtask approvals", () => {
 			])
 		})
 
+		it("keeps every tool_result ahead of other blocks when the saved results include text", async () => {
+			const history = [
+				...turnWith("call_new", "new_task"),
+				{
+					role: "user",
+					content: [
+						{ type: "text", text: "note" },
+						{ type: "tool_result", tool_use_id: "call_todo", content: "ok" },
+					],
+				},
+			]
+			const { task } = makeTask(createAction, history)
+			task.ask.mockResolvedValueOnce({ response: "noButtonClicked" })
+
+			await resumeAction(task)
+
+			const [content] = task.initiateTaskLoop.mock.calls[0]
+			expect(content.map((block: any) => block.type)).toEqual(["tool_result", "tool_result", "text"])
+			expect(content.map((block: any) => block.tool_use_id)).toEqual(["call_todo", "call_new", undefined])
+		})
+
 		it("reports a delegation that fails before anything changed once, instead of on every open", async () => {
 			const { task, provider } = makeTask(createAction, turnWith("call_new", "new_task"))
 			provider.delegateParentAndOpenChild.mockRejectedValueOnce(new Error("Invalid mode"))
