@@ -81,6 +81,11 @@ import { ContextProxy } from "../config/ContextProxy"
 import { ProviderSettingsManager } from "../config/ProviderSettingsManager"
 import { CustomModesManager } from "../config/CustomModesManager"
 import { Task } from "../task/Task"
+import {
+	selectHandoffExecutionContext,
+	type SavedModeProfile,
+	type TaskExecutionContext,
+} from "../task/providerHandoff"
 
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import type { ClineMessage, TodoItem } from "@bear-code/types"
@@ -2612,7 +2617,7 @@ export class ClineProvider
 		text?: string,
 		images?: string[],
 		parentTask?: Task,
-		options: CreateTaskOptions = {},
+		options: CreateTaskOptions & { handoffExecutionContext?: TaskExecutionContext } = {},
 		configuration: BearCodeSettings = {},
 	): Promise<Task> {
 		if (configuration) {
@@ -2657,6 +2662,8 @@ export class ClineProvider
 
 		const { apiConfiguration, organizationAllowList, enableCheckpoints, checkpointTimeout, experiments } =
 			await this.getState()
+		// A delegated child runs with the configuration chosen for it, not the provider's.
+		const effectiveApiConfiguration = options.handoffExecutionContext?.apiConfiguration ?? apiConfiguration
 
 		// Single-open-task invariant: always enforce for user-initiated top-level tasks
 		if (!parentTask) {
@@ -2667,7 +2674,7 @@ export class ClineProvider
 			}
 		}
 
-		if (!ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList)) {
+		if (!ProfileValidator.isProfileAllowed(effectiveApiConfiguration, organizationAllowList)) {
 			throw new OrganizationAllowListViolationError(t("common:errors.violated_organization_allowlist"))
 		}
 
@@ -2676,7 +2683,7 @@ export class ClineProvider
 			apiConfiguration,
 			enableCheckpoints,
 			checkpointTimeout,
-			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
+			consecutiveMistakeLimit: effectiveApiConfiguration.consecutiveMistakeLimit,
 			task: text,
 			images,
 			experiments,
@@ -2880,6 +2887,11 @@ export class ClineProvider
 				`[delegateParentAndOpenChild] Parent mismatch: expected ${parentTaskId}, current ${parent.taskId}`,
 			)
 		}
+
+		// Choose the child's mode and profile from the parent task (not from the
+		// provider's shared state) while the parent instance is still available.
+		const handoffExecutionContext = await this.resolveHandoffExecutionContext(parent, mode)
+
 		// 2) Flush pending tool results to API history BEFORE disposing the parent.
 		//    This is critical: when tools are called before new_task,
 		//    their tool_result blocks are in userMessageContent but not yet saved to API history.
@@ -2928,19 +2940,11 @@ export class ClineProvider
 			// Non-fatal: proceed with child creation even if parent cleanup had issues
 		}
 
-		// 3) Switch provider mode to child's requested mode BEFORE creating the child task
-		//    This ensures the child's system prompt and configuration are based on the correct mode.
-		//    The mode switch must happen before createTask() because the Task constructor
-		//    initializes its mode from provider.getState() during initializeTaskMode().
-		try {
-			await this.handleModeSwitch(mode as any)
-		} catch (e) {
-			this.log(
-				`[delegateParentAndOpenChild] handleModeSwitch failed for mode '${mode}': ${
-					(e as Error)?.message ?? String(e)
-				}`,
-			)
-		}
+		// 3) Show the child's mode and profile in the UI, the way reopening a task from
+		//    history does. The child itself runs with handoffExecutionContext, so this
+		//    only mirrors it into the provider state; unlike handleModeSwitch() it does
+		//    not save the parent's profile as the default profile of the child's mode.
+		await this.mirrorExecutionContextToProvider(handoffExecutionContext)
 
 		// 4) Create child as sole active (parent reference preserved for lineage)
 		// Pass initialStatus: "active" to ensure the child task's historyItem is created
@@ -2960,6 +2964,7 @@ export class ClineProvider
 				initialTodos,
 				initialStatus: "active",
 				startTask: false,
+				handoffExecutionContext,
 			})
 		} catch (err) {
 			const reason = (err as Error)?.message ?? String(err)
@@ -3051,6 +3056,73 @@ export class ClineProvider
 		}
 
 		return child
+	}
+
+	/**
+	 * Execution context for a child that `parent` delegates into `mode`: the
+	 * parent's profile, or the profile saved for `mode` when the mode changes and
+	 * profiles are not locked across modes (what handleModeSwitch would activate).
+	 */
+	private async resolveHandoffExecutionContext(parent: Task, mode: string): Promise<TaskExecutionContext> {
+		const parentContext: TaskExecutionContext = {
+			mode: await parent.getTaskMode(),
+			apiConfigName: await parent.getTaskApiConfigName(),
+			apiConfiguration: parent.apiConfiguration,
+		}
+		const lockApiConfigAcrossModes = this.context.workspaceState.get("lockApiConfigAcrossModes", false)
+		let savedModeProfile: SavedModeProfile | undefined
+
+		if (mode !== parentContext.mode && !lockApiConfigAcrossModes) {
+			try {
+				const savedConfigId = await this.providerSettingsManager.getModeConfigId(mode as Mode)
+
+				if (savedConfigId) {
+					const {
+						name,
+						id: _id,
+						...apiConfiguration
+					} = await this.providerSettingsManager.getProfile({
+						id: savedConfigId,
+					})
+					savedModeProfile = { name, apiConfiguration }
+				}
+			} catch (error) {
+				this.log(
+					`[delegateParentAndOpenChild] Could not load the profile saved for mode '${mode}', using the parent's: ${
+						error instanceof Error ? error.message : String(error)
+					}`,
+				)
+			}
+		}
+
+		return selectHandoffExecutionContext(parentContext, mode, lockApiConfigAcrossModes, savedModeProfile)
+	}
+
+	/**
+	 * Make the provider state (mode selector, current profile) show a delegated
+	 * child's execution context without persisting anything as a default: no
+	 * mode → profile binding is written and no task history is touched.
+	 */
+	private async mirrorExecutionContextToProvider(context: TaskExecutionContext): Promise<void> {
+		try {
+			await this.updateGlobalState("mode", context.mode)
+			this.emit(BearCodeEventName.ModeChanged, context.mode)
+
+			const currentApiConfigName = this.getGlobalState("currentApiConfigName")
+
+			if (context.apiConfigName && context.apiConfigName !== currentApiConfigName) {
+				await this.activateProviderProfile(
+					{ name: context.apiConfigName },
+					{ persistModeConfig: false, persistTaskHistory: false },
+				)
+			}
+		} catch (error) {
+			this.log(
+				`[delegateParentAndOpenChild] Failed to show mode '${context.mode}' in the UI: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			)
+		}
 	}
 
 	/**
@@ -3402,8 +3474,14 @@ export class ClineProvider
 				// non-fatal
 			}
 
-			// Auto-resume parent without ask("resume_task")
-			await parentInstance.resumeAfterDelegation()
+			// Auto-resume parent without ask("resume_task"). Not awaited: the parent's
+			// task loop runs until the parent itself finishes, and the completing child
+			// must not wait for that (nor every ancestor for its descendants).
+			parentInstance.resumeAfterDelegation().catch((error) => {
+				const message = error instanceof Error ? error.message : String(error)
+				this.log(`[reopenParentFromDelegation] Parent ${parentTaskId} failed to resume: ${message}`)
+				vscode.window.showErrorMessage(message)
+			})
 		}
 
 		// Emit TaskDelegationResumed (provider-level)

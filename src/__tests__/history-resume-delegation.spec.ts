@@ -1004,4 +1004,58 @@ describe("History resume delegation - parent metadata transitions", () => {
 			expect((provider as any).createTaskWithHistoryItem).toHaveBeenCalledTimes(1)
 		})
 	})
+
+	describe("parent resume after the hand-back", () => {
+		const makeProvider = (resumeAfterDelegation: () => Promise<void>) =>
+			({
+				contextProxy: { globalStorageUri: { fsPath: "/tmp" } },
+				getTaskWithId: vi.fn().mockResolvedValue({
+					historyItem: {
+						id: "p-r",
+						status: "delegated",
+						awaitingChildId: "c-r",
+						ts: 1,
+						task: "P",
+						tokensIn: 0,
+						tokensOut: 0,
+						totalCost: 0,
+					},
+				}),
+				emit: vi.fn(),
+				log: vi.fn(),
+				getCurrentTask: vi.fn(() => ({ taskId: "c-r" })),
+				removeClineFromStack: vi.fn(),
+				createTaskWithHistoryItem: vi.fn().mockResolvedValue({
+					taskId: "p-r",
+					overwriteClineMessages: vi.fn(),
+					overwriteApiConversationHistory: vi.fn(),
+					resumeAfterDelegation: vi.fn(resumeAfterDelegation),
+				}),
+				updateTaskHistory: vi.fn(),
+				taskHistoryStore: legacyHistoryStore,
+			}) as unknown as ClineProvider
+
+		const reopen = (provider: ClineProvider) =>
+			(ClineProvider.prototype as any).reopenParentFromDelegation.call(provider, {
+				parentTaskId: "p-r",
+				childTaskId: "c-r",
+				completionResultSummary: "done",
+			})
+
+		it("does not wait for the parent's task loop to finish", async () => {
+			// The parent's loop keeps running (it only ends when the parent finishes).
+			const provider = makeProvider(() => new Promise<void>(() => {}))
+
+			await expect(reopen(provider)).resolves.toBe(true)
+			expect((provider as any).emit).toHaveBeenCalledWith(BearCodeEventName.TaskDelegationResumed, "p-r", "c-r")
+		})
+
+		it("reports a failed parent resume to the user", async () => {
+			const vscode = await import("vscode")
+			const provider = makeProvider(() => Promise.reject(new Error("resume failed")))
+
+			await expect(reopen(provider)).resolves.toBe(true)
+			await vi.waitFor(() => expect(vscode.window.showErrorMessage).toHaveBeenCalledWith("resume failed"))
+		})
+	})
 })

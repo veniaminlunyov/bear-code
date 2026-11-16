@@ -264,10 +264,10 @@ export async function getEnvironmentDetails(cline: Task, includeFileDetails: boo
 		}
 	}
 
+	// The task's own profile, not the provider's focused one: a delegated child can
+	// run with a different profile than the one the UI shows.
 	const todoListEnabled =
-		state && typeof state.apiConfiguration?.todoListEnabled === "boolean"
-			? state.apiConfiguration.todoListEnabled
-			: true
+		typeof cline.apiConfiguration?.todoListEnabled === "boolean" ? cline.apiConfiguration.todoListEnabled : true
 	const reminderSection = todoListEnabled ? formatReminderSection(cline.todoList) : ""
 	return `<environment_details>\n${details.trim()}\n${reminderSection}\n</environment_details>`
 }

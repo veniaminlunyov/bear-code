@@ -305,6 +305,7 @@ describe("Nested delegation resume (A → B → C)", () => {
 		}
 		let currentActiveId: string | undefined = "C"
 		let resumeCount = 0
+		let innerHandBack: Promise<boolean> | undefined
 
 		const provider: any = {
 			contextProxy: { globalStorageUri: { fsPath: "/tmp" } },
@@ -338,7 +339,8 @@ describe("Nested delegation resume (A → B → C)", () => {
 						historyIndex.B = { ...historyIndex.B, status: "delegated", awaitingChildId: "D" }
 						historyIndex.D = { ...base, id: "D", status: "active", parentTaskId: "B" }
 						currentActiveId = "D"
-						await expect(reopen("B", "D")).resolves.toBe(true)
+						innerHandBack = reopen("B", "D")
+						await innerHandBack
 					}),
 				}
 			}),
@@ -356,6 +358,9 @@ describe("Nested delegation resume (A → B → C)", () => {
 
 		const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("deadlock")), 2000))
 		await expect(Promise.race([reopen("B", "C"), timeout])).resolves.toBe(true)
+		// The parent's resumed loop runs in the background; wait for D's hand-back.
+		await vi.waitFor(() => expect(innerHandBack).toBeDefined())
+		await expect(Promise.race([innerHandBack!, timeout])).resolves.toBe(true)
 
 		expect(resumeCount).toBe(2)
 		expect(historyIndex.B).toMatchObject({ status: "active", completedByChildId: "D", awaitingChildId: undefined })

@@ -85,6 +85,20 @@ describe("ProviderSettingsManager", () => {
 		})
 	})
 
+	describe("default profiles", () => {
+		it("are not modified by changes made to profiles loaded from empty storage", async () => {
+			// Nothing is ever persisted, so every load starts from the defaults.
+			mockSecrets.get.mockResolvedValue(null)
+
+			await providerSettingsManager.saveConfig("other", { apiProvider: "anthropic" } as ProviderSettings)
+			await providerSettingsManager.setModeConfig("code", "other-id")
+
+			const profiles = await providerSettingsManager.listConfig()
+			expect(profiles.map(({ name }) => name)).toEqual(["default"])
+			expect(await providerSettingsManager.getModeConfigId("code")).not.toBe("other-id")
+		})
+	})
+
 	describe("initialize", () => {
 		it("should not write to storage when secrets.get returns null", async () => {
 			// Mock readConfig to return null
