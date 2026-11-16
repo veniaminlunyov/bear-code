@@ -296,4 +296,69 @@ describe("Nested delegation resume (A → B → C)", () => {
 		expect(historyIndex.B).toMatchObject({ status: "completed", completedByChildId: "C" })
 		expect(historyIndex.A).toMatchObject({ status: "active", completedByChildId: "B", awaitingChildId: undefined })
 	})
+
+	it("a resumed parent can delegate and receive the next child's result without deadlocking", async () => {
+		const base = { ts: 1, task: "t", tokensIn: 0, tokensOut: 0, totalCost: 0, mode: "code", workspace: "/tmp" }
+		const historyIndex: Record<string, any> = {
+			B: { ...base, id: "B", status: "delegated", awaitingChildId: "C", childIds: ["C"] },
+			C: { ...base, id: "C", status: "active", parentTaskId: "B" },
+		}
+		let currentActiveId: string | undefined = "C"
+		let resumeCount = 0
+
+		const provider: any = {
+			contextProxy: { globalStorageUri: { fsPath: "/tmp" } },
+			emit: vi.fn(),
+			log: vi.fn(),
+			isViewLaunched: false,
+			getCurrentTask: vi.fn(() => (currentActiveId ? { taskId: currentActiveId } : undefined)),
+			removeClineFromStack: vi.fn(async () => {
+				currentActiveId = undefined
+			}),
+			getTaskWithId: vi.fn(async (id: string) => {
+				if (!historyIndex[id]) throw new Error("Task not found")
+				return { historyItem: historyIndex[id] }
+			}),
+			updateTaskHistory: vi.fn(async (item: any) => {
+				historyIndex[item.id] = item
+				return []
+			}),
+			taskHistoryStore: { get: vi.fn(() => undefined) },
+			createTaskWithHistoryItem: vi.fn(async (item: any) => {
+				currentActiveId = item.id
+				return {
+					taskId: item.id,
+					overwriteClineMessages: vi.fn(),
+					overwriteApiConversationHistory: vi.fn(),
+					resumeAfterDelegation: vi.fn(async () => {
+						resumeCount++
+						if (resumeCount > 1) return
+						// B's resumed loop delegates to D, and D completes while C's
+						// hand-back is still awaiting B's loop.
+						historyIndex.B = { ...historyIndex.B, status: "delegated", awaitingChildId: "D" }
+						historyIndex.D = { ...base, id: "D", status: "active", parentTaskId: "B" }
+						currentActiveId = "D"
+						await expect(reopen("B", "D")).resolves.toBe(true)
+					}),
+				}
+			}),
+		}
+
+		const reopen = (parentTaskId: string, childTaskId: string) =>
+			(ClineProvider.prototype as any).reopenParentFromDelegation.call(provider, {
+				parentTaskId,
+				childTaskId,
+				completionResultSummary: `${childTaskId} done`,
+			}) as Promise<boolean>
+
+		vi.mocked(readTaskMessages).mockResolvedValue([])
+		vi.mocked(readApiMessages).mockResolvedValue([])
+
+		const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("deadlock")), 2000))
+		await expect(Promise.race([reopen("B", "C"), timeout])).resolves.toBe(true)
+
+		expect(resumeCount).toBe(2)
+		expect(historyIndex.B).toMatchObject({ status: "active", completedByChildId: "D", awaitingChildId: undefined })
+		expect(historyIndex.D.status).toBe("completed")
+	})
 })

@@ -57,8 +57,10 @@ import { sanitizeToolUseId } from "../../utils/tool-id"
  */
 
 export async function presentAssistantMessage(cline: Task) {
+	// Callers fire this without awaiting it, so throwing here would only surface
+	// as an unhandled rejection. The task loop notices the abort on its own.
 	if (cline.abort) {
-		throw new Error(`[Task#presentAssistantMessage] task ${cline.taskId}.${cline.instanceId} aborted`)
+		return
 	}
 
 	if (cline.presentAssistantMessageLocked) {

@@ -121,6 +121,14 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 			pushToolResult(`Delegated to child task ${child.taskId}`)
 			return
 		} catch (error) {
+			if (task.abort) {
+				// Delegation closes this (parent) task before it creates the child, so a
+				// later failure cannot be reported here: say() on an aborted task throws.
+				// The provider has already reopened the parent and told the user.
+				console.error(`[NewTaskTool] Delegation from aborted task ${task.taskId} failed:`, error)
+				return
+			}
+
 			await handleError("creating new task", error)
 			return
 		}
