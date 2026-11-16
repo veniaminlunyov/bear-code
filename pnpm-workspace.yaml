@@ -3,3 +3,7 @@ packages:
     - "webview-ui" # Should be apps/vscode-webview
     - "apps/*"
     - "packages/*"
+
+catalog:
+    "@vitest/ui": 4.1.12
+    vitest: 4.1.12

@@ -19,6 +19,6 @@
 		"@bear-code/config-eslint": "workspace:^",
 		"@bear-code/config-typescript": "workspace:^",
 		"@types/node": "20.x",
-		"vitest": "^3.2.6"
+		"vitest": "catalog:"
 	}
 }
