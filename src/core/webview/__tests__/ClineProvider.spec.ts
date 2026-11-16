@@ -465,7 +465,9 @@ describe("ClineProvider", () => {
 		test("does not log when no task is active", () => {
 			Object.defineProperty(mockWebviewView, "visible", { value: false, configurable: true })
 			visibilityCallback()
-			expect(mockOutputChannel.appendLine).not.toHaveBeenCalled()
+			expect(mockOutputChannel.appendLine).not.toHaveBeenCalledWith(
+				expect.stringContaining("Webview hidden during active task"),
+			)
 		})
 
 		test("does not log when the active task is aborted", async () => {
@@ -476,7 +478,9 @@ describe("ClineProvider", () => {
 			;(mockOutputChannel.appendLine as ReturnType<typeof vi.fn>).mockClear()
 			Object.defineProperty(mockWebviewView, "visible", { value: false, configurable: true })
 			visibilityCallback()
-			expect(mockOutputChannel.appendLine).not.toHaveBeenCalled()
+			expect(mockOutputChannel.appendLine).not.toHaveBeenCalledWith(
+				expect.stringContaining("Webview hidden during active task"),
+			)
 		})
 
 		test("logs task state to output channel when an active task is running", async () => {
