@@ -429,13 +429,13 @@ describe("executeCommand", () => {
 			const consoleErrorSpy = vitest.spyOn(console, "error").mockImplementation(() => {})
 			mockProvider.context = { globalStorageUri: { fsPath: "/test/storage" } }
 			vitest.mocked(getTaskDirectoryPath).mockResolvedValue("/test/storage/tasks/test-task-123")
-			vitest.mocked(OutputInterceptor).mockImplementation(
-				() =>
-					({
-						write: vitest.fn(),
-						finalize: vitest.fn().mockRejectedValue(new Error("disk full")),
-					}) as any,
-			)
+			// A function, not an arrow: OutputInterceptor is constructed with `new`.
+			vitest.mocked(OutputInterceptor).mockImplementation(function () {
+				return {
+					write: vitest.fn(),
+					finalize: vitest.fn().mockRejectedValue(new Error("disk full")),
+				} as any
+			})
 
 			mockTerminal.runCommand.mockImplementation((command: string, callbacks: BearTerminalCallbacks) => {
 				setTimeout(() => {
