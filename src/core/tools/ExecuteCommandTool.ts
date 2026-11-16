@@ -28,6 +28,14 @@ interface ExecuteCommandParams {
 	timeout?: number | null
 }
 
+/**
+ * Grace period before a foreground command may trigger a `command_output` ask
+ * (the "Proceed While Running" / "Kill Command" controls). Short commands that
+ * emit output and exit within this window never show the controls; the ask only
+ * fires when the command is still running once the delay elapses.
+ */
+export const COMMAND_OUTPUT_ASK_DELAY_MS = 5_000
+
 export function resolveAgentTimeoutMs(timeoutSeconds: number | null | undefined): number {
 	const requestedAgentTimeout = typeof timeoutSeconds === "number" && timeoutSeconds > 0 ? timeoutSeconds * 1000 : 0
 
@@ -286,6 +294,61 @@ export async function executeCommandInTerminal(
 		resolveOnCompleted = resolve
 	})
 
+	// Delay the `command_output` ask so short foreground commands that emit
+	// output and exit normally never flash the Proceed/Kill controls. The ask
+	// only fires if the command is still running COMMAND_OUTPUT_ASK_DELAY_MS
+	// after execution started. The anchor is re-based in onShellExecutionStarted
+	// (falling back to the pre-runCommand timestamp when that event never fires)
+	// so shell integration startup on cold terminals does not eat the grace period.
+	let commandStartedAt = 0
+	let commandOutputAskTimer: NodeJS.Timeout | undefined
+	let commandOutputAskDisabled = false
+
+	const canAskForCommandOutput = () =>
+		!runInBackground && !hasAskedForCommandOutput && !completionStarted && !commandOutputAskDisabled
+
+	const askForCommandOutput = async (process: BearTerminalProcess): Promise<void> => {
+		if (!canAskForCommandOutput()) {
+			return
+		}
+
+		// Mark that we've asked to prevent multiple concurrent asks
+		hasAskedForCommandOutput = true
+
+		try {
+			const { response, text, images } = await task.ask("command_output", "")
+			runInBackground = true
+
+			// Only a typed message releases the tool early. command_output is a
+			// non-blocking ask that is auto-approved right away, so continuing on
+			// any answer would hand control back to the model while the command
+			// is still running; "Proceed While Running" continues the process
+			// through handleTerminalOperation instead.
+			if (response === "messageResponse") {
+				message = { text, images }
+				process.continue()
+			}
+		} catch (_error) {
+			// Silently handle ask errors (e.g., "Current ask promise was ignored")
+		}
+	}
+
+	const scheduleCommandOutputAsk = (process: BearTerminalProcess): void => {
+		if (!canAskForCommandOutput() || commandOutputAskTimer) {
+			return
+		}
+
+		const remainingDelay = COMMAND_OUTPUT_ASK_DELAY_MS - (Date.now() - commandStartedAt)
+
+		commandOutputAskTimer = setTimeout(
+			() => {
+				commandOutputAskTimer = undefined
+				void askForCommandOutput(process)
+			},
+			Math.max(remainingDelay, 0),
+		)
+	}
+
 	const callbacks: BearTerminalCallbacks = {
 		onLine: async (lines: string, process: BearTerminalProcess) => {
 			accumulatedOutput += lines
@@ -304,28 +367,12 @@ export async function executeCommandInTerminal(
 			const status: CommandExecutionStatus = { executionId, status: "output", output: compressedOutput }
 			provider?.postMessageToWebview({ type: "commandExecutionStatus", text: JSON.stringify(status) })
 			schedulePartialCommandOutputUpdate()
-
-			if (runInBackground || hasAskedForCommandOutput) {
-				return
-			}
-
-			// Mark that we've asked to prevent multiple concurrent asks
-			hasAskedForCommandOutput = true
-
-			try {
-				const { response, text, images } = await task.ask("command_output", "")
-				runInBackground = true
-
-				if (response === "messageResponse") {
-					message = { text, images }
-					process.continue()
-				}
-			} catch (_error) {
-				// Silently handle ask errors (e.g., "Current ask promise was ignored")
-			}
+			scheduleCommandOutputAsk(process)
 		},
 		onCompleted: async (output: string | undefined) => {
 			completionStarted = true
+			clearTimeout(commandOutputAskTimer)
+			commandOutputAskTimer = undefined
 
 			try {
 				clearTimeout(pendingCommandOutputEmitTimer)
@@ -357,9 +404,21 @@ export async function executeCommandInTerminal(
 				resolveOnCompleted?.()
 			}
 		},
-		onShellExecutionStarted: (pid: number | undefined) => {
+		onShellExecutionStarted: (pid: number | undefined, process: BearTerminalProcess) => {
 			const status: CommandExecutionStatus = { executionId, status: "started", pid, command }
 			provider?.postMessageToWebview({ type: "commandExecutionStatus", text: JSON.stringify(status) })
+
+			// Re-anchor the ask delay to the actual execution start so waiting for
+			// shell integration does not count against the grace period.
+			commandStartedAt = Date.now()
+
+			// Output should not precede this event, but if it did, reschedule the
+			// pending ask against the corrected anchor.
+			if (commandOutputAskTimer) {
+				clearTimeout(commandOutputAskTimer)
+				commandOutputAskTimer = undefined
+				scheduleCommandOutputAsk(process)
+			}
 		},
 		onShellExecutionComplete: (details: ExitCodeDetails) => {
 			const status: CommandExecutionStatus = { executionId, status: "exited", exitCode: details.exitCode }
@@ -379,6 +438,8 @@ export async function executeCommandInTerminal(
 		workingDir = terminal.getCurrentWorkingDirectory()
 	}
 
+	// Fallback anchor for providers that never fire onShellExecutionStarted.
+	commandStartedAt = Date.now()
 	const process = terminal.runCommand(command, callbacks)
 	task.terminalProcess = process
 
@@ -400,6 +461,8 @@ export async function executeCommandInTerminal(
 				new Promise<void>((resolve) => {
 					agentTimeoutId = setTimeout(() => {
 						runInBackground = true
+						clearTimeout(commandOutputAskTimer)
+						commandOutputAskTimer = undefined
 						process.continue()
 						task.supersedePendingAsk()
 						resolve()
@@ -440,6 +503,11 @@ export async function executeCommandInTerminal(
 		clearTimeout(agentTimeoutId)
 		clearTimeout(userTimeoutId)
 		clearTimeout(pendingCommandOutputEmitTimer)
+		// Once the tool stops waiting on the process, a delayed ask must not
+		// fire into a later step of the conversation.
+		commandOutputAskDisabled = true
+		clearTimeout(commandOutputAskTimer)
+		commandOutputAskTimer = undefined
 		task.terminalProcess = undefined
 	}
 

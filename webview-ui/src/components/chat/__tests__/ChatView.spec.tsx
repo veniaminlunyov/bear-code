@@ -1111,6 +1111,78 @@ describe("ChatView - Message Queueing Tests", () => {
 			}),
 		)
 	})
+
+	it("clears the command_output controls when the final output arrives", async () => {
+		const { getByTestId, getByRole, queryByRole } = renderChatView()
+
+		const taskMessage = { type: "say" as const, say: "task", ts: Date.now() - 2000, text: "Initial task" }
+		const askMessage = {
+			type: "ask" as const,
+			ask: "command_output",
+			ts: Date.now() - 1000,
+			text: "",
+			partial: false,
+		}
+
+		// Hydrate state with a command_output ask (Proceed/Kill controls visible)
+		mockPostMessage({ clineMessages: [taskMessage, askMessage] })
+
+		await waitFor(() => {
+			expect(getByTestId("chat-textarea")).toBeInTheDocument()
+		})
+
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 50))
+		})
+
+		expect(getByRole("button", { name: "chat:proceedWhileRunning.title" })).toBeInTheDocument()
+
+		// The command completes: the final non-partial command_output say arrives.
+		mockPostMessage({
+			clineMessages: [
+				taskMessage,
+				askMessage,
+				{ type: "say", say: "command_output", ts: Date.now(), text: "done\n", partial: false },
+			],
+		})
+
+		await waitFor(() => {
+			expect(queryByRole("button", { name: "chat:proceedWhileRunning.title" })).not.toBeInTheDocument()
+		})
+	})
+
+	it("keeps the command_output controls while output is still streaming", async () => {
+		const { getByTestId, getByRole } = renderChatView()
+
+		const taskMessage = { type: "say" as const, say: "task", ts: Date.now() - 2000, text: "Initial task" }
+		const askMessage = {
+			type: "ask" as const,
+			ask: "command_output",
+			ts: Date.now() - 1000,
+			text: "",
+			partial: false,
+		}
+
+		mockPostMessage({ clineMessages: [taskMessage, askMessage] })
+
+		await waitFor(() => {
+			expect(getByTestId("chat-textarea")).toBeInTheDocument()
+		})
+
+		mockPostMessage({
+			clineMessages: [
+				taskMessage,
+				askMessage,
+				{ type: "say", say: "command_output", ts: Date.now(), text: "still running\n", partial: true },
+			],
+		})
+
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 50))
+		})
+
+		expect(getByRole("button", { name: "chat:proceedWhileRunning.title" })).toBeInTheDocument()
+	})
 })
 
 describe("ChatView - Context Condensing Indicator Tests", () => {
