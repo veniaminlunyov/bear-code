@@ -20,6 +20,13 @@ vitest.mock("../../../integrations/terminal/TerminalRegistry")
 vitest.mock("../../../integrations/terminal/Terminal")
 vitest.mock("../../../integrations/terminal/ExecaTerminal")
 
+// Mock persisted output handling (only used when the provider exposes storage)
+vitest.mock("../../../integrations/terminal/OutputInterceptor")
+vitest.mock("../../../utils/storage")
+
+import { OutputInterceptor } from "../../../integrations/terminal/OutputInterceptor"
+import { getTaskDirectoryPath } from "../../../utils/storage"
+
 // Import the actual executeCommand function (not mocked)
 import { executeCommandInTerminal } from "../ExecuteCommandTool"
 
@@ -392,6 +399,81 @@ describe("executeCommand", () => {
 			expect(rejected).toBe(false)
 			expect(result).toContain("Process terminated by signal SIGINT")
 			expect(result).toContain("within working directory '/test/project'")
+		})
+	})
+
+	describe("Completion without exit details", () => {
+		it("waits for onCompleted instead of reporting a finished command as still running", async () => {
+			// The final command_output say is slower than the tool's 50ms settle delay.
+			mockTask.say = vitest.fn(() => new Promise<void>((resolve) => setTimeout(resolve, 150)))
+
+			mockTerminal.runCommand.mockImplementation((command: string, callbacks: BearTerminalCallbacks) => {
+				// e.g. the shell integration stream timed out: "completed" is emitted
+				// but there is no shell_execution_complete, so no exit details.
+				setTimeout(() => callbacks.onCompleted("partial output", mockProcess), 0)
+				return mockProcess
+			})
+
+			const [rejected, result] = await executeCommandInTerminal(mockTask, {
+				executionId: "test-123",
+				command: "echo test",
+				terminalShellIntegrationDisabled: false,
+			})
+
+			expect(rejected).toBe(false)
+			expect(result).toContain("Command executed in terminal")
+			expect(result).not.toContain("still running")
+		})
+
+		it("reports the command as finished even if finalizing persisted output fails", async () => {
+			const consoleErrorSpy = vitest.spyOn(console, "error").mockImplementation(() => {})
+			mockProvider.context = { globalStorageUri: { fsPath: "/test/storage" } }
+			vitest.mocked(getTaskDirectoryPath).mockResolvedValue("/test/storage/tasks/test-task-123")
+			vitest.mocked(OutputInterceptor).mockImplementation(
+				() =>
+					({
+						write: vitest.fn(),
+						finalize: vitest.fn().mockRejectedValue(new Error("disk full")),
+					}) as any,
+			)
+
+			mockTerminal.runCommand.mockImplementation((command: string, callbacks: BearTerminalCallbacks) => {
+				setTimeout(() => {
+					callbacks.onCompleted("Command output", mockProcess)
+					callbacks.onShellExecutionComplete({ exitCode: 0 }, mockProcess)
+				}, 0)
+				return mockProcess
+			})
+
+			const [rejected, result] = await executeCommandInTerminal(mockTask, {
+				executionId: "test-123",
+				command: "echo test",
+				terminalShellIntegrationDisabled: false,
+			})
+
+			expect(rejected).toBe(false)
+			expect(result).toContain("Exit code: 0")
+			expect(result).not.toContain("still running")
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				"[ExecuteCommandTool] interceptor.finalize() failed:",
+				expect.any(Error),
+			)
+			consoleErrorSpy.mockRestore()
+		})
+
+		it("does not wait for completion when the process was moved to the background", async () => {
+			// The process resolves via continue() (e.g. "Proceed While Running") and
+			// onCompleted never fires while the tool is still running.
+			mockTerminal.runCommand.mockReturnValue(mockProcess)
+
+			const [rejected, result] = await executeCommandInTerminal(mockTask, {
+				executionId: "test-123",
+				command: "npm run dev",
+				terminalShellIntegrationDisabled: false,
+			})
+
+			expect(rejected).toBe(false)
+			expect(result).toContain("still running")
 		})
 	})
 

@@ -277,9 +277,12 @@ export async function executeCommandInTerminal(
 	// Track when onCompleted callback finishes to avoid race condition.
 	// The callback is async but Terminal/ExecaTerminal don't await it, so we track completion
 	// explicitly to ensure persistedResult is set before we use it.
-	let onCompletedPromise: Promise<void> | undefined
+	// `completionStarted` is set synchronously when the process emits "completed",
+	// which always happens before it emits "continue", so the main path can tell
+	// a finished command apart from one that was moved to the background.
+	let completionStarted = false
 	let resolveOnCompleted: (() => void) | undefined
-	onCompletedPromise = new Promise((resolve) => {
+	const onCompletedPromise = new Promise<void>((resolve) => {
 		resolveOnCompleted = resolve
 	})
 
@@ -322,26 +325,33 @@ export async function executeCommandInTerminal(
 			}
 		},
 		onCompleted: async (output: string | undefined) => {
+			completionStarted = true
+
 			try {
 				clearTimeout(pendingCommandOutputEmitTimer)
 				pendingCommandOutputEmitTimer = undefined
 
 				// Finalize interceptor and get persisted result.
 				// We await finalize() to ensure the artifact file is fully flushed
-				// before we advertise the artifact_id to the LLM.
-				if (interceptor) {
-					persistedResult = await interceptor.finalize()
+				// before we advertise the artifact_id to the LLM. A failure here must
+				// not turn a finished command into a "still running" result.
+				try {
+					if (interceptor) {
+						persistedResult = await interceptor.finalize()
+					}
+				} catch (error) {
+					console.error("[ExecuteCommandTool] interceptor.finalize() failed:", error)
 				}
 
 				// Continue using compressed output for UI display
 				result = Terminal.compressTerminalOutput(output ?? "")
 				latestCompressedOutput = result
+				completed = true
 
 				// Preserve order: wait for queued partial updates, then emit the final
 				// non-partial command_output update.
 				await commandOutputSayChain
 				await queueCommandOutputMessage(result, false, true)
-				completed = true
 			} finally {
 				// Signal that onCompleted has finished, so the main code can safely use persistedResult
 				resolveOnCompleted?.()
@@ -444,10 +454,14 @@ export async function executeCommandInTerminal(
 	// grouping command_output messages despite any gaps anyways).
 	await delay(50)
 
-	// Wait for onCompleted callback to finish if shell execution completed.
-	// This ensures persistedResult is set before we try to use it, fixing the race
-	// condition where exitDetails is set (sync) before the async onCompleted finishes.
-	if (exitDetails && onCompletedPromise) {
+	// Wait for the async onCompleted callback to finish whenever the command
+	// completed, so `completed`, `result` and `persistedResult` are set before we
+	// read them. Gating this on exitDetails missed completions that carry no exit
+	// details (stream timeout, missing shell integration markers), which were then
+	// reported to the model as "still running". Skip the wait when the process was
+	// moved to the background (agent timeout, "Proceed While Running"): onCompleted
+	// only fires once the command really ends.
+	if (completionStarted || exitDetails) {
 		await onCompletedPromise
 	}
 
