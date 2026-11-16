@@ -5,6 +5,7 @@ import process from "process"
 import type { BearTerminal } from "./types"
 import { BaseTerminal } from "./BaseTerminal"
 import { BaseTerminalProcess } from "./BaseTerminalProcess"
+import { getUtf8LocaleEnv } from "./localeEnv"
 
 export class ExecaTerminalProcess extends BaseTerminalProcess {
 	private terminalRef: WeakRef<BearTerminal>
@@ -47,9 +48,9 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 				stdin: "ignore",
 				env: {
 					...process.env,
-					// Ensure UTF-8 encoding for Ruby, CocoaPods, etc.
-					LANG: "en_US.UTF-8",
-					LC_ALL: "en_US.UTF-8",
+					// Keep the host locale when it already is UTF-8 (e.g. en_AU.UTF-8), otherwise
+					// fall back to en_US.UTF-8 so tools such as Ruby and CocoaPods still emit UTF-8.
+					...getUtf8LocaleEnv(),
 				},
 			})`${command}`
 
