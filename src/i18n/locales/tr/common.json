@@ -148,6 +148,7 @@
 		"auto_import_failed": "BearCode ayarları otomatik olarak içe aktarılamadı: {{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "Bu görev zaten başka bir BearCode panelinde açık, bu yüzden orada gösterildi.",
 		"no_changes": "Değişiklik bulunamadı.",
 		"clipboard_copy": "Sistem istemi panoya başarıyla kopyalandı",
 		"history_cleanup": "Geçmişten eksik dosyaları olan {{count}} görev temizlendi.",

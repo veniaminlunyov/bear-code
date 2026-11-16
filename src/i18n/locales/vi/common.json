@@ -148,6 +148,7 @@
 		"auto_import_failed": "Không thể tự động nhập cài đặt BearCode: {{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "Tác vụ này đã được mở trong một bảng BearCode khác nên được hiển thị ở đó.",
 		"no_changes": "Không tìm thấy thay đổi nào.",
 		"clipboard_copy": "Lời nhắc hệ thống đã được sao chép thành công vào clipboard",
 		"history_cleanup": "Đã dọn dẹp {{count}} nhiệm vụ có tệp bị thiếu khỏi lịch sử.",

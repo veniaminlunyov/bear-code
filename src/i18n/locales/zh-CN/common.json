@@ -153,6 +153,7 @@
 		"auto_import_failed": "自动导入 BearCode 设置失败：{{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "此任务已在另一个 BearCode 面板中打开，已在那里显示。",
 		"no_changes": "未找到更改。",
 		"clipboard_copy": "系统消息已成功复制到剪贴板",
 		"history_cleanup": "已从历史记录中清理{{count}}个缺少文件的任务。",

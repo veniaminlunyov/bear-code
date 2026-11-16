@@ -152,6 +152,7 @@
 		"auto_import_failed": "Falha ao importar automaticamente as configurações do BearCode: {{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "Esta tarefa já está aberta em outro painel do BearCode, por isso foi exibida lá.",
 		"no_changes": "Nenhuma alteração encontrada.",
 		"clipboard_copy": "Prompt do sistema copiado com sucesso para a área de transferência",
 		"history_cleanup": "{{count}} tarefa(s) com arquivos ausentes foram limpas do histórico.",

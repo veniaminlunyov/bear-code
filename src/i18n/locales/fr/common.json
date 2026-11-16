@@ -148,6 +148,7 @@
 		"auto_import_failed": "Échec de l'importation automatique des paramètres BearCode : {{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "Cette tâche est déjà ouverte dans un autre panneau BearCode, elle y a été affichée.",
 		"no_changes": "Aucun changement trouvé.",
 		"clipboard_copy": "Prompt système copié dans le presse-papiers",
 		"history_cleanup": "{{count}} tâche(s) avec des fichiers introuvables ont été supprimés de l'historique.",

@@ -148,6 +148,7 @@
 		"auto_import_failed": "Importazione automatica delle impostazioni BearCode fallita: {{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "Questa attività è già aperta in un altro pannello di BearCode, quindi è stata mostrata lì.",
 		"no_changes": "Nessuna modifica trovata.",
 		"clipboard_copy": "Messaggio di sistema copiato con successo negli appunti",
 		"history_cleanup": "Pulite {{count}} attività con file mancanti dalla cronologia.",

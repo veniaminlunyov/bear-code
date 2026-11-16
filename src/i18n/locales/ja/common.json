@@ -148,6 +148,7 @@
 		"auto_import_failed": "BearCode設定の自動インポートに失敗しました：{{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "このタスクは別の BearCode パネルで既に開かれているため、そちらに表示しました。",
 		"no_changes": "変更は見つかりませんでした。",
 		"clipboard_copy": "システムメッセージがクリップボードに正常にコピーされました",
 		"history_cleanup": "履歴から不足ファイルのある{{count}}個のタスクをクリーンアップしました。",
