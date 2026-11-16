@@ -30,7 +30,8 @@ export class ExecaTerminal extends BaseTerminal {
 		const promise = new Promise<void>((resolve, reject) => {
 			process.once("continue", () => resolve())
 			process.once("error", (error) => reject(error))
-			process.run(command)
+			// A rejection must reach the command promise, otherwise the caller waits forever.
+			void process.run(command).catch((error) => process.emit("error", error))
 		})
 
 		return mergePromise(process, promise)

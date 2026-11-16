@@ -31,6 +31,8 @@ export interface BearTerminalCallbacks {
 export interface BearTerminalProcess extends EventEmitter<BearTerminalProcessEvents> {
 	command: string
 	isHot: boolean
+	/** True once the tool stopped waiting for the command ("Proceed While Running" or the agent timeout). */
+	movedToBackground?: boolean
 	run: (command: string) => Promise<void>
 	continue: () => void
 	abort: () => void

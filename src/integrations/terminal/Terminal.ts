@@ -75,8 +75,9 @@ export class Terminal extends BaseTerminal {
 					// Clean up temporary directory if shell integration is available, zsh did its job:
 					ShellIntegrationManager.zshCleanupTmpDir(this.id)
 
-					// Run the command in the terminal
-					process.run(command)
+					// Run the command in the terminal. A rejection must reach the
+					// command promise, otherwise the caller waits forever.
+					void process.run(command).catch((error) => process.emit("error", error))
 				})
 				.catch(() => {
 					console.log(`[Terminal ${this.id}] Shell integration not available. Command execution aborted.`)
