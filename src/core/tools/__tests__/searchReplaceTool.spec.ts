@@ -1,7 +1,7 @@
 import * as path from "path"
 import fs from "fs/promises"
 
-import type { MockedFunction } from "vitest"
+import type { Mock, MockedFunction } from "vitest"
 
 import { fileExistsAtPath } from "../../../utils/fs"
 import { isPathOutsideWorkspace } from "../../../utils/pathUtils"
@@ -88,9 +88,9 @@ describe("searchReplaceTool", () => {
 	const mockedPathIsAbsolute = path.isAbsolute as MockedFunction<typeof path.isAbsolute>
 
 	const mockCline: any = {}
-	let mockAskApproval: ReturnType<typeof vi.fn>
-	let mockHandleError: ReturnType<typeof vi.fn>
-	let mockPushToolResult: ReturnType<typeof vi.fn>
+	let mockAskApproval: Mock
+	let mockHandleError: Mock
+	let mockPushToolResult: Mock
 	let toolResult: ToolResponse | undefined
 
 	beforeEach(() => {

@@ -173,10 +173,12 @@ vi.mock("../../prompts/system", () => ({
 
 vi.mock("../../../integrations/workspace/WorkspaceTracker", () => {
 	return {
-		default: vi.fn().mockImplementation(() => ({
-			initializeFilePaths: vi.fn(),
-			dispose: vi.fn(),
-		})),
+		default: vi.fn().mockImplementation(function () {
+			return {
+				initializeFilePaths: vi.fn(),
+				dispose: vi.fn(),
+			}
+		}),
 	}
 })
 
@@ -296,7 +298,7 @@ afterAll(() => {
 
 describe("ClineProvider", () => {
 	beforeAll(() => {
-		vi.mocked(Task).mockImplementation((options: any) => {
+		vi.mocked(Task).mockImplementation(function (options: any) {
 			const task: any = {
 				api: undefined,
 				abortTask: vi.fn(),

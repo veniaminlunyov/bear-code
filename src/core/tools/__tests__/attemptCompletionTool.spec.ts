@@ -1,3 +1,5 @@
+import type { Mock } from "vitest"
+
 import { BearCodeEventName, TodoItem } from "@bear-code/types"
 
 import { AttemptCompletionToolUse } from "../../../shared/tools"
@@ -33,12 +35,12 @@ import * as vscode from "vscode"
 
 describe("attemptCompletionTool", () => {
 	let mockTask: Partial<Task>
-	let mockPushToolResult: ReturnType<typeof vi.fn>
-	let mockAskApproval: ReturnType<typeof vi.fn>
-	let mockHandleError: ReturnType<typeof vi.fn>
-	let mockToolDescription: ReturnType<typeof vi.fn>
-	let mockAskFinishSubTaskApproval: ReturnType<typeof vi.fn>
-	let mockGetConfiguration: ReturnType<typeof vi.fn>
+	let mockPushToolResult: Mock
+	let mockAskApproval: Mock
+	let mockHandleError: Mock
+	let mockToolDescription: Mock
+	let mockAskFinishSubTaskApproval: Mock
+	let mockGetConfiguration: Mock
 
 	beforeEach(() => {
 		mockPushToolResult = vi.fn()
