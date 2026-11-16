@@ -595,7 +595,9 @@ export class ProviderSettingsManager {
 			const content = await this.readProfilesSecret()
 
 			if (!content) {
-				return this.defaultProviderProfiles
+				// A copy: callers modify the loaded profiles (saveConfig, setModeConfig, ...)
+				// before storing them, which must not change the defaults themselves.
+				return structuredClone(this.defaultProviderProfiles)
 			}
 
 			const providerProfiles = providerProfilesSchema
