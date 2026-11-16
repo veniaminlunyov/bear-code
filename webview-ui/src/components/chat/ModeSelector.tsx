@@ -239,6 +239,10 @@ export const ModeSelector = ({
 				align="start"
 				sideOffset={4}
 				container={portalContainer}
+				// The effect below focuses the search input when there is one. Without a search
+				// bar, Radix would focus the first focusable element instead: the settings gear,
+				// whose tooltip then covered the mode list until the popover closed.
+				onOpenAutoFocus={(event) => event.preventDefault()}
 				className="p-0 overflow-hidden min-w-80 max-w-9/10">
 				<div className="flex flex-col w-full">
 					{/* Show search bar only when there are more than SEARCH_THRESHOLD items, otherwise show info blurb */}
