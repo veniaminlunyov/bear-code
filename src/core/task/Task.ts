@@ -2303,6 +2303,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				if (staleAskIndex !== -1) {
 					modifiedClineMessages.splice(staleAskIndex, 1)
 				}
+
+				this.logResume(
+					`saved ${this.pendingAction.kind} approval ${this.pendingAction.actionId}; ` +
+						`old approval row ${staleAskIndex === -1 ? "not found" : "removed"}`,
+				)
 			}
 
 			await this.overwriteClineMessages(modifiedClineMessages)
@@ -2318,12 +2323,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			if (this.pendingAction) {
 				if (this.locatePendingActionToolCall(this.pendingAction.actionId)) {
+					this.logResume(`asking approval ${this.pendingAction.actionId} again`)
 					this.isInitialized = true
 					await this.resumePendingTaskAction(this.pendingAction)
 					return
 				}
 
 				// Already answered, or its tool call is gone: nothing to ask again.
+				this.logResume(`approval ${this.pendingAction.actionId} is already answered or its tool call is gone`)
 				await this.settlePendingAction(this.pendingAction.actionId)
 			}
 
@@ -2505,10 +2512,22 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// Resume and cancellation can race when users issue repeated cancels.
 			// Treat intentional abort/abandon flows as expected and avoid process-level crashes.
 			if (this.abandoned === true || this.abort === true || this.abortReason === "user_cancelled") {
+				// Expected, but log it: a resume that stops here leaves the chat without
+				// its resume prompt, which is otherwise hard to tell apart from a hang.
+				this.logResume(
+					`stopped (abort=${this.abort}, abandoned=${this.abandoned}, reason=${this.abortReason ?? "-"}): ${
+						error instanceof Error ? error.message : String(error)
+					}`,
+				)
 				return
 			}
 			throw error
 		}
+	}
+
+	/** Writes a resume diagnostic to the BearCode output channel. */
+	private logResume(message: string): void {
+		this.providerRef.deref()?.log(`[Task#resumeTaskFromHistory] ${this.taskId}.${this.instanceId}: ${message}`)
 	}
 
 	/**

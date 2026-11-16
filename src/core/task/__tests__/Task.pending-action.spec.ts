@@ -59,6 +59,7 @@ function makeTask(action: PendingTaskAction | undefined, apiHistory: any[]) {
 		reopenParentFromDelegation: vi.fn().mockResolvedValue(true),
 		getCurrentTask: vi.fn(),
 		removeClineFromStack: vi.fn(),
+		log: vi.fn(),
 	}
 	const task = Object.create(Task.prototype) as any
 	Object.assign(task, {
@@ -308,6 +309,21 @@ describe("Task pending subtask approvals", () => {
 				manualApprovalOnly: true,
 			})
 			expect(provider.delegateParentAndOpenChild).toHaveBeenCalledTimes(1)
+			// Each step is logged, so a reload that does not ask again can be diagnosed.
+			expect(provider.log).toHaveBeenCalledWith(expect.stringContaining("old approval row removed"))
+			expect(provider.log).toHaveBeenCalledWith(expect.stringContaining("asking approval call_new again"))
+		})
+
+		it("logs a resume that stops because the task was closed meanwhile", async () => {
+			const { task, provider } = makeResumingTask(createAction, turnWith("call_new", "new_task"))
+			task.getSavedClineMessages.mockImplementationOnce(async () => {
+				task.abort = true
+				throw new Error("closed")
+			})
+
+			await expect(task.resumeTaskFromHistory()).resolves.toBeUndefined()
+
+			expect(provider.log).toHaveBeenCalledWith(expect.stringMatching(/stopped \(abort=true.*closed/))
 		})
 
 		it("clears a stale approval and resumes normally", async () => {
