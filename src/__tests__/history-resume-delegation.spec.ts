@@ -1098,6 +1098,43 @@ describe("reopenParentFromDelegation across panels", () => {
 		vi.mocked(readApiMessages).mockResolvedValue([])
 	})
 
+	it("adds the result to the turn's flushed results instead of a second user message", async () => {
+		// update_todo_list ran before new_task; its result was flushed before the parent closed.
+		vi.mocked(readApiMessages).mockResolvedValue([
+			{ role: "user", content: [{ type: "text", text: "Plan it" }], ts: 1 },
+			{
+				role: "assistant",
+				content: [
+					{ type: "tool_use", id: "tu_todo", name: "update_todo_list", input: {} },
+					{ type: "tool_use", id: "tu_task", name: "new_task", input: {} },
+				],
+				ts: 2,
+			},
+			{
+				role: "user",
+				content: [{ type: "tool_result", tool_use_id: "tu_todo", content: "Todo list updated" }],
+				ts: 3,
+			},
+		] as any)
+		let saved: any[] = []
+		vi.mocked(saveApiMessages).mockImplementationOnce(async ({ messages }: any) => {
+			saved = messages
+		})
+
+		await (ClineProvider.prototype as any).reopenParentFromDelegation.call(buildProvider(), {
+			parentTaskId: "p1",
+			childTaskId: "c1",
+			completionResultSummary: "done",
+		})
+
+		expect(saved).toHaveLength(3)
+		const results = saved[2].content.map((block: any) => [block.tool_use_id, block.content])
+		expect(results).toEqual([
+			["tu_todo", "Todo list updated"],
+			["tu_task", expect.stringContaining("Subtask c1 completed")],
+		])
+	})
+
 	it("closes the parent where another panel has it open before writing its history", async () => {
 		const order: string[] = []
 		const otherPanel = {

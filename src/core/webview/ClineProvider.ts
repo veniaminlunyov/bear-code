@@ -3503,19 +3503,41 @@ export class ClineProvider
 						}
 					}
 
-					// If no existing tool_result found, create a NEW user message with the tool_result
 					if (!alreadyHasToolResult) {
-						parentApiMessages.push({
-							role: "user",
-							content: [
-								{
-									type: "tool_result" as const,
-									tool_use_id: toolUseId,
-									content: `Subtask ${childTaskId} completed.\n\nResult:\n${completionResultSummary}`,
-								},
-							],
-							ts,
-						})
+						const toolResult = {
+							type: "tool_result" as const,
+							tool_use_id: toolUseId,
+							content: `Subtask ${childTaskId} completed.\n\nResult:\n${completionResultSummary}`,
+						}
+						const previousMsg = parentApiMessages[parentApiMessages.length - 2]
+						// Other tools of the same turn (for example update_todo_list before
+						// new_task) were flushed into a user message before the parent was
+						// closed. Add the result to that message: a separate one would be
+						// validated on its own, get "interrupted" placeholders for those
+						// tools, and after the API-side merge send two results per tool call.
+						const lastAnswersSameTurn =
+							lastMsg?.role === "user" &&
+							Array.isArray(lastMsg.content) &&
+							previousMsg?.role === "assistant" &&
+							Array.isArray(previousMsg.content) &&
+							previousMsg.content.some(
+								(block: { type?: string; id?: string }) =>
+									block.type === "tool_use" && block.id === toolUseId,
+							)
+
+						if (lastAnswersSameTurn) {
+							// tool_result blocks go before any other blocks of a user message.
+							const firstOther = lastMsg.content.findIndex(
+								(block: { type?: string }) => block.type !== "tool_result",
+							)
+							lastMsg.content.splice(
+								firstOther === -1 ? lastMsg.content.length : firstOther,
+								0,
+								toolResult,
+							)
+						} else {
+							parentApiMessages.push({ role: "user", content: [toolResult], ts })
+						}
 					}
 
 					// Validate the newly injected tool_result against the preceding assistant message.
