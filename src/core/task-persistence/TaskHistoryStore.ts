@@ -158,29 +158,66 @@ export class TaskHistoryStore {
 	 * updates the in-memory Map, and schedules a debounced index write.
 	 */
 	async upsert(item: HistoryItem): Promise<HistoryItem[]> {
+		return this.withLock(() => this.upsertUnlocked(item))
+	}
+
+	/**
+	 * Upsert body executed without acquiring the lock.
+	 * Must only be called from within a `withLock` callback.
+	 */
+	private async upsertUnlocked(item: HistoryItem): Promise<HistoryItem[]> {
+		const existing = this.cache.get(item.id)
+
+		// Merge: preserve existing metadata unless explicitly overwritten
+		const merged = existing ? { ...existing, ...item } : item
+
+		// Write per-task file (source of truth)
+		await this.writeTaskFile(merged)
+
+		// Update in-memory cache
+		this.cache.set(merged.id, merged)
+
+		// Schedule debounced index write
+		this.scheduleIndexWrite()
+
+		const all = this.getAll()
+
+		// Call onWrite callback inside the lock for serialized write-through
+		if (this.onWrite) {
+			await this.onWrite(all)
+		}
+
+		return all
+	}
+
+	/**
+	 * Read a HistoryItem from the in-memory cache and write back an updated version,
+	 * all within a single lock acquisition so no concurrent writer can interleave
+	 * between the read and the write.
+	 *
+	 * The `updater` receives a deep copy of the current cached item and must return
+	 * the new item synchronously. It must not perform I/O or acquire any other lock.
+	 *
+	 * @throws If the task ID is not present in the cache, or the updater changes the id.
+	 */
+	public atomicReadAndUpdate(taskId: string, updater: (current: HistoryItem) => HistoryItem): Promise<HistoryItem[]> {
 		return this.withLock(async () => {
-			const existing = this.cache.get(item.id)
+			const current = this.cache.get(taskId)
 
-			// Merge: preserve existing metadata unless explicitly overwritten
-			const merged = existing ? { ...existing, ...item } : item
-
-			// Write per-task file (source of truth)
-			await this.writeTaskFile(merged)
-
-			// Update in-memory cache
-			this.cache.set(merged.id, merged)
-
-			// Schedule debounced index write
-			this.scheduleIndexWrite()
-
-			const all = this.getAll()
-
-			// Call onWrite callback inside the lock for serialized write-through
-			if (this.onWrite) {
-				await this.onWrite(all)
+			if (!current) {
+				throw new Error(`[TaskHistoryStore] atomicReadAndUpdate: task ${taskId} not found in cache`)
 			}
 
-			return all
+			// Deep-copy so a mutating updater cannot alter cached state before persistence.
+			const updated = updater(structuredClone(current))
+
+			if (updated.id !== taskId) {
+				throw new Error(
+					`[TaskHistoryStore] atomicReadAndUpdate: updater changed task id from ${taskId} to ${updated.id}`,
+				)
+			}
+
+			return this.upsertUnlocked(updated)
 		})
 	}
 

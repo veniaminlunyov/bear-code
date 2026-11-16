@@ -2883,17 +2883,40 @@ export class ClineProvider
 		})
 
 		// 5) Persist parent delegation metadata BEFORE the child starts writing.
+		//    atomicReadAndUpdate reads from the in-memory cache and writes back within a
+		//    single lock acquisition, so no concurrent writer (e.g. the parent's final
+		//    saveClineMessages from its abort) can slip between the read and the write
+		//    and clobber the delegation fields. Broadcast and cache invalidation happen
+		//    after the lock releases.
 		try {
-			const { historyItem } = await this.getTaskWithId(parentTaskId)
-			const childIds = Array.from(new Set([...(historyItem.childIds ?? []), child.taskId]))
-			const updatedHistory: typeof historyItem = {
+			const delegate = (historyItem: HistoryItem): HistoryItem => ({
 				...historyItem,
 				status: "delegated",
 				delegatedToId: child.taskId,
 				awaitingChildId: child.taskId,
-				childIds,
+				childIds: Array.from(new Set([...(historyItem.childIds ?? []), child.taskId])),
+			})
+
+			if (this.taskHistoryStore.get(parentTaskId)) {
+				await this.taskHistoryStore.atomicReadAndUpdate(parentTaskId, delegate)
+				this.recentTasksCache = undefined
+
+				if (this.isViewLaunched) {
+					const updatedItem = this.taskHistoryStore.get(parentTaskId)
+
+					if (updatedItem) {
+						await this.postMessageToWebview({
+							type: "taskHistoryItemUpdated",
+							taskHistoryItem: updatedItem,
+						})
+					}
+				}
+			} else {
+				// Not in the store cache (e.g. legacy globalState-only history): fall back
+				// to the non-atomic read-modify-write.
+				const { historyItem } = await this.getTaskWithId(parentTaskId)
+				await this.updateTaskHistory(delegate(historyItem))
 			}
-			await this.updateTaskHistory(updatedHistory)
 		} catch (err) {
 			this.log(
 				`[delegateParentAndOpenChild] Failed to persist parent metadata for ${parentTaskId} -> ${child.taskId}: ${

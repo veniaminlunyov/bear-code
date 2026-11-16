@@ -439,4 +439,79 @@ describe("TaskHistoryStore", () => {
 			expect(store.get("gone-task")).toBeUndefined()
 		})
 	})
+
+	describe("atomicReadAndUpdate()", () => {
+		it("serializes concurrent updates so the second caller reads the first caller's write", async () => {
+			await store.initialize()
+			await store.upsert(makeHistoryItem({ id: "parent-task", childIds: [] }))
+
+			const delegation1 = store.atomicReadAndUpdate("parent-task", (current) => ({
+				...current,
+				status: "delegated",
+				awaitingChildId: "child-A",
+				childIds: [...(current.childIds ?? []), "child-A"],
+			}))
+			const delegation2 = store.atomicReadAndUpdate("parent-task", (current) => ({
+				...current,
+				status: "delegated",
+				awaitingChildId: "child-B",
+				childIds: [...(current.childIds ?? []), "child-B"],
+			}))
+
+			await Promise.all([delegation1, delegation2])
+
+			const final = store.get("parent-task")!
+			expect(final.childIds).toEqual(["child-A", "child-B"])
+			expect(final.awaitingChildId).toBe("child-B")
+
+			// Per-task file reflects the final state
+			const filePath = path.join(tmpDir, "tasks", "parent-task", GlobalFileNames.historyItem)
+			const onDisk = JSON.parse(await fs.readFile(filePath, "utf8"))
+			expect(onDisk.childIds).toEqual(["child-A", "child-B"])
+		})
+
+		it("does not let a stale upsert queued before the update clobber it", async () => {
+			await store.initialize()
+			const parent = makeHistoryItem({ id: "parent-stale", childIds: [] })
+			await store.upsert(parent)
+
+			const atomic = store.atomicReadAndUpdate("parent-stale", (current) => ({
+				...current,
+				status: "delegated",
+				awaitingChildId: "child-1",
+			}))
+			// A writer that only touches token counts merges on top instead of overwriting.
+			const tokens = store.upsert({ id: "parent-stale", tokensOut: 999 } as HistoryItem)
+
+			await Promise.all([atomic, tokens])
+
+			expect(store.get("parent-stale")).toMatchObject({
+				status: "delegated",
+				awaitingChildId: "child-1",
+				tokensOut: 999,
+			})
+		})
+
+		it("passes a copy to the updater so mutations do not leak into the cache on failure", async () => {
+			await store.initialize()
+			await store.upsert(makeHistoryItem({ id: "copy-task", childIds: [] }))
+
+			await expect(
+				store.atomicReadAndUpdate("copy-task", (current) => {
+					current.childIds!.push("mutated")
+					return { ...current, id: "other-id" }
+				}),
+			).rejects.toThrow("updater changed task id from copy-task to other-id")
+
+			expect(store.get("copy-task")!.childIds).toEqual([])
+		})
+
+		it("throws if the task ID is not in the cache", async () => {
+			await store.initialize()
+
+			await expect(
+				store.atomicReadAndUpdate("nonexistent-task", (current) => ({ ...current, status: "delegated" })),
+			).rejects.toThrow("nonexistent-task not found in cache")
+		})
+	})
 })
