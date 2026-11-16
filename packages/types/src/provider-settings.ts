@@ -382,7 +382,7 @@ const basetenSchema = apiModelIdProviderModelSchema.extend({
 })
 
 const defaultSchema = z.object({
-	apiProvider: z.undefined(),
+	apiProvider: z.undefined().optional(),
 })
 
 export const providerSettingsSchemaDiscriminated = z.discriminatedUnion("apiProvider", [
