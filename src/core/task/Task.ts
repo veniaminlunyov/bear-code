@@ -2711,9 +2711,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				this.presentAssistantMessageHasPendingUpdates = false
 				// No legacy text-stream tool parser.
 				this.streamingToolCallIndices.clear()
-				// Clear any leftover streaming tool call state from previous interrupted streams
-				NativeToolCallParser.clearAllStreamingToolCalls()
-				NativeToolCallParser.clearRawChunkState()
+				// Each request gets its own parser scope. The parser is static, so clearing
+				// or finalizing global state here would also wipe the tool calls of another
+				// stream that is still draining (e.g. an aborted subtask's request while the
+				// resumed task starts a new one), leaving that task stalled.
+				const nativeToolCallParserScope = NativeToolCallParser.createScope()
 
 				await this.diffViewProvider.reset()
 
@@ -2802,12 +2804,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 							case "tool_call_partial": {
 								// Process raw tool call chunk through NativeToolCallParser
 								// which handles tracking, buffering, and emits events
-								const events = NativeToolCallParser.processRawChunk({
-									index: chunk.index,
-									id: chunk.id,
-									name: chunk.name,
-									arguments: chunk.arguments,
-								})
+								const events = NativeToolCallParser.processRawChunk(
+									{
+										index: chunk.index,
+										id: chunk.id,
+										name: chunk.name,
+										arguments: chunk.arguments,
+									},
+									nativeToolCallParserScope,
+								)
 
 								for (const event of events) {
 									if (event.type === "tool_call_start") {
@@ -2824,7 +2829,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 										}
 
 										// Initialize streaming in NativeToolCallParser
-										NativeToolCallParser.startStreamingToolCall(event.id, event.name as ToolName)
+										NativeToolCallParser.startStreamingToolCall(
+											event.id,
+											event.name as ToolName,
+											nativeToolCallParserScope,
+										)
 
 										// Before adding a new tool, finalize any preceding text block
 										// This prevents the text block from blocking tool presentation
@@ -2858,6 +2867,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 										const partialToolUse = NativeToolCallParser.processStreamingChunk(
 											event.id,
 											event.delta,
+											nativeToolCallParserScope,
 										)
 
 										if (partialToolUse) {
@@ -2876,7 +2886,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 										}
 									} else if (event.type === "tool_call_end") {
 										// Finalize the streaming tool call
-										const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(event.id)
+										const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(
+											event.id,
+											nativeToolCallParserScope,
+										)
 
 										// Get the index for this tool call
 										const toolUseIndex = this.streamingToolCallIndices.get(event.id)
@@ -3223,11 +3236,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// Finalize any remaining streaming tool calls that weren't explicitly ended
 				// This is critical for MCP tools which need tool_call_end events to be properly
 				// converted from ToolUse to McpToolUse via finalizeStreamingToolCall()
-				const finalizeEvents = NativeToolCallParser.finalizeRawChunks()
+				const finalizeEvents = NativeToolCallParser.finalizeRawChunks(nativeToolCallParserScope)
 				for (const event of finalizeEvents) {
 					if (event.type === "tool_call_end") {
 						// Finalize the streaming tool call
-						const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(event.id)
+						const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(
+							event.id,
+							nativeToolCallParserScope,
+						)
 
 						// Get the index for this tool call
 						const toolUseIndex = this.streamingToolCallIndices.get(event.id)

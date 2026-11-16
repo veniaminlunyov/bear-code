@@ -6,7 +6,6 @@ import { type ModelInfo, openAiModelInfoSaneDefaults, LMSTUDIO_DEFAULT_TEMPERATU
 
 import type { ApiHandlerOptions } from "../../shared/api"
 
-import { NativeToolCallParser } from "../../core/assistant-message/NativeToolCallParser"
 import { TagMatcher } from "../../utils/tag-matcher"
 
 import { convertToOpenAiMessages } from "../transform/openai-format"
@@ -113,6 +112,8 @@ export class LmStudioHandler extends BaseProvider implements SingleCompletionHan
 					}) as const,
 			)
 
+			const activeToolCallIds = new Set<string>()
+
 			for await (const chunk of results) {
 				const delta = chunk.choices[0]?.delta
 				const finishReason = chunk.choices[0]?.finish_reason
@@ -127,6 +128,9 @@ export class LmStudioHandler extends BaseProvider implements SingleCompletionHan
 				// Handle tool calls in stream - emit partial chunks for NativeToolCallParser
 				if (delta?.tool_calls) {
 					for (const toolCall of delta.tool_calls) {
+						if (toolCall.id) {
+							activeToolCallIds.add(toolCall.id)
+						}
 						yield {
 							type: "tool_call_partial",
 							index: toolCall.index,
@@ -138,11 +142,12 @@ export class LmStudioHandler extends BaseProvider implements SingleCompletionHan
 				}
 
 				// Process finish_reason to emit tool_call_end events
-				if (finishReason) {
-					const endEvents = NativeToolCallParser.processFinishReason(finishReason)
-					for (const event of endEvents) {
-						yield event
+				// Track ids locally: the shared parser state belongs to the consuming task.
+				if (finishReason === "tool_calls") {
+					for (const id of activeToolCallIds) {
+						yield { type: "tool_call_end", id }
 					}
+					activeToolCallIds.clear()
 				}
 			}
 

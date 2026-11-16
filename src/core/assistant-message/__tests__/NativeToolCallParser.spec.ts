@@ -1,9 +1,10 @@
 import { NativeToolCallParser } from "../NativeToolCallParser"
 
 describe("NativeToolCallParser", () => {
+	let scope: object
+
 	beforeEach(() => {
-		NativeToolCallParser.clearAllStreamingToolCalls()
-		NativeToolCallParser.clearRawChunkState()
+		scope = NativeToolCallParser.createScope()
 	})
 
 	describe("parseToolCall", () => {
@@ -293,17 +294,100 @@ describe("NativeToolCallParser", () => {
 		})
 	})
 
+	describe("stream scoping", () => {
+		it("retains peer calls until each call in a scope is finalized", () => {
+			NativeToolCallParser.startStreamingToolCall("call_first", "read_file", scope)
+			NativeToolCallParser.startStreamingToolCall("call_second", "read_file", scope)
+			NativeToolCallParser.processStreamingChunk("call_first", '{"path":"first.ts"}', scope)
+			NativeToolCallParser.processStreamingChunk("call_second", '{"path":"second.ts"}', scope)
+
+			const firstResult = NativeToolCallParser.finalizeStreamingToolCall("call_first", scope)
+			expect(firstResult?.type).toBe("tool_use")
+			expect(NativeToolCallParser.hasActiveStreamingToolCalls(scope)).toBe(true)
+
+			const secondResult = NativeToolCallParser.finalizeStreamingToolCall("call_second", scope)
+			expect(secondResult?.type).toBe("tool_use")
+			expect(NativeToolCallParser.hasActiveStreamingToolCalls(scope)).toBe(false)
+		})
+
+		it("clearing one scope does not affect another scope's in-flight tool calls", () => {
+			const drainingScope = NativeToolCallParser.createScope()
+			const resumedScope = NativeToolCallParser.createScope()
+
+			// An aborted task's stream is still draining...
+			NativeToolCallParser.processRawChunk({ index: 0, id: "call_old", name: "read_file" }, drainingScope)
+			NativeToolCallParser.startStreamingToolCall("call_old", "read_file", drainingScope)
+
+			// ...while the resumed task starts a new request and (defensively) clears its own state.
+			NativeToolCallParser.clearRawChunkState(resumedScope)
+			NativeToolCallParser.clearAllStreamingToolCalls(resumedScope)
+
+			expect(NativeToolCallParser.hasActiveStreamingToolCalls(drainingScope)).toBe(true)
+			expect(NativeToolCallParser.finalizeRawChunks(drainingScope)).toEqual([
+				{ type: "tool_call_end", id: "call_old" },
+			])
+		})
+
+		it("keeps interleaved streams that reuse the same chunk index isolated", () => {
+			const firstScope = NativeToolCallParser.createScope()
+			const secondScope = NativeToolCallParser.createScope()
+
+			expect(
+				NativeToolCallParser.processRawChunk({ index: 0, id: "call_first", name: "read_file" }, firstScope),
+			).toEqual([{ type: "tool_call_start", id: "call_first", name: "read_file" }])
+			NativeToolCallParser.startStreamingToolCall("call_first", "read_file", firstScope)
+
+			expect(
+				NativeToolCallParser.processRawChunk({ index: 0, id: "call_second", name: "read_file" }, secondScope),
+			).toEqual([{ type: "tool_call_start", id: "call_second", name: "read_file" }])
+			NativeToolCallParser.startStreamingToolCall("call_second", "read_file", secondScope)
+
+			const firstArgs = JSON.stringify({ path: "first.ts" })
+			const secondArgs = JSON.stringify({ path: "second.ts" })
+			expect(NativeToolCallParser.processRawChunk({ index: 0, arguments: firstArgs }, firstScope)).toEqual([
+				{ type: "tool_call_delta", id: "call_first", delta: firstArgs },
+			])
+			expect(NativeToolCallParser.processRawChunk({ index: 0, arguments: secondArgs }, secondScope)).toEqual([
+				{ type: "tool_call_delta", id: "call_second", delta: secondArgs },
+			])
+			NativeToolCallParser.processStreamingChunk("call_first", firstArgs, firstScope)
+			NativeToolCallParser.processStreamingChunk("call_second", secondArgs, secondScope)
+
+			// Finalizing the first stream must not touch the second one.
+			expect(NativeToolCallParser.finalizeRawChunks(firstScope)).toEqual([
+				{ type: "tool_call_end", id: "call_first" },
+			])
+			const firstResult = NativeToolCallParser.finalizeStreamingToolCall("call_first", firstScope)
+			expect(NativeToolCallParser.hasActiveStreamingToolCalls(secondScope)).toBe(true)
+
+			expect(NativeToolCallParser.finalizeRawChunks(secondScope)).toEqual([
+				{ type: "tool_call_end", id: "call_second" },
+			])
+			const secondResult = NativeToolCallParser.finalizeStreamingToolCall("call_second", secondScope)
+
+			if (firstResult?.type !== "tool_use" || secondResult?.type !== "tool_use") {
+				throw new Error("Expected native tool uses")
+			}
+			expect(firstResult.nativeArgs).toEqual({ path: "first.ts" })
+			expect(secondResult.nativeArgs).toEqual({ path: "second.ts" })
+
+			// A finalized scope has no leftover state.
+			expect(NativeToolCallParser.finalizeRawChunks(firstScope)).toEqual([])
+			expect(NativeToolCallParser.finalizeStreamingToolCall("call_first", firstScope)).toBeNull()
+		})
+	})
+
 	describe("processStreamingChunk", () => {
 		describe("read_file tool", () => {
 			it("should emit a partial ToolUse with nativeArgs.path during streaming", () => {
 				const id = "toolu_streaming_123"
-				NativeToolCallParser.startStreamingToolCall(id, "read_file")
+				NativeToolCallParser.startStreamingToolCall(id, "read_file", scope)
 
 				// Simulate streaming chunks
 				const fullArgs = JSON.stringify({ path: "src/test.ts" })
 
 				// Process the complete args as a single chunk for simplicity
-				const result = NativeToolCallParser.processStreamingChunk(id, fullArgs)
+				const result = NativeToolCallParser.processStreamingChunk(id, fullArgs, scope)
 
 				expect(result).not.toBeNull()
 				expect(result?.nativeArgs).toBeDefined()
@@ -317,7 +401,7 @@ describe("NativeToolCallParser", () => {
 		describe("read_file tool", () => {
 			it("should parse read_file args on finalize", () => {
 				const id = "toolu_finalize_123"
-				NativeToolCallParser.startStreamingToolCall(id, "read_file")
+				NativeToolCallParser.startStreamingToolCall(id, "read_file", scope)
 
 				// Add the complete arguments
 				NativeToolCallParser.processStreamingChunk(
@@ -328,9 +412,10 @@ describe("NativeToolCallParser", () => {
 						offset: 1,
 						limit: 10,
 					}),
+					scope,
 				)
 
-				const result = NativeToolCallParser.finalizeStreamingToolCall(id)
+				const result = NativeToolCallParser.finalizeStreamingToolCall(id, scope)
 
 				expect(result).not.toBeNull()
 				expect(result?.type).toBe("tool_use")

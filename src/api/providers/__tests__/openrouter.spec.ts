@@ -389,9 +389,6 @@ describe("OpenRouterHandler", () => {
 			// Import NativeToolCallParser to set up state
 			const { NativeToolCallParser } = await import("../../../core/assistant-message/NativeToolCallParser")
 
-			// Clear any previous state
-			NativeToolCallParser.clearRawChunkState()
-
 			const handler = new OpenRouterHandler(mockOptions)
 
 			const mockStream = {
@@ -436,16 +433,6 @@ describe("OpenRouterHandler", () => {
 			const chunks = []
 
 			for await (const chunk of generator) {
-				// Simulate what Task.ts does: when we receive tool_call_partial,
-				// process it through NativeToolCallParser to populate rawChunkTracker
-				if (chunk.type === "tool_call_partial") {
-					NativeToolCallParser.processRawChunk({
-						index: chunk.index,
-						id: chunk.id,
-						name: chunk.name,
-						arguments: chunk.arguments,
-					})
-				}
 				chunks.push(chunk)
 			}
 
