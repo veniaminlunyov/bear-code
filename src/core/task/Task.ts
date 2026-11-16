@@ -384,7 +384,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private _started = false
 	// No streaming parser is required.
 	assistantMessageParser?: undefined
-	private providerProfileChangeListener?: (config: { name: string; provider?: string }) => void
 
 	// Native tool call streaming state (track which index each tool is at)
 	private streamingToolCallIndices: Map<string, number> = new Map()
@@ -503,9 +502,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		this.messageQueueService.on("stateChanged", this.messageQueueStateChangedHandler)
-
-		// Listen for provider profile changes to update parser state
-		this.setupProviderProfileChangeListener(provider)
 
 		// Set up diff strategy
 		this.diffStrategy = new MultiSearchReplaceDiffStrategy()
@@ -638,35 +634,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const errorMessage = `Failed to initialize task API config name: ${error instanceof Error ? error.message : String(error)}`
 			provider.log(errorMessage)
 		}
-	}
-
-	/**
-	 * Sets up a listener for provider profile changes.
-	 *
-	 * @private
-	 * @param provider - The ClineProvider instance to listen to
-	 */
-	private setupProviderProfileChangeListener(provider: ClineProvider): void {
-		// Only set up listener if provider has the on method (may not exist in test mocks)
-		if (typeof provider.on !== "function") {
-			return
-		}
-
-		this.providerProfileChangeListener = async () => {
-			try {
-				const newState = await provider.getState()
-				if (newState?.apiConfiguration) {
-					this.updateApiConfiguration(newState.apiConfiguration)
-				}
-			} catch (error) {
-				console.error(
-					`[Task#${this.taskId}.${this.instanceId}] Failed to update API configuration on profile change:`,
-					error,
-				)
-			}
-		}
-
-		provider.on(BearCodeEventName.ProviderProfileChanged, this.providerProfileChangeListener)
 	}
 
 	/**
@@ -1556,6 +1523,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			if (provider) {
 				if (mode) {
 					await provider.setMode(mode)
+					this._taskMode = mode
 				}
 
 				if (providerProfile) {
@@ -1564,6 +1532,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					// Update this task's API configuration to match the new profile
 					// This ensures the parser state is synchronized with the selected model
 					const newState = await provider.getState()
+					this.setTaskApiConfigName(newState?.currentApiConfigName ?? providerProfile)
 					if (newState?.apiConfiguration) {
 						this.updateApiConfiguration(newState.apiConfiguration)
 					}
@@ -1610,7 +1579,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Get condensing configuration
 		const state = await this.providerRef.deref()?.getState()
 		const customCondensingPrompt = state?.customSupportPrompts?.CONDENSE
-		const { mode, apiConfiguration } = state ?? {}
+		// Use task-local values, not the shared provider state: the provider's mode and
+		// profile follow whichever task is focused and are shared by all its tasks.
+		const mode = await this.getTaskMode()
+		const apiConfiguration = this.apiConfiguration
 
 		const { contextTokens: prevContextTokens } = this.getTokenUsage()
 
@@ -2253,19 +2225,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			console.error("Error cancelling current request:", error)
 		}
 
-		// Remove provider profile change listener
-		try {
-			if (this.providerProfileChangeListener) {
-				const provider = this.providerRef.deref()
-				if (provider) {
-					provider.off(BearCodeEventName.ProviderProfileChanged, this.providerProfileChangeListener)
-				}
-				this.providerProfileChangeListener = undefined
-			}
-		} catch (error) {
-			console.error("Error removing provider profile change listener:", error)
-		}
-
 		// Dispose message queue and remove event listeners.
 		try {
 			if (this.messageQueueStateChangedHandler) {
@@ -2544,7 +2503,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const showBearIgnoredFiles = state?.showBearIgnoredFiles ?? false
 			const includeDiagnosticMessages = state?.includeDiagnosticMessages ?? true
 			const maxDiagnosticMessages = state?.maxDiagnosticMessages ?? 50
-			const currentMode = state?.mode ?? defaultModeSlug
+			const currentMode = await this.getTaskMode()
 
 			const { content: parsedUserContent, mode: slashCommandMode } = await processUserContentMentions({
 				userContent: currentUserContent,
@@ -3690,16 +3649,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		const state = await this.providerRef.deref()?.getState()
 
-		const {
-			mode,
-			customModes,
-			customModePrompts,
-			customInstructions,
-			experiments,
-			language,
-			apiConfiguration,
-			enableSubfolderRules,
-		} = state ?? {}
+		const { customModes, customModePrompts, customInstructions, experiments, language, enableSubfolderRules } =
+			state ?? {}
+		// Use task-local values, not the shared provider state: the provider's mode and
+		// profile follow whichever task is focused and are shared by all its tasks.
+		const mode = await this.getTaskMode()
+		const apiConfiguration = this.apiConfiguration
 
 		return await (async () => {
 			const provider = this.providerRef.deref()
@@ -3741,15 +3696,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	private getCurrentProfileId(state: any): string {
-		return (
-			state?.listApiConfigMeta?.find((profile: any) => profile.name === state?.currentApiConfigName)?.id ??
-			"default"
-		)
+		// The task's own profile; the provider's current profile may belong to another task.
+		const profileName = this._taskApiConfigName ?? state?.currentApiConfigName
+		return state?.listApiConfigMeta?.find((profile: any) => profile.name === profileName)?.id ?? "default"
 	}
 
 	private async handleContextWindowExceededError(): Promise<void> {
 		const state = await this.providerRef.deref()?.getState()
-		const { profileThresholds = {}, mode, apiConfiguration } = state ?? {}
+		const { profileThresholds = {} } = state ?? {}
+		// Use task-local values, not the shared provider state: the provider's mode and
+		// profile follow whichever task is focused and are shared by all its tasks.
+		const mode = await this.getTaskMode()
+		const apiConfiguration = this.apiConfiguration
 
 		const { contextTokens } = this.getTokenUsage()
 		const modelInfo = this.api.getModel().info
@@ -3879,9 +3837,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	 * the `api_req_rate_limit_wait` say type (not an error).
 	 */
 	private async maybeWaitForProviderRateLimit(retryAttempt: number): Promise<void> {
-		const state = await this.providerRef.deref()?.getState()
-		const rateLimitSeconds =
-			state?.apiConfiguration?.rateLimitSeconds ?? this.apiConfiguration?.rateLimitSeconds ?? 0
+		const rateLimitSeconds = this.apiConfiguration?.rateLimitSeconds ?? 0
 
 		if (rateLimitSeconds <= 0 || !Task.lastGlobalApiRequestTime) {
 			return
@@ -3913,14 +3869,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const state = await this.providerRef.deref()?.getState()
 
 		const {
-			apiConfiguration,
 			autoApprovalEnabled,
 			requestDelaySeconds,
-			mode,
 			autoCondenseContext = true,
 			autoCondenseContextPercent = 100,
 			profileThresholds = {},
 		} = state ?? {}
+		// Use task-local values, not the shared provider state: the provider's mode and
+		// profile follow whichever task is focused and are shared by all its tasks.
+		const mode = await this.getTaskMode()
+		const apiConfiguration = this.apiConfiguration
 
 		// Get condensing configuration for automatic triggers.
 		const customCondensingPrompt = state?.customSupportPrompts?.CONDENSE
@@ -4310,7 +4268,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			// Respect provider rate limit window
 			let rateLimitDelay = 0
-			const rateLimit = (state?.apiConfiguration ?? this.apiConfiguration)?.rateLimitSeconds || 0
+			const rateLimit = this.apiConfiguration?.rateLimitSeconds || 0
 			if (Task.lastGlobalApiRequestTime && rateLimit > 0) {
 				const elapsed = performance.now() - Task.lastGlobalApiRequestTime
 				rateLimitDelay = Math.ceil(Math.min(rateLimit, Math.max(0, rateLimit * 1000 - elapsed) / 1000))

@@ -6,7 +6,7 @@ import * as path from "path"
 import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 
-import type { GlobalState, ProviderSettings, ModelInfo } from "@bear-code/types"
+import { BearCodeEventName, type GlobalState, type ProviderSettings, type ModelInfo } from "@bear-code/types"
 
 import { Task } from "../Task"
 import { ClineProvider } from "../../webview/ClineProvider"
@@ -305,6 +305,99 @@ describe("Cline", () => {
 				},
 			],
 		}))
+	})
+
+	describe("task-local configuration isolation", () => {
+		const makeTask = async (focusedMode: string, apiConfiguration: ProviderSettings = mockApiConfig) => {
+			mockProvider.getState = vi.fn().mockResolvedValue({ mode: focusedMode, mcpEnabled: false })
+			const task = new Task({
+				provider: mockProvider,
+				apiConfiguration,
+				task: "test task",
+				startTask: false,
+			})
+			await task.getTaskMode()
+			return task
+		}
+
+		const requestMetadata = async (task: Task) => {
+			vi.spyOn(task as any, "getSystemPrompt").mockResolvedValue("mock system prompt")
+			const stream = (async function* () {
+				yield { type: "text", text: "response" } as ApiStreamChunk
+			})()
+			const createMessage = vi.spyOn(task.api, "createMessage").mockReturnValue(stream)
+			task.apiConversationHistory = [
+				{ role: "user", content: [{ type: "text", text: "test message" }], ts: Date.now() },
+			]
+
+			await task.attemptApiRequest().next()
+
+			return createMessage.mock.calls[0]?.[2]
+		}
+
+		it("uses the task mode in request metadata when the focused mode differs", async () => {
+			const task = await makeTask("ask")
+
+			// Another task (or the sidebar) switched the shared provider mode.
+			mockProvider.getState = vi.fn().mockResolvedValue({
+				mode: "code",
+				mcpEnabled: false,
+				apiConfiguration: { ...mockApiConfig, apiModelId: "other-model" },
+				autoApprovalEnabled: true,
+				requestDelaySeconds: 0,
+			})
+
+			const metadata = await requestMetadata(task)
+
+			expect(metadata?.mode).toBe("ask")
+		})
+
+		it("builds the system prompt from the task mode and configuration", async () => {
+			const task = await makeTask("architect", { ...mockApiConfig, todoListEnabled: false })
+			mockProvider.getState = vi.fn().mockResolvedValue({
+				mode: "code",
+				mcpEnabled: false,
+				apiConfiguration: { ...mockApiConfig, todoListEnabled: true },
+			})
+			const systemPrompt = await import("../../prompts/system")
+			const spy = vi.spyOn(systemPrompt, "SYSTEM_PROMPT").mockResolvedValue("prompt")
+
+			await (task as any).getSystemPrompt()
+
+			const args = spy.mock.calls.at(-1)!
+			expect(args[5]).toBe("architect")
+			expect(args[12]).toMatchObject({ todoListEnabled: false })
+			spy.mockRestore()
+		})
+
+		it("uses a mode selected through submitUserMessage in the next request", async () => {
+			const task = await makeTask("ask")
+			mockProvider.setMode = vi.fn().mockResolvedValue(undefined)
+			vi.spyOn(task, "handleWebviewAskResponse").mockImplementation(() => {})
+
+			await task.submitUserMessage("switch modes", undefined, "code")
+			// The provider state is not what the task reads anymore.
+			mockProvider.getState = vi.fn().mockResolvedValue({ mode: "ask", mcpEnabled: false })
+
+			const metadata = await requestMetadata(task)
+
+			expect(mockProvider.setMode).toHaveBeenCalledWith("code")
+			expect(metadata?.mode).toBe("code")
+		})
+
+		it("does not follow profile changes of the provider", async () => {
+			const task = await makeTask("code")
+			const before = task.apiConfiguration
+
+			mockProvider.getState = vi.fn().mockResolvedValue({
+				mode: "code",
+				apiConfiguration: { ...mockApiConfig, apiModelId: "other-model" },
+			})
+			mockProvider.emit(BearCodeEventName.ProviderProfileChanged, { name: "other", provider: "anthropic" })
+			await new Promise((resolve) => setTimeout(resolve, 0))
+
+			expect(task.apiConfiguration).toBe(before)
+		})
 	})
 
 	describe("constructor", () => {
