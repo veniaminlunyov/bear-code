@@ -124,6 +124,116 @@ describe("TerminalRegistry", () => {
 		})
 	})
 
+	describe("shell execution end event racing the start event", () => {
+		let startHandler: (e: any) => Promise<void>
+		let endHandler: (e: any) => Promise<void>
+
+		beforeEach(() => {
+			TerminalRegistry["isInitialized"] = false
+
+			// The global vscode mock doesn't define the shell execution events.
+			;(vscode.window as any).onDidStartTerminalShellExecution ??= () => ({ dispose: () => {} })
+			;(vscode.window as any).onDidEndTerminalShellExecution ??= () => ({ dispose: () => {} })
+
+			vi.spyOn(vscode.window, "onDidStartTerminalShellExecution" as any).mockImplementation((handler: any) => {
+				startHandler = handler
+				return { dispose: vi.fn() }
+			})
+
+			vi.spyOn(vscode.window, "onDidEndTerminalShellExecution" as any).mockImplementation((handler: any) => {
+				endHandler = handler
+				return { dispose: vi.fn() }
+			})
+
+			vi.spyOn(console, "info").mockImplementation(() => {})
+
+			TerminalRegistry.initialize()
+		})
+
+		afterEach(() => {
+			TerminalRegistry.cleanup()
+			TerminalRegistry["isInitialized"] = false
+			vi.mocked(console.info).mockRestore()
+		})
+
+		it("delivers completion when the end event fires before running is set", async () => {
+			const terminal = TerminalRegistry.createTerminal("/test/path", "vscode") as Terminal
+			const mockProcess = {
+				command: "echo hello",
+				emit: vi.fn(),
+				hasUnretrievedOutput: vi.fn().mockReturnValue(false),
+			} as any
+			terminal.process = mockProcess
+			terminal.busy = true
+
+			expect(terminal.running).toBe(false)
+
+			await endHandler({
+				terminal: terminal.terminal,
+				execution: { commandLine: { value: "echo hello" } },
+				exitCode: 0,
+			})
+
+			expect(mockProcess.emit).toHaveBeenCalledWith(
+				"shell_execution_complete",
+				expect.objectContaining({ exitCode: 0 }),
+			)
+			expect(mockProcess.emit).toHaveBeenCalledTimes(1)
+			expect(terminal.busy).toBe(false)
+			expect(terminal.running).toBe(false)
+		})
+
+		it("clears busy without signalling completion when no process exists", async () => {
+			const terminal = TerminalRegistry.createTerminal("/test/path", "vscode") as Terminal
+			terminal.busy = true
+			terminal.process = undefined
+			const completeSpy = vi.spyOn(terminal, "shellExecutionComplete")
+
+			await endHandler({
+				terminal: terminal.terminal,
+				execution: { commandLine: { value: "echo hello" } },
+				exitCode: 0,
+			})
+
+			expect(terminal.busy).toBe(false)
+			expect(completeSpy).not.toHaveBeenCalled()
+		})
+
+		it("ignores a start event that arrives after its execution already ended", async () => {
+			const terminal = TerminalRegistry.createTerminal("/test/path", "vscode") as Terminal
+			const mockProcess = {
+				command: "echo hello",
+				emit: vi.fn(),
+				hasUnretrievedOutput: vi.fn().mockReturnValue(false),
+			} as any
+			terminal.process = mockProcess
+			terminal.busy = true
+
+			const execution = { commandLine: { value: "echo hello" }, read: vi.fn(() => (async function* () {})()) }
+
+			await endHandler({ terminal: terminal.terminal, execution, exitCode: 0 })
+			expect(terminal.busy).toBe(false)
+
+			const setActiveStreamSpy = vi.spyOn(terminal, "setActiveStream")
+			await startHandler({ terminal: terminal.terminal, execution })
+
+			expect(setActiveStreamSpy).not.toHaveBeenCalled()
+			expect(terminal.busy).toBe(false)
+		})
+
+		it("still marks the terminal busy for a start event of a command it did not start", async () => {
+			const terminal = TerminalRegistry.createTerminal("/test/path", "vscode") as Terminal
+			const execution = { commandLine: { value: "npm run dev" }, read: vi.fn(() => (async function* () {})()) }
+			const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+			// A command typed by the user into the terminal: no Bear process attached.
+			await startHandler({ terminal: terminal.terminal, execution })
+
+			expect(terminal.busy).toBe(true)
+			consoleWarnSpy.mockRestore()
+		})
+	})
+
 	describe("releaseTerminalsForTask", () => {
 		it("aborts a busy terminal's running process and disassociates it from the task", () => {
 			const terminal = TerminalRegistry.createTerminal("/test/path", "vscode")

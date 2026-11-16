@@ -172,6 +172,42 @@ describe("TerminalProcess", () => {
 			await completePromise
 			expect(terminalProcess.isHot).toBe(false)
 		})
+
+		it("completes cleanly when shell execution completes before the stream arrives", async () => {
+			vi.useFakeTimers()
+			const consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {})
+
+			try {
+				const completedOutputs: string[] = []
+				const continueSpy = vi.fn()
+				const noShellIntegrationSpy = vi.fn()
+				terminalProcess.on("completed", (output) => completedOutputs.push(output ?? ""))
+				terminalProcess.on("continue", continueSpy)
+				terminalProcess.on("no_shell_integration", noShellIntegrationSpy)
+				mockTerminalInfo.busy = true
+
+				// The end event beats the start event: completion is signalled after
+				// run() registered its listeners but before any stream_available.
+				setTimeout(() => terminalProcess.emit("shell_execution_complete", { exitCode: 0 }), 0)
+
+				const runPromise = terminalProcess.run("true")
+				await vi.advanceTimersByTimeAsync(0)
+				await runPromise
+
+				expect(completedOutputs).toEqual([""])
+				expect(continueSpy).toHaveBeenCalledTimes(1)
+				expect(terminalProcess.isHot).toBe(false)
+				expect(mockTerminalInfo.busy).toBe(false)
+
+				// The stream timeout must have been cancelled rather than firing later.
+				await vi.advanceTimersByTimeAsync(Terminal.getShellIntegrationTimeout() + 1_000)
+				expect(noShellIntegrationSpy).not.toHaveBeenCalled()
+				expect(completedOutputs).toEqual([""])
+			} finally {
+				consoleInfoSpy.mockRestore()
+				vi.useRealTimers()
+			}
+		})
 	})
 
 	describe("continue", () => {

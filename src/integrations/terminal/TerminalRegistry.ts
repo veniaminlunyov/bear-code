@@ -22,6 +22,9 @@ export class TerminalRegistry {
 	private static nextTerminalId = 1
 	private static disposables: vscode.Disposable[] = []
 	private static isInitialized = false
+	// Executions whose end event has been seen, so a start event that arrives
+	// late (after the end event) can be recognized and ignored.
+	private static endedExecutions = new WeakSet<vscode.TerminalShellExecution>()
 
 	public static initialize() {
 		if (this.isInitialized) {
@@ -58,6 +61,19 @@ export class TerminalRegistry {
 					})
 
 					if (terminal) {
+						// If the end event for this execution already arrived (fast
+						// command race, see the end handler), there is nothing left to
+						// stream and nothing would clear busy again, so ignore the late
+						// start event.
+						if (this.endedExecutions.has(e.execution)) {
+							console.info(
+								"[TerminalRegistry] Ignoring start event for an execution that already ended",
+								{ terminalId: terminal.id },
+							)
+
+							return
+						}
+
 						terminal.setActiveStream(stream)
 						terminal.busy = true // Mark terminal as busy when shell execution starts
 					} else {
@@ -75,6 +91,10 @@ export class TerminalRegistry {
 
 			const endDisposable = vscode.window.onDidEndTerminalShellExecution?.(
 				async (e: vscode.TerminalShellExecutionEndEvent) => {
+					if (e.execution) {
+						this.endedExecutions.add(e.execution)
+					}
+
 					const terminal = this.getTerminalByVSCETerminal(e.terminal)
 					const process = terminal?.process
 					const exitDetails = TerminalProcess.interpretExitCode(e.exitCode)
@@ -95,12 +115,21 @@ export class TerminalRegistry {
 					}
 
 					if (!terminal.running) {
-						console.error(
-							"[TerminalRegistry] Shell execution end event received, but process is not running for terminal:",
-							{ terminalId: terminal?.id, command: process?.command, exitCode: e.exitCode },
-						)
+						// For fast commands the end event can arrive before the start
+						// event has called setActiveStream() (which sets running=true).
+						// If a process is waiting for completion, deliver the signal so
+						// it does not hang until the stream timeout fires.
+						if (process) {
+							console.info(
+								"[TerminalRegistry] End event arrived before running=true (race); delivering completion signal",
+								{ terminalId: terminal.id, exitCode: e.exitCode },
+							)
 
-						terminal.busy = false
+							terminal.shellExecutionComplete(exitDetails)
+						} else {
+							terminal.busy = false
+						}
+
 						return
 					}
 
@@ -113,9 +142,8 @@ export class TerminalRegistry {
 						return
 					}
 
-					// Signal completion to any waiting processes.
+					// Signal completion to any waiting processes (also clears busy).
 					terminal.shellExecutionComplete(exitDetails)
-					terminal.busy = false // Mark terminal as not busy when shell execution ends
 				},
 			)
 

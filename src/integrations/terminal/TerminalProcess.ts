@@ -75,7 +75,11 @@ export class TerminalProcess extends BaseTerminalProcess {
 			return
 		}
 
-		// Create a promise that resolves when the stream becomes available
+		// Create a promise that resolves when the stream becomes available.
+		// cancelStreamWait() lets the early-completion path below clear the
+		// pending timeout so it does not fire after we have already returned.
+		let cancelStreamWait: () => void = () => {}
+
 		const streamAvailable = new Promise<AsyncIterable<string>>((resolve, reject) => {
 			const timeoutId = setTimeout(() => {
 				// Remove event listener to prevent memory leaks
@@ -94,6 +98,11 @@ export class TerminalProcess extends BaseTerminalProcess {
 					),
 				)
 			}, Terminal.getShellIntegrationTimeout())
+
+			cancelStreamWait = () => {
+				clearTimeout(timeoutId)
+				this.removeAllListeners("stream_available")
+			}
 
 			// Clean up timeout if stream becomes available
 			this.once("stream_available", (stream: AsyncIterable<string>) => {
@@ -137,11 +146,31 @@ export class TerminalProcess extends BaseTerminalProcess {
 
 		this.isHot = true
 
-		// Wait for stream to be available
+		// Wait for the stream to be available, racing against completion: for a
+		// fast command the end event can beat the start event, in which case the
+		// stream never arrives for this process and we would otherwise block
+		// until the stream timeout fires.
 		let stream: AsyncIterable<string>
 
 		try {
-			stream = await streamAvailable
+			const completedBeforeStream = Symbol("completedBeforeStream")
+
+			const raceResult = await Promise.race([
+				streamAvailable,
+				shellExecutionComplete.then(() => completedBeforeStream),
+			])
+
+			if (raceResult === completedBeforeStream) {
+				console.info("[Terminal Process] shell execution completed before stream arrived, finishing cleanly")
+				cancelStreamWait()
+				this.terminal.busy = false
+				this.isHot = false
+				this.emit("completed", "")
+				this.emit("continue")
+				return
+			}
+
+			stream = raceResult as AsyncIterable<string>
 		} catch (error) {
 			// Stream timeout or other error occurred
 			console.error("[Terminal Process] Stream error:", error.message)
