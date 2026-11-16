@@ -142,6 +142,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "このタスクが待っていたサブタスクは、別のウィンドウでまだ開いています。その結果はこのタスクに返されなくなります。",
 		"no_terminal_content": "選択されたターミナルコンテンツがありません",
 		"missing_task_files": "このタスクのファイルが見つかりません。タスクリストから削除しますか？",
 		"auto_import_failed": "BearCode設定の自動インポートに失敗しました：{{error}}"

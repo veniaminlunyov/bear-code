@@ -142,6 +142,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "La sottoattività attesa da questa attività è ancora aperta in un'altra finestra. Il suo risultato non verrà più restituito a questa attività.",
 		"no_terminal_content": "Nessun contenuto del terminale selezionato",
 		"missing_task_files": "I file di questa attività sono mancanti. Vuoi rimuoverla dall'elenco delle attività?",
 		"auto_import_failed": "Importazione automatica delle impostazioni BearCode fallita: {{error}}"

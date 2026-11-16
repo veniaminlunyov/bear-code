@@ -106,7 +106,7 @@ export type ClineProviderEvents = {
 
 /**
  * Per-provider, per-parent serialization of delegation state transitions
- * (delegate, hand a child's result back, repair after the child is closed).
+ * (delegate, hand a child's result back, detach the parent from its child).
  * Only the check-and-write part of a transition runs under this lock; resuming
  * the parent's task loop happens after it is released, so nested delegation
  * (A → B → C) cannot wait on its own lock.
@@ -423,7 +423,13 @@ export class ClineProvider
 
 	// Removes and destroys the top Cline instance (the current finished task),
 	// activating the previous one (resuming the parent task).
-	async removeClineFromStack(options?: { skipDelegationRepair?: boolean }) {
+	/**
+	 * Close the current task. A delegated child keeps its link to the parent: the
+	 * parent stays "delegated" and the child can still hand its result back when it
+	 * is reopened and finished. The link is only dropped when the child is deleted
+	 * (deleteTaskWithId) or the user resumes the parent itself (Task#resumeTaskFromHistory).
+	 */
+	async removeClineFromStack() {
 		if (this.clineStack.length === 0) {
 			return
 		}
@@ -432,11 +438,6 @@ export class ClineProvider
 		let task = this.clineStack.pop()
 
 		if (task) {
-			// Capture delegation metadata before abort/dispose, since abortTask(true)
-			// is async and the task reference is cleared afterwards.
-			const childTaskId = task.taskId
-			const parentTaskId = task.parentTaskId
-
 			task.emit(BearCodeEventName.TaskUnfocused)
 
 			try {
@@ -460,40 +461,63 @@ export class ClineProvider
 			// Make sure no reference kept, once promises end it will be
 			// garbage collected.
 			task = undefined
+		}
+	}
 
-			// Delegation-aware parent metadata repair:
-			// If the popped task was a delegated child, repair the parent's metadata
-			// so it transitions from "delegated" back to "active" and becomes resumable
-			// from the task history list.
-			// Skip when called from delegateParentAndOpenChild() during nested delegation
-			// transitions (A→B→C), where the caller intentionally replaces the active
-			// child and will update the parent to point at the new child.
-			if (parentTaskId && childTaskId && !options?.skipDelegationRepair) {
-				try {
-					await runDelegationTransition(this, parentTaskId, async () => {
-						const { historyItem: parentHistory } = await this.getTaskWithId(parentTaskId)
+	/**
+	 * Drop a parent's delegation to `childTaskId` (or to any child when omitted):
+	 * "delegated" → "active", awaitingChildId cleared. Runs under the parent's
+	 * delegation lock so it cannot interleave with a hand-back. An open instance of
+	 * the parent (in any provider) is updated too, so its next save does not write
+	 * "delegated" back.
+	 */
+	public async detachDelegatedParent(
+		parentTaskId: string,
+		childTaskId?: string,
+	): Promise<{ detached: boolean; awaitingChildId?: string }> {
+		return runDelegationTransition(this, parentTaskId, async () => {
+			const parentHistory =
+				this.taskHistoryStore.get(parentTaskId) ?? (await this.getTaskWithId(parentTaskId)).historyItem
 
-						if (parentHistory.status === "delegated" && parentHistory.awaitingChildId === childTaskId) {
-							await this.updateTaskHistory({
-								...parentHistory,
-								status: "active",
-								awaitingChildId: undefined,
-							})
-							this.log(
-								`[ClineProvider#removeClineFromStack] Repaired parent ${parentTaskId} metadata: delegated → active (child ${childTaskId} removed)`,
-							)
-						}
-					})
-				} catch (err) {
-					// Non-fatal: log but do not block the pop operation.
-					this.log(
-						`[ClineProvider#removeClineFromStack] Failed to repair parent metadata for ${parentTaskId} (non-fatal): ${
-							err instanceof Error ? err.message : String(err)
-						}`,
-					)
+			if (
+				parentHistory.status !== "delegated" ||
+				(childTaskId !== undefined && parentHistory.awaitingChildId !== childTaskId)
+			) {
+				return { detached: false }
+			}
+
+			const awaitingChildId = parentHistory.awaitingChildId
+
+			await this.updateTaskHistory({
+				...parentHistory,
+				status: "active",
+				awaitingChildId: undefined,
+			})
+
+			for (const provider of ClineProvider.activeInstances) {
+				const open = provider.getCurrentTask()
+
+				if (open?.taskId === parentTaskId) {
+					open.setHistoryStatus("active")
 				}
 			}
+
+			this.log(
+				`[detachDelegatedParent] Parent ${parentTaskId}: delegated → active (was awaiting ${awaitingChildId ?? "no child"})`,
+			)
+			return { detached: true, awaitingChildId }
+		})
+	}
+
+	/** Whether a task is currently open in any provider (sidebar or editor tab). */
+	public static isTaskOpen(taskId: string): boolean {
+		for (const provider of ClineProvider.activeInstances) {
+			if (provider.getCurrentTask()?.taskId === taskId) {
+				return true
+			}
 		}
+
+		return false
 	}
 
 	getTaskStackSize(): number {
@@ -1831,9 +1855,24 @@ export class ClineProvider
 			// Remove from stack if any of the tasks to delete are in the current task stack
 			for (const taskId of allIdsToDelete) {
 				if (taskId === this.getCurrentTask()?.taskId) {
-					// Close the current task instance; delegation flows will be handled via metadata if applicable.
 					await this.removeClineFromStack()
 					break
+				}
+			}
+
+			// A parent waiting for the deleted task would wait forever: detach it so it
+			// can be resumed normally. Cascaded descendants' parents are deleted too.
+			const parentTaskId = historyItem.parentTaskId
+
+			if (parentTaskId && !allIdsToDelete.includes(parentTaskId)) {
+				try {
+					await this.detachDelegatedParent(parentTaskId, id)
+				} catch (error) {
+					this.log(
+						`[deleteTaskWithId] Failed to detach parent ${parentTaskId} of ${id} (non-fatal): ${
+							error instanceof Error ? error.message : String(error)
+						}`,
+					)
 				}
 			}
 
@@ -2922,7 +2961,7 @@ export class ClineProvider
 		//    This ensures we never have >1 tasks open at any time during delegation.
 		//    Await abort completion to ensure clean disposal and prevent unhandled rejections.
 		try {
-			await this.removeClineFromStack({ skipDelegationRepair: true })
+			await this.removeClineFromStack()
 		} catch (error) {
 			this.log(
 				`[delegateParentAndOpenChild] Error during parent disposal (non-fatal): ${
@@ -3133,7 +3172,7 @@ export class ClineProvider
 
 		if (current && (childTaskId === undefined || current.taskId === childTaskId)) {
 			try {
-				await this.removeClineFromStack({ skipDelegationRepair: true })
+				await this.removeClineFromStack()
 			} catch (error) {
 				this.log(
 					`[delegateParentAndOpenChild] Failed to close child ${current.taskId} during rollback: ${
@@ -3173,8 +3212,8 @@ export class ClineProvider
 	 * Reopen parent task from delegation with write-back and events.
 	 *
 	 * Returns false, without touching the parent, when the parent no longer
-	 * awaits this child: it was deleted, it was detached (the child was closed
-	 * and the parent repaired to "active"), or it has delegated to another child
+	 * awaits this child: it was deleted, it was detached (the user resumed the
+	 * parent itself, or deleted this child), or it has delegated to another child
 	 * since. The caller then treats the completion as a standalone one.
 	 */
 	public async reopenParentFromDelegation(params: {
@@ -3353,11 +3392,9 @@ export class ClineProvider
 				//    removeClineFromStack() → abortTask(true) → saveClineMessages() writes
 				//    the historyItem with initialStatus (typically "active"), which would
 				//    overwrite a "completed" status set earlier.
-				//    skipDelegationRepair: the parent metadata is updated in step 4 below;
-				//    the generic delegated → active repair would only add a redundant write.
 				const current = this.getCurrentTask()
 				if (current?.taskId === childTaskId) {
-					await this.removeClineFromStack({ skipDelegationRepair: true })
+					await this.removeClineFromStack()
 				}
 
 				// 4) Mark the child "completed" and the parent "active" BEFORE emitting the
@@ -3443,10 +3480,9 @@ export class ClineProvider
 			return false
 		}
 
-		// The parent is reopened and resumed outside the transition lock: reopening
-		// closes whatever task is current (which may repair its own parent under the
-		// lock), and the parent's task loop may delegate again and complete further
-		// children, which needs the same lock.
+		// The parent is reopened and resumed outside the transition lock: the
+		// parent's task loop may delegate again and complete further children, which
+		// needs the same lock.
 		const { updatedHistory, parentClineMessages, parentApiMessages } = handBack
 
 		// 7) Reopen the parent from history as the sole active task (restores saved mode)

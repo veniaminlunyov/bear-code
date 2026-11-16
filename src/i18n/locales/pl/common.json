@@ -142,6 +142,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "Podzadanie, na które czekało to zadanie, jest nadal otwarte w innym oknie. Jego wynik nie zostanie już przekazany do tego zadania.",
 		"no_terminal_content": "Nie wybrano zawartości terminala",
 		"missing_task_files": "Pliki tego zadania są brakujące. Czy chcesz usunąć je z listy zadań?",
 		"auto_import_failed": "Nie udało się automatycznie zaimportować ustawień BearCode: {{error}}"

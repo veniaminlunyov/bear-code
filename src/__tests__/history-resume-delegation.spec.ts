@@ -795,8 +795,8 @@ describe("History resume delegation - parent metadata transitions", () => {
 			completionResultSummary: "Atomic done",
 		})
 
-		// Child closed without the generic parent repair (parent is updated atomically instead)
-		expect(removeClineFromStack).toHaveBeenCalledWith({ skipDelegationRepair: true })
+		// Child closed; the parent is updated atomically with the child below
+		expect(removeClineFromStack).toHaveBeenCalledTimes(1)
 		expect(updateTaskHistory).not.toHaveBeenCalled()
 		expect(taskHistoryStore.atomicUpdatePair).toHaveBeenCalledWith(
 			"child-atomic",

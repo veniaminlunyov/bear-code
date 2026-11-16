@@ -142,6 +142,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "이 작업이 기다리던 하위 작업이 아직 다른 창에서 열려 있습니다. 그 결과는 더 이상 이 작업으로 반환되지 않습니다.",
 		"no_terminal_content": "선택된 터미널 내용이 없습니다",
 		"missing_task_files": "이 작업의 파일이 누락되었습니다. 작업 목록에서 제거하시겠습니까?",
 		"auto_import_failed": "BearCode 설정 자동 가져오기 실패: {{error}}"

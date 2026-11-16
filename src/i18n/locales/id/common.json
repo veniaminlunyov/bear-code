@@ -142,6 +142,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "Subtugas yang ditunggu tugas ini masih terbuka di jendela lain. Hasilnya tidak akan lagi dikembalikan ke tugas ini.",
 		"no_terminal_content": "Tidak ada konten terminal yang dipilih",
 		"missing_task_files": "File tugas ini hilang. Apakah kamu ingin menghapusnya dari daftar tugas?",
 		"auto_import_failed": "Gagal mengimpor pengaturan BearCode secara otomatis: {{error}}"

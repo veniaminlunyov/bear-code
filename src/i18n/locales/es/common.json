@@ -142,6 +142,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "La subtarea que esperaba esta tarea sigue abierta en otra ventana. Su resultado ya no se devolverá a esta tarea.",
 		"no_terminal_content": "No hay contenido de terminal seleccionado",
 		"missing_task_files": "Los archivos de esta tarea faltan. ¿Deseas eliminarla de la lista de tareas?",
 		"auto_import_failed": "Error al importar automáticamente la configuración de BearCode: {{error}}"

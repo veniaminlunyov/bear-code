@@ -147,6 +147,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "此任务等待的子任务仍在另一个窗口中打开。其结果将不再返回给此任务。",
 		"no_terminal_content": "没有选择终端内容",
 		"missing_task_files": "此任务的文件丢失。您想从任务列表中删除它吗？",
 		"auto_import_failed": "自动导入 BearCode 设置失败：{{error}}"

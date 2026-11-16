@@ -146,6 +146,7 @@
 		"mode_import_failed": "Ha fallat la importació del mode: {{error}}"
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "La subtasca que esperava aquesta tasca encara està oberta en una altra finestra. El seu resultat ja no es retornarà a aquesta tasca.",
 		"no_terminal_content": "No s'ha seleccionat contingut de terminal",
 		"missing_task_files": "Els fitxers d'aquesta tasca falten. Vols eliminar-la de la llista de tasques?",
 		"auto_import_failed": "Ha fallat la importació automàtica de la configuració de BearCode: {{error}}"

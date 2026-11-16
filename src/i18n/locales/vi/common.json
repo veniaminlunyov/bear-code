@@ -142,6 +142,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "Tác vụ con mà tác vụ này đang chờ vẫn đang mở trong một cửa sổ khác. Kết quả của nó sẽ không còn được trả về cho tác vụ này.",
 		"no_terminal_content": "Không có nội dung terminal được chọn",
 		"missing_task_files": "Các tệp của nhiệm vụ này bị thiếu. Bạn có muốn xóa nó khỏi danh sách nhiệm vụ không?",
 		"auto_import_failed": "Không thể tự động nhập cài đặt BearCode: {{error}}"

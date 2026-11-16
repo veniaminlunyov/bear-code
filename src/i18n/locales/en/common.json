@@ -142,6 +142,7 @@
 		"manual_url_auth_error": "Authentication failed"
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "The subtask this task was waiting for is still open in another window. Its result will no longer be returned to this task.",
 		"no_terminal_content": "No terminal content selected",
 		"missing_task_files": "This task's files are missing. Would you like to remove it from the task list?",
 		"auto_import_failed": "Failed to auto-import BearCode settings: {{error}}"

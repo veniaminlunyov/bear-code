@@ -409,9 +409,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private readonly TOKEN_USAGE_EMIT_INTERVAL_MS = 2000 // 2 seconds
 	private debouncedEmitTokenUsage: ReturnType<typeof debounce>
 
-	// Cloud Sync Tracking
-	// Initial status for the task's history item (set at creation time to avoid race conditions)
-	private readonly initialStatus?: "active" | "delegated" | "completed"
+	// Status written into the task's history item on every save. Set at creation
+	// time to avoid races, and updated when the task's delegation state changes
+	// (setHistoryStatus), so a later save does not write back a stale status.
+	private initialStatus?: "active" | "delegated" | "completed"
 
 	// MessageManager for high-level message operations (lazy initialized)
 	private _messageManager?: MessageManager
@@ -1939,6 +1940,42 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 	}
 
+	/** Update the status this instance writes into its history item on save. */
+	public setHistoryStatus(status: "active" | "delegated" | "completed"): void {
+		this.initialStatus = status
+	}
+
+	/**
+	 * The user resumed this task while it was still waiting for a subtask: stop
+	 * waiting. The parent goes back to "active" so a late result from that subtask
+	 * is no longer injected into a conversation that has moved on.
+	 */
+	private async detachFromAwaitedSubtask(): Promise<void> {
+		// From now on this task's saves write "active", even if the history update
+		// below fails: the task is running again, not waiting.
+		this.initialStatus = "active"
+
+		const provider = this.providerRef.deref()
+
+		if (!provider) {
+			return
+		}
+
+		try {
+			const { detached, awaitingChildId } = await provider.detachDelegatedParent(this.taskId)
+
+			if (detached && awaitingChildId && ClineProvider.isTaskOpen(awaitingChildId)) {
+				vscode.window.showWarningMessage(t("common:warnings.delegated_subtask_still_running"))
+			}
+		} catch (error) {
+			console.error(
+				`[Task#detachFromAwaitedSubtask] Failed to detach ${this.taskId} from its subtask: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			)
+		}
+	}
+
 	private async resumeTaskFromHistory() {
 		try {
 			const modifiedClineMessages = await this.getSavedClineMessages()
@@ -2007,6 +2044,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this.isInitialized = true
 
 			const { response, text, images } = await this.ask(askType) // Calls `postStateToWebview`.
+
+			if (this.initialStatus === "delegated") {
+				await this.detachFromAwaitedSubtask()
+			}
 
 			let responseText: string | undefined
 			let responseImages: string[] | undefined

@@ -142,6 +142,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "Bu görevin beklediği alt görev başka bir pencerede hâlâ açık. Sonucu artık bu göreve döndürülmeyecek.",
 		"no_terminal_content": "Seçili terminal içeriği yok",
 		"missing_task_files": "Bu görevin dosyaları eksik. Görev listesinden kaldırmak istiyor musunuz?",
 		"auto_import_failed": "BearCode ayarları otomatik olarak içe aktarılamadı: {{error}}"
