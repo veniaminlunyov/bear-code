@@ -3078,7 +3078,7 @@ export class ClineProvider
 			await this.updateGlobalState("mode", context.mode)
 			this.emit(BearCodeEventName.ModeChanged, context.mode)
 
-			const { currentApiConfigName } = await this.getState()
+			const currentApiConfigName = this.getGlobalState("currentApiConfigName")
 
 			if (context.apiConfigName && context.apiConfigName !== currentApiConfigName) {
 				await this.activateProviderProfile(

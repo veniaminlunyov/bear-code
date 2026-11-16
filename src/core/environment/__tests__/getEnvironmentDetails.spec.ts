@@ -355,31 +355,41 @@ describe("getEnvironmentDetails", () => {
 		await expect(getEnvironmentDetails(mockCline as Task)).resolves.not.toThrow()
 	})
 	it("should include REMINDERS section when todoListEnabled is true", async () => {
-		mockProvider.getState.mockResolvedValue({
-			...mockState,
+		const cline = {
+			...mockCline,
 			apiConfiguration: { todoListEnabled: true },
-		})
-		const cline = { ...mockCline, todoList: [{ content: "test", status: "pending" }] }
+			todoList: [{ content: "test", status: "pending" }],
+		}
 		const result = await getEnvironmentDetails(cline as Task)
 		expect(result).toContain("REMINDERS")
 	})
 
 	it("should NOT include REMINDERS section when todoListEnabled is false", async () => {
+		const cline = {
+			...mockCline,
+			apiConfiguration: { todoListEnabled: false },
+			todoList: [{ content: "test", status: "pending" }],
+		}
+		const result = await getEnvironmentDetails(cline as Task)
+		expect(result).not.toContain("REMINDERS")
+	})
+
+	it("uses the task's own profile, not the provider's, for todoListEnabled", async () => {
 		mockProvider.getState.mockResolvedValue({
 			...mockState,
-			apiConfiguration: { todoListEnabled: false },
+			apiConfiguration: { todoListEnabled: true },
 		})
-		const cline = { ...mockCline, todoList: [{ content: "test", status: "pending" }] }
+		const cline = {
+			...mockCline,
+			apiConfiguration: { todoListEnabled: false },
+			todoList: [{ content: "test", status: "pending" }],
+		}
 		const result = await getEnvironmentDetails(cline as Task)
 		expect(result).not.toContain("REMINDERS")
 	})
 
 	it("should include REMINDERS section when todoListEnabled is undefined", async () => {
-		mockProvider.getState.mockResolvedValue({
-			...mockState,
-			apiConfiguration: {},
-		})
-		const cline = { ...mockCline, todoList: [{ content: "test", status: "pending" }] }
+		const cline = { ...mockCline, apiConfiguration: {}, todoList: [{ content: "test", status: "pending" }] }
 		const result = await getEnvironmentDetails(cline as Task)
 		expect(result).toContain("REMINDERS")
 	})

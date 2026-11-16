@@ -428,7 +428,7 @@ describe("ClineProvider delegation execution context", () => {
 		const provider = {
 			updateGlobalState: vi.fn(),
 			emit: vi.fn(),
-			getState: vi.fn().mockResolvedValue({ currentApiConfigName: "parent-profile" }),
+			getGlobalState: vi.fn((key: string) => (key === "currentApiConfigName" ? "parent-profile" : undefined)),
 			activateProviderProfile: vi.fn(),
 			log: vi.fn(),
 		} as any
@@ -451,7 +451,7 @@ describe("ClineProvider delegation execution context", () => {
 		const provider = {
 			updateGlobalState: vi.fn(),
 			emit: vi.fn(),
-			getState: vi.fn().mockResolvedValue({ currentApiConfigName: "parent-profile" }),
+			getGlobalState: vi.fn((key: string) => (key === "currentApiConfigName" ? "parent-profile" : undefined)),
 			activateProviderProfile: vi.fn(),
 			log: vi.fn(),
 		} as any
