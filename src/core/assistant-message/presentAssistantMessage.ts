@@ -797,6 +797,7 @@ export async function presentAssistantMessage(cline: Task) {
 						pushToolResult,
 						askFinishSubTaskApproval,
 						toolDescription,
+						toolCallId: block.id,
 					}
 					await attemptCompletionTool.handle(
 						cline,

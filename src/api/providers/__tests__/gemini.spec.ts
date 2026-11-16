@@ -57,6 +57,38 @@ describe("GeminiHandler", () => {
 
 		const systemPrompt = "You are a helpful assistant"
 
+		it("gives tool calls ids that are unique across requests", async () => {
+			;(handler["client"].models.generateContentStream as any).mockImplementation(async () => ({
+				[Symbol.asyncIterator]: async function* () {
+					yield {
+						candidates: [
+							{ content: { parts: [{ functionCall: { name: "new_task", args: { mode: "code" } } }] } },
+						],
+					}
+				},
+			}))
+
+			const callIds = async () => {
+				const ids = new Set<string>()
+				for await (const chunk of handler.createMessage(systemPrompt, mockMessages)) {
+					if (chunk.type === "tool_call_partial" && chunk.id) {
+						ids.add(chunk.id)
+					}
+				}
+				return [...ids]
+			}
+
+			const first = await callIds()
+			const second = await callIds()
+
+			// One id per call, shared by its name and arguments partials.
+			expect(first).toHaveLength(1)
+			expect(second).toHaveLength(1)
+			expect(first[0]).toMatch(/^new_task-/)
+			// The per-request counter restarts at 0, so without a per-request part both would be "new_task-0".
+			expect(first[0]).not.toBe(second[0])
+		})
+
 		it("should handle text messages correctly", async () => {
 			// Setup the mock implementation to return an async generator
 			;(handler["client"].models.generateContentStream as any).mockResolvedValue({

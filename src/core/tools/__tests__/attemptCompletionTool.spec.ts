@@ -562,9 +562,16 @@ describe("attemptCompletionTool", () => {
 						id === "task_1" ? { id, status: "active", parentTaskId: "parent_1" } : { id, ...parentHistory },
 				})),
 				reopenParentFromDelegation,
+				setPendingTaskAction: vi.fn(async () => {
+					callOrder.push("save approval")
+				}),
 			}
 
 			;(mockTask as any).parentTaskId = "parent_1"
+			;(mockTask as any).setPendingTaskAction = vi.fn()
+			;(mockTask as any).settlePendingAction = vi.fn(async (id: string) => {
+				callOrder.push(`settle:${id}`)
+			})
 			;(mockTask as any).providerRef = { deref: () => provider }
 			mockAskFinishSubTaskApproval.mockResolvedValue(true)
 			mockPushToolResult.mockImplementation((result: string) => callOrder.push(`push:${result}`))
@@ -577,8 +584,35 @@ describe("attemptCompletionTool", () => {
 				toolDescription: mockToolDescription,
 			}
 
-			return { callOrder, reopenParentFromDelegation, callbacks }
+			return { callOrder, reopenParentFromDelegation, callbacks, provider }
 		}
+
+		it("saves the finish approval before asking and settles it when the parent no longer waits", async () => {
+			const { callOrder, callbacks, provider, reopenParentFromDelegation } = setup(
+				{ status: "delegated", awaitingChildId: "task_1" },
+				false,
+			)
+			mockAskFinishSubTaskApproval.mockImplementationOnce(async () => {
+				callOrder.push("ask")
+				return true
+			})
+
+			await attemptCompletionTool.handle(mockTask as Task, block, { ...callbacks, toolCallId: "call_finish" })
+
+			expect(provider.setPendingTaskAction).toHaveBeenCalledWith(
+				(mockTask as any).taskId,
+				expect.objectContaining({
+					kind: "finish_subtask",
+					actionId: "call_finish",
+					parentTaskId: "parent_1",
+					result: "child result",
+				}),
+			)
+			expect(reopenParentFromDelegation).toHaveBeenCalledWith(
+				expect.objectContaining({ pendingActionId: "call_finish" }),
+			)
+			expect(callOrder).toEqual(["save approval", "ask", "reopen", "settle:call_finish"])
+		})
 
 		it("pushes the tool result only after the parent was reopened", async () => {
 			const { callOrder, callbacks } = setup({ status: "delegated", awaitingChildId: "task_1" })

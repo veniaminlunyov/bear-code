@@ -23,6 +23,7 @@ import {
 	type TerminalActionId,
 	type TerminalActionPromptType,
 	type HistoryItem,
+	type PendingTaskAction,
 	type CreateTaskOptions,
 	type TokenUsage,
 	type ToolUsage,
@@ -115,6 +116,18 @@ export type ClineProviderEvents = {
  * it is released, so nested delegation (A → B → C) cannot wait on its own lock.
  */
 const delegationTransitionLocks = new Map<string, Promise<void>>()
+
+/**
+ * The subtask approval being acted on is no longer pending: it was approved or
+ * rejected elsewhere (another panel) or settled since. The caller's task
+ * instance is stale and must not act on it.
+ */
+export class PendingActionSettledError extends Error {
+	constructor(taskId: string, actionId: string) {
+		super(`Subtask approval ${actionId} of task ${taskId} is no longer pending`)
+		this.name = "PendingActionSettledError"
+	}
+}
 
 function runDelegationTransition<T>(parentTaskId: string, fn: () => Promise<T>): Promise<T> {
 	const previous = delegationTransitionLocks.get(parentTaskId) ?? Promise.resolve()
@@ -475,6 +488,56 @@ export class ClineProvider
 			// garbage collected.
 			task = undefined
 		}
+	}
+
+	/** Save the subtask approval `taskId` is about to ask for (see PendingTaskAction). */
+	public async setPendingTaskAction(taskId: string, pendingAction: PendingTaskAction): Promise<void> {
+		if (!this.taskHistoryStore.get(taskId)) {
+			// Nothing to attach it to yet (or legacy globalState-only history): the
+			// approval then just isn't restorable, as before.
+			this.log(`[setPendingTaskAction] Task ${taskId} is not in the history store; not saving its approval`)
+			return
+		}
+
+		await this.taskHistoryStore.atomicReadAndUpdate(taskId, (historyItem) => ({ ...historyItem, pendingAction }))
+		this.recentTasksCache = undefined
+	}
+
+	/**
+	 * Clear `taskId`'s pending approval if it is still `actionId` (compare-and-clear,
+	 * so a newer approval is never dropped). Returns whether it cleared one.
+	 */
+	public async clearPendingTaskAction(taskId: string, actionId: string): Promise<boolean> {
+		if (!this.taskHistoryStore.get(taskId)) {
+			return false
+		}
+
+		let cleared = false
+
+		try {
+			await this.taskHistoryStore.atomicReadAndUpdate(taskId, (historyItem) => {
+				if (historyItem.pendingAction?.actionId !== actionId) {
+					return historyItem
+				}
+
+				cleared = true
+				return { ...historyItem, pendingAction: undefined }
+			})
+		} catch (error) {
+			// Deleted meanwhile: nothing left to clear.
+			this.log(
+				`[clearPendingTaskAction] Could not clear ${actionId} of ${taskId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			)
+			return false
+		}
+
+		if (cleared) {
+			this.recentTasksCache = undefined
+		}
+
+		return cleared
 	}
 
 	/**
@@ -2946,8 +3009,10 @@ export class ClineProvider
 		message: string
 		initialTodos: TodoItem[]
 		mode: string
+		/** Tool call id of the saved create_subtask approval this delegation settles. */
+		pendingActionId?: string
 	}): Promise<Task> {
-		const { parentTaskId, message, initialTodos, mode } = params
+		const { parentTaskId, message, initialTodos, mode, pendingActionId } = params
 
 		// Metadata-driven delegation is always enabled
 
@@ -2960,6 +3025,16 @@ export class ClineProvider
 			throw new Error(
 				`[delegateParentAndOpenChild] Parent mismatch: expected ${parentTaskId}, current ${parent.taskId}`,
 			)
+		}
+
+		// A restored approval may already have been answered in another panel. Check
+		// before anything is closed; the delegation write below checks it again.
+		if (pendingActionId) {
+			const stored = await this.taskHistoryStore.refresh(parentTaskId)
+
+			if (stored?.pendingAction?.actionId !== pendingActionId) {
+				throw new PendingActionSettledError(parentTaskId, pendingActionId)
+			}
 		}
 
 		// Choose the child's mode and profile from the parent task (not from the
@@ -3014,6 +3089,23 @@ export class ClineProvider
 			// Non-fatal: proceed with child creation even if parent cleanup had issues
 		}
 
+		// The parent can also be open in another panel (for example reopened there
+		// from history with the same approval restored). Close it there too, so that
+		// instance can neither approve a second time nor save over the delegation.
+		for (const provider of ClineProvider.activeInstances) {
+			if (provider !== this && provider.getCurrentTask()?.taskId === parentTaskId) {
+				try {
+					await provider.removeClineFromStack()
+				} catch (error) {
+					this.log(
+						`[delegateParentAndOpenChild] Failed to close parent ${parentTaskId} in another panel: ${
+							error instanceof Error ? error.message : String(error)
+						}`,
+					)
+				}
+			}
+		}
+
 		// 3) Show the child's mode and profile in the UI, the way reopening a task from
 		//    history does. The child itself runs with handoffExecutionContext, so this
 		//    only mirrors it into the provider state; unlike handleModeSwitch() it does
@@ -3050,6 +3142,7 @@ export class ClineProvider
 				parentTaskId,
 				undefined,
 				t("common:errors.subtask_creation_failed", { error: reason }),
+				pendingActionId,
 			)
 			throw err
 		}
@@ -3061,13 +3154,24 @@ export class ClineProvider
 		//    and clobber the delegation fields. Broadcast and cache invalidation happen
 		//    after the lock releases.
 		try {
-			const delegate = (historyItem: HistoryItem): HistoryItem => ({
-				...historyItem,
-				status: "delegated",
-				delegatedToId: child.taskId,
-				awaitingChildId: child.taskId,
-				childIds: Array.from(new Set([...(historyItem.childIds ?? []), child.taskId])),
-			})
+			const delegate = (historyItem: HistoryItem): HistoryItem => {
+				// Same check as at the start, now inside the write: only one delegation
+				// can settle a given approval.
+				if (pendingActionId && historyItem.pendingAction?.actionId !== pendingActionId) {
+					throw new PendingActionSettledError(parentTaskId, pendingActionId)
+				}
+
+				return {
+					...historyItem,
+					status: "delegated",
+					delegatedToId: child.taskId,
+					awaitingChildId: child.taskId,
+					childIds: Array.from(new Set([...(historyItem.childIds ?? []), child.taskId])),
+					// The approval is answered by this delegation.
+					pendingAction:
+						historyItem.pendingAction?.kind === "create_subtask" ? undefined : historyItem.pendingAction,
+				}
+			}
 
 			await runDelegationTransition(parentTaskId, async () => {
 				if (this.taskHistoryStore.get(parentTaskId)) {
@@ -3094,6 +3198,7 @@ export class ClineProvider
 				parentTaskId,
 				child.taskId,
 				t("common:errors.subtask_delegation_failed"),
+				pendingActionId,
 			)
 			throw err
 		}
@@ -3119,6 +3224,11 @@ export class ClineProvider
 			}
 		}
 
+		// Link the approval row to its child, now that the delegation is committed (a
+		// rolled-back one must not link to a deleted child). The chat otherwise matches
+		// newTask rows to childIds by position, which breaks after a rejected new_task.
+		await this.stampDelegationChildLink(parentTaskId, message, child.taskId)
+
 		// 6) Start the child task now that parent metadata is safely persisted.
 		child.start()
 
@@ -3130,6 +3240,55 @@ export class ClineProvider
 		}
 
 		return child
+	}
+
+	/**
+	 * Stamp `childTaskId` on the parent's newest newTask approval row when it is
+	 * the one this delegation answers. Never walks past the newest newTask row, so
+	 * an earlier rejected approval is not linked to this child.
+	 */
+	private async stampDelegationChildLink(parentTaskId: string, message: string, childTaskId: string): Promise<void> {
+		try {
+			const globalStoragePath = this.contextProxy.globalStorageUri.fsPath
+			const parentMessages = await readTaskMessages({ taskId: parentTaskId, globalStoragePath })
+
+			for (let index = parentMessages.length - 1; index >= 0; index--) {
+				const candidate = parentMessages[index]
+
+				if (candidate.ask !== "tool" || !candidate.text) {
+					continue
+				}
+
+				let tool: { tool?: unknown; content?: unknown } | null
+
+				try {
+					tool = JSON.parse(candidate.text)
+				} catch {
+					continue
+				}
+
+				if (tool?.tool !== "newTask") {
+					continue
+				}
+
+				// NewTaskTool shows the raw content but delegates with one level of "\\@" unescaped.
+				const matchesDelegation =
+					typeof tool.content === "string" && tool.content.replace(/\\\\@/g, "\\@") === message
+
+				if (matchesDelegation && !candidate.childTaskId) {
+					candidate.childTaskId = childTaskId
+					await saveTaskMessages({ messages: parentMessages, taskId: parentTaskId, globalStoragePath })
+				}
+
+				break
+			}
+		} catch (error) {
+			this.log(
+				`[delegateParentAndOpenChild] Failed to save the child link for parent ${parentTaskId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			)
+		}
 	}
 
 	/**
@@ -3208,6 +3367,7 @@ export class ClineProvider
 		parentTaskId: string,
 		childTaskId: string | undefined,
 		errorMessage: string,
+		pendingActionId?: string,
 	): Promise<void> {
 		// The parent was closed before the child was created, so any current task is
 		// the child (or, when createTask failed, whatever it managed to put on the stack).
@@ -3231,6 +3391,21 @@ export class ClineProvider
 			} catch (error) {
 				this.log(
 					`[delegateParentAndOpenChild] Failed to delete child ${childTaskId} during rollback: ${
+						(error as Error)?.message ?? String(error)
+					}`,
+				)
+			}
+		}
+
+		// Drop the approval this delegation was answering before the parent reopens:
+		// otherwise the reopened parent asks it again, fails again, and repeats that
+		// on every open. It resumes with the tool call marked as interrupted instead.
+		if (pendingActionId) {
+			try {
+				await this.clearPendingTaskAction(parentTaskId, pendingActionId)
+			} catch (error) {
+				this.log(
+					`[delegateParentAndOpenChild] Failed to clear approval ${pendingActionId} of ${parentTaskId}: ${
 						(error as Error)?.message ?? String(error)
 					}`,
 				)
@@ -3263,8 +3438,10 @@ export class ClineProvider
 		parentTaskId: string
 		childTaskId: string
 		completionResultSummary: string
+		/** Tool call id of the saved finish_subtask approval this hand-back settles. */
+		pendingActionId?: string
 	}): Promise<boolean> {
-		const { parentTaskId, childTaskId, completionResultSummary } = params
+		const { parentTaskId, childTaskId, completionResultSummary, pendingActionId } = params
 
 		// Check and write under the per-parent transition lock. Yields false when the
 		// parent no longer awaits the child, otherwise what is needed to reopen it.
@@ -3299,6 +3476,18 @@ export class ClineProvider
 							`(status=${historyItem.status}, awaitingChildId=${historyItem.awaitingChildId}); not reopening it`,
 					)
 					return false
+				}
+
+				// A restored finish approval may have been answered in another panel already.
+				if (pendingActionId) {
+					const storedChild = await this.taskHistoryStore.refresh(childTaskId)
+
+					if (storedChild?.pendingAction?.actionId !== pendingActionId) {
+						this.log(
+							`[reopenParentFromDelegation] Approval ${pendingActionId} of child ${childTaskId} is no longer pending; not reopening the parent`,
+						)
+						return false
+					}
 				}
 
 				// The parent can be open, still waiting at its resume prompt, in another
@@ -3350,6 +3539,7 @@ export class ClineProvider
 					say: "subtask_result",
 					text: completionResultSummary,
 					ts,
+					childTaskId,
 				}
 				const lastParentClineMessage = parentClineMessages.at(-1)
 
@@ -3357,9 +3547,13 @@ export class ClineProvider
 				if (
 					lastParentClineMessage?.type !== "say" ||
 					lastParentClineMessage.say !== "subtask_result" ||
-					lastParentClineMessage.text !== completionResultSummary
+					lastParentClineMessage.text !== completionResultSummary ||
+					(lastParentClineMessage.childTaskId !== undefined &&
+						lastParentClineMessage.childTaskId !== childTaskId)
 				) {
 					parentClineMessages.push(subtaskUiMessage)
+				} else {
+					lastParentClineMessage.childTaskId = childTaskId
 				}
 
 				await saveTaskMessages({ messages: parentClineMessages, taskId: parentTaskId, globalStoragePath })
@@ -3398,19 +3592,41 @@ export class ClineProvider
 						}
 					}
 
-					// If no existing tool_result found, create a NEW user message with the tool_result
 					if (!alreadyHasToolResult) {
-						parentApiMessages.push({
-							role: "user",
-							content: [
-								{
-									type: "tool_result" as const,
-									tool_use_id: toolUseId,
-									content: `Subtask ${childTaskId} completed.\n\nResult:\n${completionResultSummary}`,
-								},
-							],
-							ts,
-						})
+						const toolResult = {
+							type: "tool_result" as const,
+							tool_use_id: toolUseId,
+							content: `Subtask ${childTaskId} completed.\n\nResult:\n${completionResultSummary}`,
+						}
+						const previousMsg = parentApiMessages[parentApiMessages.length - 2]
+						// Other tools of the same turn (for example update_todo_list before
+						// new_task) were flushed into a user message before the parent was
+						// closed. Add the result to that message: a separate one would be
+						// validated on its own, get "interrupted" placeholders for those
+						// tools, and after the API-side merge send two results per tool call.
+						const lastAnswersSameTurn =
+							lastMsg?.role === "user" &&
+							Array.isArray(lastMsg.content) &&
+							previousMsg?.role === "assistant" &&
+							Array.isArray(previousMsg.content) &&
+							previousMsg.content.some(
+								(block: { type?: string; id?: string }) =>
+									block.type === "tool_use" && block.id === toolUseId,
+							)
+
+						if (lastAnswersSameTurn) {
+							// tool_result blocks go before any other blocks of a user message.
+							const firstOther = lastMsg.content.findIndex(
+								(block: { type?: string }) => block.type !== "tool_result",
+							)
+							lastMsg.content.splice(
+								firstOther === -1 ? lastMsg.content.length : firstOther,
+								0,
+								toolResult,
+							)
+						} else {
+							parentApiMessages.push({ role: "user", content: [toolResult], ts })
+						}
 					}
 
 					// Validate the newly injected tool_result against the preceding assistant message.
@@ -3462,6 +3678,12 @@ export class ClineProvider
 				//    completion event. The parent update is built from the current stored
 				//    record (not the snapshot read in step 1), so writes that landed in the
 				//    meantime — e.g. the child's final save during step 3 — are preserved.
+				// The finish approval, if any, is answered by this hand-back.
+				const completeChild = (child: HistoryItem): HistoryItem => ({
+					...child,
+					status: "completed",
+					pendingAction: child.pendingAction?.kind === "finish_subtask" ? undefined : child.pendingAction,
+				})
 				const completeParent = (parent: HistoryItem): HistoryItem => ({
 					...parent,
 					status: "active",
@@ -3479,7 +3701,7 @@ export class ClineProvider
 					await this.taskHistoryStore.atomicUpdatePair(
 						childTaskId,
 						parentTaskId,
-						(child) => ({ ...child, status: "completed" }),
+						completeChild,
 						completeParent,
 					)
 					this.recentTasksCache = undefined
@@ -3505,10 +3727,7 @@ export class ClineProvider
 					// Fallback (e.g. legacy globalState-only history): sequential writes.
 					try {
 						const { historyItem: childHistory } = await this.getTaskWithId(childTaskId)
-						await this.updateTaskHistory({
-							...childHistory,
-							status: "completed",
-						})
+						await this.updateTaskHistory(completeChild(childHistory))
 					} catch (err) {
 						this.log(
 							`[reopenParentFromDelegation] Failed to persist child completed status for ${childTaskId}: ${

@@ -268,6 +268,11 @@ export const clineMessageSchema = z.object({
 	 * Present when `say: "sliding_window_truncation"`.
 	 */
 	contextTruncation: contextTruncationSchema.optional(),
+	/**
+	 * The subtask a `newTask` approval or a `subtask_result` belongs to. Older
+	 * messages lack it, and the chat then falls back to matching by position.
+	 */
+	childTaskId: z.string().optional(),
 	isProtected: z.boolean().optional(),
 	apiProtocol: z.union([z.literal("openai"), z.literal("anthropic")]).optional(),
 	isAnswered: z.boolean().optional(),

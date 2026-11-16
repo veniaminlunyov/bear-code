@@ -1,6 +1,6 @@
 import * as vscode from "vscode"
 
-import { TodoItem } from "@bear-code/types"
+import type { PendingTaskAction, TodoItem } from "@bear-code/types"
 
 import { Task } from "../task/Task"
 import { getModeBySlug } from "../../shared/modes"
@@ -10,6 +10,7 @@ import { parseMarkdownChecklist } from "./UpdateTodoListTool"
 import { Package } from "../../shared/package"
 import { BaseTool, ToolCallbacks } from "./BaseTool"
 import type { ToolUse } from "../../shared/tools"
+import { sanitizeToolUseId } from "../../utils/tool-id"
 
 interface NewTaskParams {
 	mode: string
@@ -22,7 +23,7 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 
 	async execute(params: NewTaskParams, task: Task, callbacks: ToolCallbacks): Promise<void> {
 		const { mode, message, todos } = params
-		const { askApproval, handleError, pushToolResult } = callbacks
+		const { askApproval, handleError, pushToolResult, toolCallId } = callbacks
 
 		try {
 			// Validate required parameters.
@@ -103,6 +104,24 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 				todos: todoItems,
 			})
 
+			// Save the approval before asking, so it can be asked again if the user
+			// leaves this task or VS Code reloads before answering. A rejection's
+			// tool_result or the delegation itself settles it.
+			const pendingActionId = toolCallId ? sanitizeToolUseId(toolCallId) : undefined
+
+			if (pendingActionId) {
+				const pendingAction: PendingTaskAction = {
+					kind: "create_subtask",
+					actionId: pendingActionId,
+					approvalText: toolMessage,
+					mode,
+					message: unescapedMessage,
+					todos: todoItems,
+				}
+				await provider.setPendingTaskAction(task.taskId, pendingAction)
+				task.setPendingTaskAction(pendingAction)
+			}
+
 			const didApprove = await askApproval("tool", toolMessage)
 
 			if (!didApprove) {
@@ -110,11 +129,12 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 			}
 
 			// Delegate parent and open child as sole active task
-			const child = await (provider as any).delegateParentAndOpenChild({
+			const child = await provider.delegateParentAndOpenChild({
 				parentTaskId: task.taskId,
 				message: unescapedMessage,
 				initialTodos: todoItems,
 				mode,
+				pendingActionId,
 			})
 
 			// Reflect delegation in tool result (no pause/unpause, no wait)

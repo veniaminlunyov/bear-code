@@ -1,4 +1,5 @@
 import type { Anthropic } from "@anthropic-ai/sdk"
+import { randomUUID } from "crypto"
 import {
 	GoogleGenAI,
 	type GenerateContentResponseUsageMetadata,
@@ -205,6 +206,11 @@ export class GeminiHandler extends BaseProvider implements SingleCompletionHandl
 			let finishReason: string | undefined
 
 			let toolCallCounter = 0
+			// Gemini sends no tool call ids, so they are synthesized. The counter restarts
+			// for every request, so add a per-request part: otherwise the first new_task of
+			// every request gets the same id, and anything keyed by the tool call id (a
+			// tool_result, a pending subtask approval) can match a call from another turn.
+			const requestCallIdPart = randomUUID().slice(0, 8)
 			let hasContent = false
 			let hasReasoning = false
 
@@ -248,7 +254,7 @@ export class GeminiHandler extends BaseProvider implements SingleCompletionHandl
 								hasContent = true
 								// Gemini sends complete function calls in a single chunk
 								// Emit as partial chunks for consistent handling with NativeToolCallParser
-								const callId = `${part.functionCall.name}-${toolCallCounter}`
+								const callId = `${part.functionCall.name}-${requestCallIdPart}-${toolCallCounter}`
 								const args = JSON.stringify(part.functionCall.args)
 
 								// Emit name first

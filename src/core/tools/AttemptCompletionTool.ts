@@ -1,11 +1,12 @@
 import * as vscode from "vscode"
 
-import { BearCodeEventName, type HistoryItem } from "@bear-code/types"
+import { BearCodeEventName, type HistoryItem, type PendingTaskAction } from "@bear-code/types"
 
 import { Task } from "../task/Task"
 import { formatResponse } from "../prompts/responses"
 import { Package } from "../../shared/package"
 import type { ToolUse } from "../../shared/tools"
+import { sanitizeToolUseId } from "../../utils/tool-id"
 import { t } from "../../i18n"
 
 import { BaseTool, ToolCallbacks } from "./BaseTool"
@@ -25,10 +26,12 @@ export interface AttemptCompletionCallbacks extends ToolCallbacks {
  */
 interface DelegationProvider {
 	getTaskWithId(id: string): Promise<{ historyItem: HistoryItem }>
+	setPendingTaskAction(taskId: string, pendingAction: PendingTaskAction): Promise<void>
 	reopenParentFromDelegation(params: {
 		parentTaskId: string
 		childTaskId: string
 		completionResultSummary: string
+		pendingActionId?: string
 	}): Promise<boolean>
 }
 
@@ -37,7 +40,7 @@ export class AttemptCompletionTool extends BaseTool<"attempt_completion"> {
 
 	async execute(params: AttemptCompletionParams, task: Task, callbacks: AttemptCompletionCallbacks): Promise<void> {
 		const { result } = params
-		const { handleError, pushToolResult, askFinishSubTaskApproval } = callbacks
+		const { handleError, pushToolResult, askFinishSubTaskApproval, toolCallId } = callbacks
 
 		// Prevent attempt_completion if any tool failed in the current turn
 		if (task.didToolFailInCurrentTurn) {
@@ -108,6 +111,7 @@ export class AttemptCompletionTool extends BaseTool<"attempt_completion"> {
 									task,
 									result,
 									provider,
+									toolCallId ? sanitizeToolUseId(toolCallId) : undefined,
 									askFinishSubTaskApproval,
 									pushToolResult,
 								)
@@ -167,9 +171,24 @@ export class AttemptCompletionTool extends BaseTool<"attempt_completion"> {
 		task: Task,
 		result: string,
 		provider: DelegationProvider,
+		pendingActionId: string | undefined,
 		askFinishSubTaskApproval: () => Promise<boolean>,
 		pushToolResult: (result: string) => void,
 	): Promise<"delegated" | "denied" | "continue"> {
+		// Save the approval before asking, so it can be asked again if the user
+		// leaves this task or VS Code reloads before answering.
+		if (pendingActionId) {
+			const pendingAction: PendingTaskAction = {
+				kind: "finish_subtask",
+				actionId: pendingActionId,
+				approvalText: JSON.stringify({ tool: "finishTask" }),
+				parentTaskId: task.parentTaskId!,
+				result,
+			}
+			await provider.setPendingTaskAction(task.taskId, pendingAction)
+			task.setPendingTaskAction(pendingAction)
+		}
+
 		const didApprove = await askFinishSubTaskApproval()
 
 		if (!didApprove) {
@@ -181,11 +200,16 @@ export class AttemptCompletionTool extends BaseTool<"attempt_completion"> {
 			parentTaskId: task.parentTaskId!,
 			childTaskId: task.taskId,
 			completionResultSummary: result,
+			pendingActionId,
 		})
 
 		// The parent stopped awaiting this child while the approval was pending:
 		// let the caller fall back to a normal completion (a single tool_result).
 		if (!didReopen) {
+			if (pendingActionId) {
+				await task.settlePendingAction(pendingActionId)
+			}
+
 			return "continue"
 		}
 
