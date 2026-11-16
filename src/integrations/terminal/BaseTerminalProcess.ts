@@ -9,6 +9,7 @@ export abstract class BaseTerminalProcess
 	public command: string = ""
 
 	public isHot: boolean = false
+	public movedToBackground: boolean = false
 	protected hotTimer: NodeJS.Timeout | null = null
 
 	protected isListening: boolean = true

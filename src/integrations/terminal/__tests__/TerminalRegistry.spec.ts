@@ -261,6 +261,19 @@ describe("TerminalRegistry", () => {
 			expect(terminal.taskId).toBeUndefined()
 		})
 
+		it("leaves a command that was moved to the background running", () => {
+			const terminal = TerminalRegistry.createTerminal("/test/path", "execa")
+			const abort = vi.fn()
+			terminal.taskId = "task-bg"
+			terminal.busy = true
+			terminal.process = { abort, movedToBackground: true } as any
+
+			TerminalRegistry.releaseTerminalsForTask("task-bg")
+
+			expect(abort).not.toHaveBeenCalled()
+			expect(terminal.taskId).toBeUndefined()
+		})
+
 		it("only releases terminals belonging to the given task", () => {
 			const a = TerminalRegistry.createTerminal("/a", "vscode")
 			const b = TerminalRegistry.createTerminal("/b", "vscode")

@@ -241,6 +241,14 @@ describe("TerminalProcess", () => {
 			expect(continueSpy).toHaveBeenCalled()
 			expect(terminalProcess["isListening"]).toBe(false)
 		})
+
+		it("marks the process as moved to the background", () => {
+			expect(terminalProcess.movedToBackground).toBe(false)
+
+			terminalProcess.continue()
+
+			expect(terminalProcess.movedToBackground).toBe(true)
+		})
 	})
 
 	describe("abort", () => {

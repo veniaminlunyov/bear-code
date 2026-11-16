@@ -312,12 +312,13 @@ export class TerminalRegistry {
 	public static releaseTerminalsForTask(taskId: string): void {
 		this.terminals.forEach((terminal) => {
 			if (terminal.taskId === taskId) {
-				// If the terminal is still executing a command when its task is torn
-				// down (cancel, task switch or removal), abort the process. Otherwise
-				// the command keeps running orphaned and the terminal stays "busy"
-				// until it is killed by hand. abort() is safe on an idle process
-				// (Ctrl+C is gated on isListening, the execa abort is idempotent).
-				if (terminal.busy) {
+				// If the task is torn down (cancel, task switch, removal, or the
+				// parent being closed when it delegates to a subtask) while the tool
+				// is still waiting for a command, abort it so it does not keep
+				// running orphaned. Commands the user or the agent timeout already
+				// moved to the background (e.g. a dev server started with "Proceed
+				// While Running") are left running: the user chose to keep them.
+				if (terminal.busy && !terminal.process?.movedToBackground) {
 					try {
 						terminal.process?.abort()
 					} catch (error) {

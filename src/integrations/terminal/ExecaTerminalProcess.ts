@@ -155,6 +155,7 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 	}
 
 	public override continue() {
+		this.movedToBackground = true
 		this.isListening = false
 		this.removeAllListeners("line")
 		this.emit("continue")

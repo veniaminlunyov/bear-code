@@ -290,6 +290,7 @@ export class TerminalProcess extends BaseTerminalProcess {
 	}
 
 	public override continue() {
+		this.movedToBackground = true
 		this.emitRemainingBufferIfListening()
 		this.isListening = false
 		this.removeAllListeners("line")
