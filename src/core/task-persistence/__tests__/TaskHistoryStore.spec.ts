@@ -93,7 +93,8 @@ describe("TaskHistoryStore", () => {
 			await fs.writeFile(path.join(tasksDir, "parent", GlobalFileNames.historyItem), JSON.stringify(fresh))
 			await fs.writeFile(
 				path.join(tasksDir, GlobalFileNames.historyIndex),
-				JSON.stringify({ version: 1, updatedAt: Date.now(), entries: [stale] }),
+				// The index was last written before the per-task file (debounced write, then a kill).
+				JSON.stringify({ version: 1, updatedAt: Date.now() - 60_000, entries: [stale] }),
 			)
 
 			await store.initialize()
@@ -104,6 +105,26 @@ describe("TaskHistoryStore", () => {
 			const { status: _status, ...withoutStatus } = stale
 			await store.upsert({ ...withoutStatus, tokensIn: 999 } as HistoryItem)
 			expect(store.get("parent")).toMatchObject({ status: "delegated", awaitingChildId: "child", tokensIn: 999 })
+		})
+
+		it("does not re-read per-task files older than the index at startup", async () => {
+			const tasksDir = path.join(tmpDir, "tasks")
+			const indexed = makeHistoryItem({ id: "old-task", task: "from index" })
+			const filePath = path.join(tasksDir, "old-task", GlobalFileNames.historyItem)
+
+			await fs.mkdir(path.dirname(filePath), { recursive: true })
+			await fs.writeFile(filePath, JSON.stringify({ ...indexed, task: "from file" }))
+			const past = new Date(Date.now() - 60_000)
+			await fs.utimes(filePath, past, past)
+			await fs.writeFile(
+				path.join(tasksDir, GlobalFileNames.historyIndex),
+				JSON.stringify({ version: 1, updatedAt: Date.now(), entries: [indexed] }),
+			)
+
+			await store.initialize()
+
+			// The file predates the index, so the index entry is already current.
+			expect(store.get("old-task")!.task).toBe("from index")
 		})
 	})
 
@@ -307,10 +328,10 @@ describe("TaskHistoryStore", () => {
 			expect(store.get("shared-task")!.status).toBe("completed")
 		})
 
-		it("skips files whose mtime has not changed since the last scan", async () => {
+		it("skips files whose mtime and size have not changed since the last scan", async () => {
 			await store.initialize()
 
-			const item = makeHistoryItem({ id: "unchanged-task", status: "active" })
+			const item = makeHistoryItem({ id: "unchanged-task", task: "aaaa" })
 			await store.upsert(item)
 			// Pin a whole-second mtime so it can be restored exactly below.
 			const filePath = path.join(tmpDir, "tasks", "unchanged-task", GlobalFileNames.historyItem)
@@ -318,17 +339,47 @@ describe("TaskHistoryStore", () => {
 			await fs.utimes(filePath, pinned, pinned)
 			await store.reconcile()
 
-			// Rewrite the content but restore the same mtime: a non-forced pass trusts
-			// the mtime and keeps the cached entry.
-			await fs.writeFile(filePath, JSON.stringify({ ...item, status: "completed" }))
+			// Rewrite with same-size content and restore the mtime: a non-forced pass
+			// trusts the stamp and keeps the cached entry.
+			const original = await fs.readFile(filePath, "utf8")
+			await fs.writeFile(filePath, original.replace('"aaaa"', '"bbbb"'))
 			await fs.utimes(filePath, pinned, pinned)
 
 			await store.reconcile()
-			expect(store.get("unchanged-task")!.status).toBe("active")
+			expect(store.get("unchanged-task")!.task).toBe("aaaa")
 
 			// A forced pass re-reads every file.
 			await store.reconcile({ forceRefresh: true })
-			expect(store.get("unchanged-task")!.status).toBe("completed")
+			expect(store.get("unchanged-task")!.task).toBe("bbbb")
+		})
+
+		it("re-reads a rewrite that keeps the mtime but changes the size (coarse timestamps)", async () => {
+			await store.initialize()
+
+			const item = makeHistoryItem({ id: "coarse-task", status: "delegated" })
+			await store.upsert(item)
+			const filePath = path.join(tmpDir, "tasks", "coarse-task", GlobalFileNames.historyItem)
+			const pinned = new Date(2026, 0, 1)
+			await fs.utimes(filePath, pinned, pinned)
+			await store.reconcile()
+
+			await fs.writeFile(filePath, JSON.stringify({ ...item, status: "active" }))
+			await fs.utimes(filePath, pinned, pinned)
+
+			await store.reconcile()
+			expect(store.get("coarse-task")!.status).toBe("active")
+		})
+
+		it("refresh() re-reads one task written by another window", async () => {
+			await store.initialize()
+
+			const item = makeHistoryItem({ id: "shared-task", status: "delegated" })
+			await store.upsert(item)
+			const filePath = path.join(tmpDir, "tasks", "shared-task", GlobalFileNames.historyItem)
+			await fs.writeFile(filePath, JSON.stringify({ ...item, status: "active" }))
+
+			await expect(store.refresh("shared-task")).resolves.toMatchObject({ status: "active" })
+			expect(store.get("shared-task")!.status).toBe("active")
 		})
 	})
 
