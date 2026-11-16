@@ -2625,7 +2625,12 @@ export class ClineProvider
 		})
 
 		await this.addClineToStack(task)
-		task.start()
+
+		// Callers that pass startTask: false (delegateParentAndOpenChild) start the
+		// task themselves once their own bookkeeping is persisted.
+		if (options.startTask !== false) {
+			task.start()
+		}
 
 		this.log(
 			`[createTask] ${task.parentTask ? "child" : "parent"} task ${task.taskId}.${task.instanceId} instantiated`,
@@ -2928,6 +2933,12 @@ export class ClineProvider
 					(err as Error)?.message ?? String(err)
 				}`,
 			)
+
+			// Without the delegation fields the child could never hand its result back
+			// to the parent, so undo the handoff: drop the paused child and reopen the
+			// parent from history.
+			await this.rollbackFailedDelegation(parentTaskId, child.taskId)
+			throw err
 		}
 
 		// 6) Start the child task now that parent metadata is safely persisted.
@@ -2941,6 +2952,48 @@ export class ClineProvider
 		}
 
 		return child
+	}
+
+	/**
+	 * Undo a delegation whose parent metadata could not be persisted: close and
+	 * delete the child (it was created with startTask: false and never ran), then
+	 * reopen the parent from history so the user can continue it.
+	 */
+	private async rollbackFailedDelegation(parentTaskId: string, childTaskId: string): Promise<void> {
+		if (this.getCurrentTask()?.taskId === childTaskId) {
+			try {
+				await this.removeClineFromStack({ skipDelegationRepair: true })
+			} catch (error) {
+				this.log(
+					`[delegateParentAndOpenChild] Failed to close child ${childTaskId} during rollback: ${
+						(error as Error)?.message ?? String(error)
+					}`,
+				)
+			}
+		}
+
+		try {
+			await this.deleteTaskWithId(childTaskId, false)
+		} catch (error) {
+			this.log(
+				`[delegateParentAndOpenChild] Failed to delete child ${childTaskId} during rollback: ${
+					(error as Error)?.message ?? String(error)
+				}`,
+			)
+		}
+
+		try {
+			const { historyItem } = await this.getTaskWithId(parentTaskId)
+			await this.createTaskWithHistoryItem(historyItem)
+		} catch (error) {
+			this.log(
+				`[delegateParentAndOpenChild] Failed to restore parent ${parentTaskId} during rollback: ${
+					(error as Error)?.message ?? String(error)
+				}`,
+			)
+		}
+
+		vscode.window.showErrorMessage(t("common:errors.subtask_delegation_failed"))
 	}
 
 	/**

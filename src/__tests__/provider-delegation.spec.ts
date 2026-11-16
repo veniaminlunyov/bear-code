@@ -4,6 +4,30 @@ import { describe, it, expect, vi } from "vitest"
 import type { HistoryItem } from "@bear-code/types"
 import { BearCodeEventName } from "@bear-code/types"
 import { ClineProvider } from "../core/webview/ClineProvider"
+import * as ProfileValidatorMod from "../shared/ProfileValidator"
+
+const { taskStart } = vi.hoisted(() => ({ taskStart: vi.fn() }))
+
+vi.mock("../core/task/Task", () => {
+	class TaskStub {
+		public taskId = "child-1"
+		public instanceId = "inst"
+		public parentTask?: unknown
+		constructor(opts: any) {
+			this.parentTask = opts.parentTask
+		}
+		start() {
+			taskStart()
+		}
+	}
+	return { Task: TaskStub }
+})
+
+vi.mock("vscode", () => ({
+	window: { showErrorMessage: vi.fn() },
+	workspace: { getConfiguration: vi.fn(() => ({ get: vi.fn(), update: vi.fn() })) },
+	ConfigurationTarget: { Global: 1 },
+}))
 
 const parentHistoryItem: HistoryItem = {
 	id: "parent-1",
@@ -192,5 +216,101 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 
 		// createTask → atomicReadAndUpdate → child.start: lock must release before start
 		expect(callOrder).toEqual(["createTask", "atomicReadAndUpdate", "child.start"])
+	})
+
+	it("rolls back the handoff and rethrows when the parent metadata write fails", async () => {
+		const callOrder: string[] = []
+		const childStart = vi.fn()
+		const writeError = new Error("disk full")
+		const restoredParent = { ...parentHistoryItem, status: "active" } as HistoryItem
+		let current: any = makeParentTask()
+
+		const provider = {
+			emit: vi.fn(),
+			getCurrentTask: vi.fn(() => current),
+			removeClineFromStack: vi.fn(async (opts?: { skipDelegationRepair?: boolean }) => {
+				callOrder.push(`removeClineFromStack:${opts?.skipDelegationRepair}`)
+				current = undefined
+			}),
+			createTask: vi.fn(async () => {
+				current = { taskId: "child-1", start: childStart }
+				return current
+			}),
+			handleModeSwitch: vi.fn().mockResolvedValue(undefined),
+			deleteTaskWithId: vi.fn(async (id: string, cascade: boolean) => {
+				callOrder.push(`deleteTaskWithId:${id}:${cascade}`)
+			}),
+			getTaskWithId: vi.fn().mockResolvedValue({ historyItem: restoredParent }),
+			createTaskWithHistoryItem: vi.fn(async (item: HistoryItem) => {
+				callOrder.push(`createTaskWithHistoryItem:${item.id}`)
+			}),
+			log: vi.fn(),
+			isViewLaunched: false,
+			taskHistoryStore: makeStoreStub({ atomicReadAndUpdate: vi.fn().mockRejectedValue(writeError) }),
+		} as unknown as ClineProvider
+		;(provider as any).rollbackFailedDelegation = (ClineProvider.prototype as any).rollbackFailedDelegation
+
+		await expect((ClineProvider.prototype as any).delegateParentAndOpenChild.call(provider, params)).rejects.toBe(
+			writeError,
+		)
+
+		// The child never started and the TaskDelegated event was not emitted.
+		expect(childStart).not.toHaveBeenCalled()
+		expect((provider as any).emit).not.toHaveBeenCalledWith(
+			BearCodeEventName.TaskDelegated,
+			expect.anything(),
+			expect.anything(),
+		)
+		// Parent close, child close, child delete (no cascade), parent restore.
+		expect(callOrder).toEqual([
+			"removeClineFromStack:true",
+			"removeClineFromStack:true",
+			"deleteTaskWithId:child-1:false",
+			"createTaskWithHistoryItem:parent-1",
+		])
+	})
+})
+
+describe("ClineProvider.createTask() startTask option", () => {
+	const makeProvider = () =>
+		({
+			clineStack: [{ taskId: "parent-1" }],
+			setValues: vi.fn(),
+			getState: vi.fn().mockResolvedValue({
+				apiConfiguration: { apiProvider: "anthropic" },
+				organizationAllowList: "*",
+				enableCheckpoints: false,
+				checkpointTimeout: 60,
+			}),
+			removeClineFromStack: vi.fn(),
+			addClineToStack: vi.fn().mockResolvedValue(undefined),
+			log: vi.fn(),
+			customModesManager: { updateCustomMode: vi.fn() },
+		}) as unknown as ClineProvider
+
+	it("does not start the task when startTask is false", async () => {
+		vi.spyOn(ProfileValidatorMod.ProfileValidator, "isProfileAllowed").mockReturnValue(true)
+		taskStart.mockClear()
+
+		await (ClineProvider.prototype as any).createTask.call(
+			makeProvider(),
+			"child",
+			undefined,
+			{ taskId: "p" },
+			{
+				startTask: false,
+			},
+		)
+
+		expect(taskStart).not.toHaveBeenCalled()
+	})
+
+	it("starts the task by default", async () => {
+		vi.spyOn(ProfileValidatorMod.ProfileValidator, "isProfileAllowed").mockReturnValue(true)
+		taskStart.mockClear()
+
+		await (ClineProvider.prototype as any).createTask.call(makeProvider(), "task")
+
+		expect(taskStart).toHaveBeenCalledTimes(1)
 	})
 })
