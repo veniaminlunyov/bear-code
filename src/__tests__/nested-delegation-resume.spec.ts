@@ -136,6 +136,26 @@ describe("Nested delegation resume (A → B → C)", () => {
 			return Object.values(historyIndex)
 		})
 
+		// History store backed by historyIndex: child/parent handoff goes through atomicUpdatePair.
+		const taskHistoryStore = {
+			get: vi.fn((id: string) => historyIndex[id]),
+			atomicUpdatePair: vi.fn(
+				async (
+					firstId: string,
+					secondId: string,
+					firstUpdater: (h: any) => any,
+					secondUpdater: (h: any) => any,
+				) => {
+					historyIndex[firstId] = { ...historyIndex[firstId], ...firstUpdater({ ...historyIndex[firstId] }) }
+					historyIndex[secondId] = {
+						...historyIndex[secondId],
+						...secondUpdater({ ...historyIndex[secondId] }),
+					}
+					return Object.values(historyIndex)
+				},
+			),
+		}
+
 		const provider = {
 			contextProxy: { globalStorageUri: { fsPath: "/tmp" } },
 			getTaskWithId,
@@ -144,6 +164,8 @@ describe("Nested delegation resume (A → B → C)", () => {
 			removeClineFromStack,
 			createTaskWithHistoryItem,
 			updateTaskHistory,
+			taskHistoryStore,
+			isViewLaunched: false,
 			// Wire through provider method so attemptCompletionTool can call it
 			reopenParentFromDelegation: vi.fn(async (params: any) => {
 				return await (ClineProvider.prototype as any).reopenParentFromDelegation.call(provider, params)
@@ -254,5 +276,24 @@ describe("Nested delegation resume (A → B → C)", () => {
 		// Find a TaskDelegationCompleted matching A <- B
 		const hasAfromB = completedEvents.some(([, parentId, childId]: any[]) => parentId === "A" && childId === "B")
 		expect(hasAfromB).toBe(true)
+
+		// Both hops wrote child + parent atomically and left consistent metadata.
+		expect(taskHistoryStore.atomicUpdatePair).toHaveBeenNthCalledWith(
+			1,
+			"C",
+			"B",
+			expect.any(Function),
+			expect.any(Function),
+		)
+		expect(taskHistoryStore.atomicUpdatePair).toHaveBeenNthCalledWith(
+			2,
+			"B",
+			"A",
+			expect.any(Function),
+			expect.any(Function),
+		)
+		expect(historyIndex.C.status).toBe("completed")
+		expect(historyIndex.B).toMatchObject({ status: "completed", completedByChildId: "C" })
+		expect(historyIndex.A).toMatchObject({ status: "active", completedByChildId: "B", awaitingChildId: undefined })
 	})
 })

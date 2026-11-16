@@ -514,4 +514,141 @@ describe("TaskHistoryStore", () => {
 			).rejects.toThrow("nonexistent-task not found in cache")
 		})
 	})
+
+	describe("atomicUpdatePair()", () => {
+		it("updates both records and persists both files", async () => {
+			await store.initialize()
+			await store.upsert(makeHistoryItem({ id: "child-pair", status: "active" }))
+			await store.upsert(
+				makeHistoryItem({ id: "parent-pair", status: "delegated", awaitingChildId: "child-pair" }),
+			)
+
+			await store.atomicUpdatePair(
+				"child-pair",
+				"parent-pair",
+				(c) => ({ ...c, status: "completed" }),
+				(p) => ({ ...p, status: "active", awaitingChildId: undefined }),
+			)
+
+			expect(store.get("child-pair")?.status).toBe("completed")
+			expect(store.get("parent-pair")?.status).toBe("active")
+			expect(store.get("parent-pair")?.awaitingChildId).toBeUndefined()
+
+			const childDisk = JSON.parse(
+				await fs.readFile(path.join(tmpDir, "tasks", "child-pair", GlobalFileNames.historyItem), "utf8"),
+			)
+			const parentDisk = JSON.parse(
+				await fs.readFile(path.join(tmpDir, "tasks", "parent-pair", GlobalFileNames.historyItem), "utf8"),
+			)
+			expect(childDisk.status).toBe("completed")
+			expect(parentDisk.status).toBe("active")
+		})
+
+		it("a concurrent upsert queued during the pair write merges on top of both updates", async () => {
+			await store.initialize()
+			const parent = makeHistoryItem({ id: "parent-concurrent", status: "delegated" })
+			await store.upsert(makeHistoryItem({ id: "child-concurrent", status: "active" }))
+			await store.upsert(parent)
+
+			const pair = store.atomicUpdatePair(
+				"child-concurrent",
+				"parent-concurrent",
+				(c) => ({ ...c, status: "completed" }),
+				(p) => ({ ...p, status: "active" }),
+			)
+			const followUp = store.upsert({ ...parent, status: "active", tokensOut: 999 })
+
+			await Promise.all([pair, followUp])
+
+			expect(store.get("child-concurrent")?.status).toBe("completed")
+			expect(store.get("parent-concurrent")).toMatchObject({ status: "active", tokensOut: 999 })
+		})
+
+		it("throws when an updater changes the id", async () => {
+			await store.initialize()
+			await store.upsert(makeHistoryItem({ id: "child-id" }))
+			await store.upsert(makeHistoryItem({ id: "parent-id" }))
+
+			await expect(
+				store.atomicUpdatePair(
+					"child-id",
+					"parent-id",
+					(c) => c,
+					(p) => ({ ...p, id: "wrong-id" }),
+				),
+			).rejects.toThrow("second updater changed id from parent-id to wrong-id")
+		})
+
+		it("throws when either task is not in the cache", async () => {
+			await store.initialize()
+			await store.upsert(makeHistoryItem({ id: "present" }))
+
+			await expect(
+				store.atomicUpdatePair(
+					"missing",
+					"present",
+					(c) => c,
+					(p) => p,
+				),
+			).rejects.toThrow("missing not found in cache")
+			await expect(
+				store.atomicUpdatePair(
+					"present",
+					"missing",
+					(c) => c,
+					(p) => p,
+				),
+			).rejects.toThrow("missing not found in cache")
+		})
+
+		it("leaves the cache unchanged when the second file write fails", async () => {
+			await store.initialize()
+			await store.upsert(makeHistoryItem({ id: "child-partial", status: "active" }))
+			await store.upsert(makeHistoryItem({ id: "parent-partial", status: "delegated" }))
+
+			const storeAny = store as any
+			const originalWriteTaskFile = storeAny.writeTaskFile.bind(store)
+			let writes = 0
+			vi.spyOn(storeAny, "writeTaskFile").mockImplementation(async (...args: unknown[]) => {
+				writes++
+				if (writes === 2) throw new Error("second writeTaskFile failed")
+				return originalWriteTaskFile(...args)
+			})
+
+			await expect(
+				store.atomicUpdatePair(
+					"child-partial",
+					"parent-partial",
+					(c) => ({ ...c, status: "completed" }),
+					(p) => ({ ...p, status: "active" }),
+				),
+			).rejects.toThrow("second writeTaskFile failed")
+
+			expect(store.get("child-partial")?.status).toBe("active")
+			expect(store.get("parent-partial")?.status).toBe("delegated")
+		})
+
+		it("invokes onWrite once with both records updated", async () => {
+			const onWrite = vi.fn().mockResolvedValue(undefined)
+			const storeWithCallback = new TaskHistoryStore(tmpDir, { onWrite })
+			await storeWithCallback.initialize()
+			await storeWithCallback.upsert(makeHistoryItem({ id: "child-onwrite", status: "active" }))
+			await storeWithCallback.upsert(makeHistoryItem({ id: "parent-onwrite", status: "delegated" }))
+			onWrite.mockClear()
+
+			await storeWithCallback.atomicUpdatePair(
+				"child-onwrite",
+				"parent-onwrite",
+				(c) => ({ ...c, status: "completed" }),
+				(p) => ({ ...p, status: "active" }),
+			)
+
+			expect(onWrite).toHaveBeenCalledTimes(1)
+			const written = onWrite.mock.calls[0][0] as HistoryItem[]
+			expect(written.find((i) => i.id === "child-onwrite")?.status).toBe("completed")
+			expect(written.find((i) => i.id === "parent-onwrite")?.status).toBe("active")
+
+			storeWithCallback.dispose()
+		})
+	})
 })

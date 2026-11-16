@@ -3063,43 +3063,73 @@ export class ClineProvider
 		await saveApiMessages({ messages: parentApiMessages as any, taskId: parentTaskId, globalStoragePath })
 
 		// 3) Close child instance if still open (single-open-task invariant).
-		//    This MUST happen BEFORE updating the child's status to "completed" because
+		//    This MUST happen BEFORE marking the child "completed" because
 		//    removeClineFromStack() → abortTask(true) → saveClineMessages() writes
 		//    the historyItem with initialStatus (typically "active"), which would
 		//    overwrite a "completed" status set earlier.
+		//    skipDelegationRepair: the parent metadata is updated in step 4 below;
+		//    the generic delegated → active repair would only add a redundant write.
 		const current = this.getCurrentTask()
 		if (current?.taskId === childTaskId) {
-			await this.removeClineFromStack()
+			await this.removeClineFromStack({ skipDelegationRepair: true })
 		}
 
-		// 4) Update child metadata to "completed" status.
-		//    This runs after the abort so it overwrites the stale "active" status
-		//    that saveClineMessages() may have written during step 3.
-		try {
-			const { historyItem: childHistory } = await this.getTaskWithId(childTaskId)
-			await this.updateTaskHistory({
-				...childHistory,
-				status: "completed",
-			})
-		} catch (err) {
-			this.log(
-				`[reopenParentFromDelegation] Failed to persist child completed status for ${childTaskId}: ${
-					(err as Error)?.message ?? String(err)
-				}`,
-			)
-		}
-
-		// 5) Update parent metadata and persist BEFORE emitting completion event
-		const childIds = Array.from(new Set([...(historyItem.childIds ?? []), childTaskId]))
-		const updatedHistory: typeof historyItem = {
-			...historyItem,
+		// 4) Mark the child "completed" and the parent "active" BEFORE emitting the
+		//    completion event. The parent update is built from the current stored
+		//    record (not the snapshot read in step 1), so writes that landed in the
+		//    meantime — e.g. the child's final save during step 3 — are preserved.
+		const completeParent = (parent: HistoryItem): HistoryItem => ({
+			...parent,
 			status: "active",
 			completedByChildId: childTaskId,
 			completionResultSummary,
 			awaitingChildId: undefined,
-			childIds,
+			childIds: Array.from(new Set([...(parent.childIds ?? []), childTaskId])),
+		})
+
+		let updatedHistory: HistoryItem
+
+		if (this.taskHistoryStore.get(childTaskId) && this.taskHistoryStore.get(parentTaskId)) {
+			// Both records are cached: update them in one lock acquisition so no
+			// concurrent writer can observe (or persist over) a half-done handoff.
+			await this.taskHistoryStore.atomicUpdatePair(
+				childTaskId,
+				parentTaskId,
+				(child) => ({ ...child, status: "completed" }),
+				completeParent,
+			)
+			this.recentTasksCache = undefined
+
+			updatedHistory = this.taskHistoryStore.get(parentTaskId) ?? completeParent(historyItem)
+
+			if (this.isViewLaunched) {
+				const updatedChild = this.taskHistoryStore.get(childTaskId)
+
+				if (updatedChild) {
+					await this.postMessageToWebview({ type: "taskHistoryItemUpdated", taskHistoryItem: updatedChild })
+				}
+
+				await this.postMessageToWebview({ type: "taskHistoryItemUpdated", taskHistoryItem: updatedHistory })
+			}
+		} else {
+			// Fallback (e.g. legacy globalState-only history): sequential writes.
+			try {
+				const { historyItem: childHistory } = await this.getTaskWithId(childTaskId)
+				await this.updateTaskHistory({
+					...childHistory,
+					status: "completed",
+				})
+			} catch (err) {
+				this.log(
+					`[reopenParentFromDelegation] Failed to persist child completed status for ${childTaskId}: ${
+						(err as Error)?.message ?? String(err)
+					}`,
+				)
+			}
+
+			updatedHistory = completeParent(historyItem)
+			await this.updateTaskHistory(updatedHistory)
 		}
-		await this.updateTaskHistory(updatedHistory)
 
 		// 6) Emit TaskDelegationCompleted (provider-level)
 		try {

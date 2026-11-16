@@ -222,6 +222,75 @@ export class TaskHistoryStore {
 	}
 
 	/**
+	 * Atomically update two related HistoryItems (e.g. a delegated child and its
+	 * parent) within a single lock acquisition. Both updaters receive deep copies,
+	 * must be synchronous and must not perform I/O or acquire any other lock.
+	 *
+	 * Both per-task files are written before the in-memory cache is touched, so
+	 * readers never observe a half-updated cache. If the second file write fails
+	 * the first file has already landed on disk (no rollback), but the cache is
+	 * left unchanged and the error is surfaced to the caller.
+	 *
+	 * @throws If either task ID is not present in the cache, or an updater changes the id.
+	 */
+	public atomicUpdatePair(
+		firstId: string,
+		secondId: string,
+		firstUpdater: (current: HistoryItem) => HistoryItem,
+		secondUpdater: (current: HistoryItem) => HistoryItem,
+	): Promise<HistoryItem[]> {
+		return this.withLock(async () => {
+			const first = this.cache.get(firstId)
+
+			if (!first) {
+				throw new Error(`[TaskHistoryStore] atomicUpdatePair: ${firstId} not found in cache`)
+			}
+
+			const second = this.cache.get(secondId)
+
+			if (!second) {
+				throw new Error(`[TaskHistoryStore] atomicUpdatePair: ${secondId} not found in cache`)
+			}
+
+			const updatedFirst = firstUpdater(structuredClone(first))
+			const updatedSecond = secondUpdater(structuredClone(second))
+
+			if (updatedFirst.id !== firstId) {
+				throw new Error(
+					`[TaskHistoryStore] atomicUpdatePair: first updater changed id from ${firstId} to ${updatedFirst.id}`,
+				)
+			}
+
+			if (updatedSecond.id !== secondId) {
+				throw new Error(
+					`[TaskHistoryStore] atomicUpdatePair: second updater changed id from ${secondId} to ${updatedSecond.id}`,
+				)
+			}
+
+			// Merge with existing cache entries, mirroring upsert().
+			const mergedFirst = { ...first, ...updatedFirst }
+			const mergedSecond = { ...second, ...updatedSecond }
+
+			await this.writeTaskFile(mergedFirst)
+			await this.writeTaskFile(mergedSecond)
+
+			// Both disk writes succeeded — now update the cache.
+			this.cache.set(firstId, mergedFirst)
+			this.cache.set(secondId, mergedSecond)
+
+			this.scheduleIndexWrite()
+
+			const all = this.getAll()
+
+			if (this.onWrite) {
+				await this.onWrite(all)
+			}
+
+			return all
+		})
+	}
+
+	/**
 	 * Delete a single task's history item.
 	 */
 	async delete(taskId: string): Promise<void> {
