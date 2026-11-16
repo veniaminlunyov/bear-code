@@ -54,6 +54,14 @@ export interface ChatViewRef {
 }
 
 export const MAX_IMAGES_PER_MESSAGE = 20 // This is the Anthropic limit.
+// Keep the off-screen render buffer tight: large transcripts with a wide buffer
+// pre-render many heavy rows (markdown, diffs, code blocks) and can exhaust the
+// webview's memory, leaving a gray panel.
+const CHAT_DEFAULT_ITEM_HEIGHT = 180
+const CHAT_VIEWPORT_BUFFER = {
+	top: 600,
+	bottom: 800,
+} as const
 
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0
 
@@ -1473,6 +1481,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		],
 	)
 
+	const computeMessageKey = useCallback(
+		(index: number, messageOrGroup: ClineMessage) => `${messageOrGroup.ts}-${index}`,
+		[],
+	)
+
 	// Function to handle mode switching
 	const switchToNextMode = useCallback(() => {
 		const allModes = getAllModes(customModes)
@@ -1632,7 +1645,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							ref={virtuosoRef}
 							key={task.ts}
 							className="scrollable grow overflow-y-scroll mb-1"
-							increaseViewportBy={{ top: 3_000, bottom: 1000 }}
+							computeItemKey={computeMessageKey}
+							defaultItemHeight={CHAT_DEFAULT_ITEM_HEIGHT}
+							increaseViewportBy={CHAT_VIEWPORT_BUFFER}
 							data={groupedMessages}
 							itemContent={itemContent}
 							followOutput={followOutputCallback}

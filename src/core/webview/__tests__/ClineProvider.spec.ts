@@ -447,6 +447,58 @@ describe("ClineProvider", () => {
 		expect(mockWebviewView.webview.html).toContain("<!DOCTYPE html>")
 	})
 
+	describe("logWebviewHiddenDiagnostics", () => {
+		let visibilityCallback: () => void
+
+		beforeEach(async () => {
+			// Capture the visibility callback registered during resolveWebviewView
+			;(mockWebviewView as any).onDidChangeVisibility = vi.fn().mockImplementation((cb: () => void) => {
+				visibilityCallback = cb
+				return { dispose: vi.fn() }
+			})
+			// @ts-ignore - accessing private property for testing
+			provider.view = mockWebviewView
+			await provider.resolveWebviewView(mockWebviewView)
+			;(mockOutputChannel.appendLine as ReturnType<typeof vi.fn>).mockClear()
+		})
+
+		test("does not log when no task is active", () => {
+			Object.defineProperty(mockWebviewView, "visible", { value: false, configurable: true })
+			visibilityCallback()
+			expect(mockOutputChannel.appendLine).not.toHaveBeenCalled()
+		})
+
+		test("does not log when the active task is aborted", async () => {
+			const task = new Task(defaultTaskOptions)
+			Object.defineProperty(task, "taskId", { value: "aborted-task", writable: true })
+			task.abort = true
+			await provider.addClineToStack(task)
+			;(mockOutputChannel.appendLine as ReturnType<typeof vi.fn>).mockClear()
+			Object.defineProperty(mockWebviewView, "visible", { value: false, configurable: true })
+			visibilityCallback()
+			expect(mockOutputChannel.appendLine).not.toHaveBeenCalled()
+		})
+
+		test("logs task state to output channel when an active task is running", async () => {
+			const task = new Task(defaultTaskOptions)
+			Object.defineProperty(task, "taskId", { value: "running-task", writable: true })
+			await provider.addClineToStack(task)
+			Object.defineProperty(mockWebviewView, "visible", { value: false, configurable: true })
+			visibilityCallback()
+			expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining("running-task"))
+		})
+
+		test("does not log when the view becomes visible", async () => {
+			const task = new Task(defaultTaskOptions)
+			await provider.addClineToStack(task)
+			;(mockOutputChannel.appendLine as ReturnType<typeof vi.fn>).mockClear()
+			visibilityCallback()
+			expect(mockOutputChannel.appendLine).not.toHaveBeenCalledWith(
+				expect.stringContaining("Webview hidden during active task"),
+			)
+		})
+	})
+
 	test("resolveWebviewView sets up webview correctly in development mode even if local server is not running", async () => {
 		provider = new ClineProvider(
 			{ ...mockContext, extensionMode: vscode.ExtensionMode.Development },
