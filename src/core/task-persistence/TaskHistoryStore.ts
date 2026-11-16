@@ -1,6 +1,7 @@
 import * as fs from "fs/promises"
 import * as fsSync from "fs"
 import * as path from "path"
+import deepEqual from "fast-deep-equal"
 
 import type { HistoryItem } from "@bear-code/types"
 
@@ -45,6 +46,8 @@ export class TaskHistoryStore {
 	private readonly globalStoragePath: string
 	private readonly onWrite?: (items: HistoryItem[]) => Promise<void>
 	private cache: Map<string, HistoryItem> = new Map()
+	/** mtime of each per-task file as last read by reconcile(), to skip unchanged files. */
+	private taskFileMtimes: Map<string, number> = new Map()
 	private writeLock: Promise<void> = Promise.resolve()
 	private indexWriteTimer: ReturnType<typeof setTimeout> | null = null
 	private fsWatcher: fsSync.FSWatcher | null = null
@@ -85,8 +88,11 @@ export class TaskHistoryStore {
 			// 1. Load existing index into the cache
 			await this.loadIndex()
 
-			// 2. Reconcile cache against actual task directories on disk
-			await this.reconcile()
+			// 2. Reconcile cache against actual task directories on disk. The per-task
+			//    files are the source of truth and the index is written with a debounce,
+			//    so after a crash or kill the index can hold an older version of a task
+			//    (for example without its delegation fields). Re-read every file.
+			await this.reconcile({ forceRefresh: true })
 
 			// 3. Start fs.watch for cross-instance reactivity
 			this.startWatcher()
@@ -296,6 +302,7 @@ export class TaskHistoryStore {
 	async delete(taskId: string): Promise<void> {
 		return this.withLock(async () => {
 			this.cache.delete(taskId)
+			this.taskFileMtimes.delete(taskId)
 
 			// Remove per-task file (best-effort)
 			try {
@@ -321,6 +328,7 @@ export class TaskHistoryStore {
 		return this.withLock(async () => {
 			for (const taskId of taskIds) {
 				this.cache.delete(taskId)
+				this.taskFileMtimes.delete(taskId)
 
 				try {
 					const filePath = await this.getTaskFilePath(taskId)
@@ -344,10 +352,14 @@ export class TaskHistoryStore {
 	/**
 	 * Scan task directories vs index and fix any drift.
 	 *
-	 * - Tasks on disk but missing from cache: read and add
+	 * - Tasks on disk whose file is new or changed since the last scan: (re)read
 	 * - Tasks in cache but missing from disk: remove
+	 *
+	 * Without `forceRefresh`, a task whose file mtime matches the last scan is
+	 * skipped, so watcher and periodic passes stay cheap. A changed file (for
+	 * example written by another window) replaces the cached entry.
 	 */
-	async reconcile(): Promise<void> {
+	async reconcile(options: { forceRefresh?: boolean } = {}): Promise<void> {
 		// Run through the write lock to prevent interleaving with upsert/delete
 		return this.withLock(async () => {
 			const tasksDir = await this.getTasksDir()
@@ -366,18 +378,31 @@ export class TaskHistoryStore {
 			const cacheIds = new Set(this.cache.keys())
 			let changed = false
 
-			// Tasks on disk but not in cache: read their history_item.json
 			for (const taskId of onDiskIds) {
-				if (!cacheIds.has(taskId)) {
-					try {
-						const item = await this.readTaskFile(taskId)
-						if (item) {
+				try {
+					const taskFilePath = await this.getTaskFilePath(taskId)
+					const { mtimeMs } = await fs.stat(taskFilePath)
+
+					if (
+						!options.forceRefresh &&
+						this.cache.has(taskId) &&
+						this.taskFileMtimes.get(taskId) === mtimeMs
+					) {
+						continue
+					}
+
+					const item = await this.readTaskFile(taskId)
+
+					if (item) {
+						this.taskFileMtimes.set(taskId, mtimeMs)
+
+						if (!deepEqual(this.cache.get(taskId), item)) {
 							this.cache.set(taskId, item)
 							changed = true
 						}
-					} catch {
-						// Corrupted or missing file, skip
 					}
+				} catch {
+					// No history_item.json yet, or a corrupted file: keep what the cache has.
 				}
 			}
 
@@ -385,6 +410,7 @@ export class TaskHistoryStore {
 			for (const taskId of cacheIds) {
 				if (!onDiskIds.has(taskId)) {
 					this.cache.delete(taskId)
+					this.taskFileMtimes.delete(taskId)
 					changed = true
 				}
 			}
@@ -401,6 +427,8 @@ export class TaskHistoryStore {
 	 * Invalidate a single task's cache entry (re-read from disk on next access).
 	 */
 	async invalidate(taskId: string): Promise<void> {
+		this.taskFileMtimes.delete(taskId)
+
 		try {
 			const item = await this.readTaskFile(taskId)
 			if (item) {
@@ -418,6 +446,7 @@ export class TaskHistoryStore {
 	 */
 	invalidateAll(): void {
 		this.cache.clear()
+		this.taskFileMtimes.clear()
 	}
 
 	// ────────────────────────────── Migration ──────────────────────────────
@@ -433,36 +462,41 @@ export class TaskHistoryStore {
 			return
 		}
 
-		for (const item of taskHistoryEntries) {
-			if (!item.id) {
-				continue
-			}
-
-			// Check if task directory exists on disk
+		// Under the write lock: the cache and index updates must not interleave with a
+		// concurrent upsert, or the index written here could drop that upsert.
+		await this.withLock(async () => {
 			const tasksDir = await this.getTasksDir()
-			const taskDir = path.join(tasksDir, item.id)
 
-			try {
-				await fs.access(taskDir)
-			} catch {
-				// Task directory doesn't exist; skip this entry as it's orphaned in globalState
-				continue
+			for (const item of taskHistoryEntries) {
+				if (!item.id) {
+					continue
+				}
+
+				// Check if task directory exists on disk
+				const taskDir = path.join(tasksDir, item.id)
+
+				try {
+					await fs.access(taskDir)
+				} catch {
+					// Task directory doesn't exist; skip this entry as it's orphaned in globalState
+					continue
+				}
+
+				// Write history_item.json if it doesn't exist yet
+				const filePath = path.join(taskDir, GlobalFileNames.historyItem)
+				try {
+					await fs.access(filePath)
+					// File already exists, skip (don't overwrite existing per-task files)
+				} catch {
+					// File doesn't exist, write it
+					await safeWriteJson(filePath, item)
+					this.cache.set(item.id, item)
+				}
 			}
 
-			// Write history_item.json if it doesn't exist yet
-			const filePath = path.join(taskDir, GlobalFileNames.historyItem)
-			try {
-				await fs.access(filePath)
-				// File already exists, skip (don't overwrite existing per-task files)
-			} catch {
-				// File doesn't exist, write it
-				await safeWriteJson(filePath, item)
-				this.cache.set(item.id, item)
-			}
-		}
-
-		// Write the index
-		await this.writeIndex()
+			// Write the index
+			await this.writeIndex()
+		})
 	}
 
 	// ────────────────────────────── Private: Index management ──────────────────────────────

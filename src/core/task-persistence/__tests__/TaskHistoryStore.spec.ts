@@ -84,6 +84,27 @@ describe("TaskHistoryStore", () => {
 			expect(store.get("task-1")).toBeDefined()
 			expect(store.get("task-2")).toBeDefined()
 		})
+		it("prefers the per-task file over a stale index entry (crash before the debounced index write)", async () => {
+			const tasksDir = path.join(tmpDir, "tasks")
+			const stale = makeHistoryItem({ id: "parent", status: "active" })
+			const fresh = { ...stale, status: "delegated" as const, awaitingChildId: "child", delegatedToId: "child" }
+
+			await fs.mkdir(path.join(tasksDir, "parent"), { recursive: true })
+			await fs.writeFile(path.join(tasksDir, "parent", GlobalFileNames.historyItem), JSON.stringify(fresh))
+			await fs.writeFile(
+				path.join(tasksDir, GlobalFileNames.historyIndex),
+				JSON.stringify({ version: 1, updatedAt: Date.now(), entries: [stale] }),
+			)
+
+			await store.initialize()
+
+			expect(store.get("parent")).toEqual(fresh)
+
+			// A later partial upsert merges on top of the fresh record, not the stale one.
+			const { status: _status, ...withoutStatus } = stale
+			await store.upsert({ ...withoutStatus, tokensIn: 999 } as HistoryItem)
+			expect(store.get("parent")).toMatchObject({ status: "delegated", awaitingChildId: "child", tokensIn: 999 })
+		})
 	})
 
 	describe("get()", () => {
@@ -266,6 +287,49 @@ describe("TaskHistoryStore", () => {
 
 			expect(store.get("removed-task")).toBeUndefined()
 		})
+
+		it("picks up a task file changed by another instance", async () => {
+			await store.initialize()
+
+			const item = makeHistoryItem({ id: "shared-task", status: "active" })
+			await store.upsert(item)
+			await store.reconcile()
+
+			// Another window rewrites the file. Make sure the mtime differs even on
+			// file systems with coarse timestamps.
+			const filePath = path.join(tmpDir, "tasks", "shared-task", GlobalFileNames.historyItem)
+			await fs.writeFile(filePath, JSON.stringify({ ...item, status: "completed" }))
+			const future = new Date(Date.now() + 10_000)
+			await fs.utimes(filePath, future, future)
+
+			await store.reconcile()
+
+			expect(store.get("shared-task")!.status).toBe("completed")
+		})
+
+		it("skips files whose mtime has not changed since the last scan", async () => {
+			await store.initialize()
+
+			const item = makeHistoryItem({ id: "unchanged-task", status: "active" })
+			await store.upsert(item)
+			// Pin a whole-second mtime so it can be restored exactly below.
+			const filePath = path.join(tmpDir, "tasks", "unchanged-task", GlobalFileNames.historyItem)
+			const pinned = new Date(2026, 0, 1)
+			await fs.utimes(filePath, pinned, pinned)
+			await store.reconcile()
+
+			// Rewrite the content but restore the same mtime: a non-forced pass trusts
+			// the mtime and keeps the cached entry.
+			await fs.writeFile(filePath, JSON.stringify({ ...item, status: "completed" }))
+			await fs.utimes(filePath, pinned, pinned)
+
+			await store.reconcile()
+			expect(store.get("unchanged-task")!.status).toBe("active")
+
+			// A forced pass re-reads every file.
+			await store.reconcile({ forceRefresh: true })
+			expect(store.get("unchanged-task")!.status).toBe("completed")
+		})
 	})
 
 	describe("concurrent upsert() calls are serialized", () => {
@@ -370,6 +434,41 @@ describe("TaskHistoryStore", () => {
 			await store.migrateFromGlobalState([item]) // Second call
 
 			expect(store.get("idem-task")).toBeDefined()
+		})
+
+		it("serializes migration cache and index updates behind the store lock", async () => {
+			const tasksDir = path.join(tmpDir, "tasks")
+			const migrated = makeHistoryItem({ id: "migration-locked" })
+			const concurrent = makeHistoryItem({ id: "migration-concurrent" })
+			await fs.mkdir(path.join(tasksDir, migrated.id), { recursive: true })
+
+			let releaseMigrationWrite!: () => void
+			const migrationWriteCanFinish = new Promise<void>((resolve) => {
+				releaseMigrationWrite = resolve
+			})
+			let signalMigrationWriteStarted!: () => void
+			const migrationWriteStarted = new Promise<void>((resolve) => {
+				signalMigrationWriteStarted = resolve
+			})
+			const storeInternals = store as unknown as { writeIndex: () => Promise<void> }
+			const originalWriteIndex = storeInternals.writeIndex.bind(store)
+			vi.spyOn(storeInternals, "writeIndex").mockImplementation(async () => {
+				signalMigrationWriteStarted()
+				await migrationWriteCanFinish
+				return originalWriteIndex()
+			})
+
+			const migration = store.migrateFromGlobalState([migrated])
+			await migrationWriteStarted
+			const concurrentUpsert = store.upsert(concurrent)
+
+			// The upsert waits for the migration to release the lock.
+			expect(store.get(concurrent.id)).toBeUndefined()
+			releaseMigrationWrite()
+			await Promise.all([migration, concurrentUpsert])
+
+			expect(store.get(migrated.id)).toEqual(migrated)
+			expect(store.get(concurrent.id)).toEqual(concurrent)
 		})
 	})
 
