@@ -3444,8 +3444,14 @@ export class ClineProvider
 				// non-fatal
 			}
 
-			// Auto-resume parent without ask("resume_task")
-			await parentInstance.resumeAfterDelegation()
+			// Auto-resume parent without ask("resume_task"). Not awaited: the parent's
+			// task loop runs until the parent itself finishes, and the completing child
+			// must not wait for that (nor every ancestor for its descendants).
+			parentInstance.resumeAfterDelegation().catch((error) => {
+				const message = error instanceof Error ? error.message : String(error)
+				this.log(`[reopenParentFromDelegation] Parent ${parentTaskId} failed to resume: ${message}`)
+				vscode.window.showErrorMessage(message)
+			})
 		}
 
 		// Emit TaskDelegationResumed (provider-level)
