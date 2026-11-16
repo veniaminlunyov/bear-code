@@ -78,9 +78,25 @@ describe("ClineProvider.removeClineFromStack() keeps the delegation link", () =>
 
 describe("ClineProvider.detachDelegatedParent()", () => {
 	function buildProvider(parent: Record<string, any> | undefined) {
+		let stored = parent ? { ...parent } : undefined
+		const written: Record<string, any>[] = []
+
 		return {
+			written,
 			log: vi.fn(),
-			taskHistoryStore: { get: vi.fn(() => (parent ? { ...parent } : undefined)) },
+			isViewLaunched: false,
+			taskHistoryStore: {
+				get: vi.fn(() => (stored ? { ...stored } : undefined)),
+				refresh: vi.fn(async () => (stored ? { ...stored } : undefined)),
+				atomicReadAndUpdate: vi.fn(async (_id: string, updater: (item: any) => any) => {
+					if (!stored) {
+						throw new Error("not found in cache")
+					}
+					stored = updater({ ...stored })
+					written.push(stored!)
+					return []
+				}),
+			},
 			getTaskWithId: vi.fn().mockRejectedValue(new Error("Task not found")),
 			updateTaskHistory: vi.fn().mockResolvedValue([]),
 		}
@@ -96,9 +112,39 @@ describe("ClineProvider.detachDelegatedParent()", () => {
 		)
 
 		expect(result).toEqual({ detached: true, awaitingChildId: "child-1" })
-		expect(provider.updateTaskHistory).toHaveBeenCalledWith(
+		expect(provider.written).toEqual([
 			expect.objectContaining({ id: "parent-1", status: "active", awaitingChildId: undefined }),
+		])
+	})
+
+	it("re-reads the parent from disk before deciding, so a resume in another window wins", async () => {
+		const provider = buildProvider(delegatedParent)
+		// Another window already resumed the parent; this store's cache is stale.
+		provider.taskHistoryStore.refresh.mockResolvedValueOnce({
+			...delegatedParent,
+			status: "active",
+			awaitingChildId: undefined,
+		})
+
+		const result = await (ClineProvider.prototype as any).detachDelegatedParent.call(
+			provider,
+			"parent-1",
+			"child-1",
 		)
+
+		expect(result).toEqual({ detached: false })
+		expect(provider.written).toEqual([])
+	})
+
+	it("does not write a parent back that a concurrent delete removed", async () => {
+		const provider = buildProvider(delegatedParent)
+		// The parent is deleted between the check and the write (batch delete).
+		provider.taskHistoryStore.atomicReadAndUpdate.mockRejectedValueOnce(new Error("not found in cache"))
+
+		await expect(
+			(ClineProvider.prototype as any).detachDelegatedParent.call(provider, "parent-1", "child-1"),
+		).rejects.toThrow("not found in cache")
+		expect(provider.updateTaskHistory).not.toHaveBeenCalled()
 	})
 
 	it("detaches from whichever child the parent awaits when no child is given", async () => {
@@ -119,7 +165,7 @@ describe("ClineProvider.detachDelegatedParent()", () => {
 		)
 
 		expect(result).toEqual({ detached: false })
-		expect(provider.updateTaskHistory).not.toHaveBeenCalled()
+		expect(provider.written).toEqual([])
 	})
 
 	it("leaves a parent that is not delegated alone", async () => {
@@ -128,7 +174,7 @@ describe("ClineProvider.detachDelegatedParent()", () => {
 		const result = await (ClineProvider.prototype as any).detachDelegatedParent.call(provider, "parent-1")
 
 		expect(result).toEqual({ detached: false })
-		expect(provider.updateTaskHistory).not.toHaveBeenCalled()
+		expect(provider.written).toEqual([])
 	})
 
 	it("updates an open instance of the parent so its next save keeps it active", async () => {
@@ -138,6 +184,14 @@ describe("ClineProvider.detachDelegatedParent()", () => {
 		const instances = (ClineProvider as any).activeInstances as Set<unknown>
 		instances.add(otherProvider)
 
+		const order: string[] = []
+		openParent.setHistoryStatus.mockImplementation(() => order.push("instance"))
+		const atomic = provider.taskHistoryStore.atomicReadAndUpdate.getMockImplementation()
+		provider.taskHistoryStore.atomicReadAndUpdate.mockImplementation(async (...args: any[]) => {
+			order.push("history")
+			return atomic(...args)
+		})
+
 		try {
 			await (ClineProvider.prototype as any).detachDelegatedParent.call(provider, "parent-1", "child-1")
 		} finally {
@@ -145,6 +199,8 @@ describe("ClineProvider.detachDelegatedParent()", () => {
 		}
 
 		expect(openParent.setHistoryStatus).toHaveBeenCalledWith("active")
+		// The instance is flipped before the write, so its saves cannot restore "delegated".
+		expect(order).toEqual(["instance", "history"])
 	})
 })
 

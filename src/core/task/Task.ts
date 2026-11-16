@@ -1951,17 +1951,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	 * is no longer injected into a conversation that has moved on.
 	 */
 	private async detachFromAwaitedSubtask(): Promise<void> {
-		// From now on this task's saves write "active", even if the history update
-		// below fails: the task is running again, not waiting.
-		this.initialStatus = "active"
-
 		const provider = this.providerRef.deref()
 
-		if (!provider) {
-			return
-		}
-
 		try {
+			if (!provider) {
+				return
+			}
+
+			// detachDelegatedParent flips this instance to "active" itself, before it
+			// writes the history. Setting it here first would let a save in between
+			// write "active" while awaitingChildId is still set, and the detach would
+			// then see a parent that no longer looks delegated and leave it half done.
 			const { detached, awaitingChildId } = await provider.detachDelegatedParent(this.taskId)
 
 			if (detached && awaitingChildId && ClineProvider.isTaskOpen(awaitingChildId)) {
@@ -1973,6 +1973,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					error instanceof Error ? error.message : String(error)
 				}`,
 			)
+		} finally {
+			// The task is running again, not waiting: its saves write "active" from now
+			// on, even if the history update failed.
+			this.initialStatus = "active"
 		}
 	}
 

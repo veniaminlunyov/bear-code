@@ -105,23 +105,18 @@ export type ClineProviderEvents = {
 }
 
 /**
- * Per-provider, per-parent serialization of delegation state transitions
- * (delegate, hand a child's result back, detach the parent from its child).
- * Only the check-and-write part of a transition runs under this lock; resuming
- * the parent's task loop happens after it is released, so nested delegation
- * (A → B → C) cannot wait on its own lock.
+ * Per-parent serialization of delegation state transitions (delegate, hand a
+ * child's result back, detach the parent from its child). The lock is shared by
+ * every provider in the extension host: the sidebar and editor-tab panels each
+ * have their own provider, and a child finishing in one must not interleave with
+ * its parent being resumed in another. Only the check-and-write part of a
+ * transition runs under this lock; resuming the parent's task loop happens after
+ * it is released, so nested delegation (A → B → C) cannot wait on its own lock.
  */
-const delegationTransitionLocks = new WeakMap<object, Map<string, Promise<void>>>()
+const delegationTransitionLocks = new Map<string, Promise<void>>()
 
-function runDelegationTransition<T>(owner: object, parentTaskId: string, fn: () => Promise<T>): Promise<T> {
-	let locks = delegationTransitionLocks.get(owner)
-
-	if (!locks) {
-		locks = new Map()
-		delegationTransitionLocks.set(owner, locks)
-	}
-
-	const previous = locks.get(parentTaskId) ?? Promise.resolve()
+function runDelegationTransition<T>(parentTaskId: string, fn: () => Promise<T>): Promise<T> {
+	const previous = delegationTransitionLocks.get(parentTaskId) ?? Promise.resolve()
 	// Fail-forward: a failed transition must not block the next one.
 	const current = previous.then(fn, fn)
 	const tail = current.then(
@@ -129,10 +124,10 @@ function runDelegationTransition<T>(owner: object, parentTaskId: string, fn: () 
 		() => {},
 	)
 
-	locks.set(parentTaskId, tail)
+	delegationTransitionLocks.set(parentTaskId, tail)
 	tail.finally(() => {
-		if (locks.get(parentTaskId) === tail) {
-			locks.delete(parentTaskId)
+		if (delegationTransitionLocks.get(parentTaskId) === tail) {
+			delegationTransitionLocks.delete(parentTaskId)
 		}
 	})
 
@@ -475,9 +470,11 @@ export class ClineProvider
 		parentTaskId: string,
 		childTaskId?: string,
 	): Promise<{ detached: boolean; awaitingChildId?: string }> {
-		return runDelegationTransition(this, parentTaskId, async () => {
+		return runDelegationTransition(parentTaskId, async () => {
+			// Another window may have changed the parent since this store last scanned it.
 			const parentHistory =
-				this.taskHistoryStore.get(parentTaskId) ?? (await this.getTaskWithId(parentTaskId)).historyItem
+				(await this.taskHistoryStore.refresh(parentTaskId)) ??
+				(await this.getTaskWithId(parentTaskId)).historyItem
 
 			if (
 				parentHistory.status !== "delegated" ||
@@ -488,18 +485,37 @@ export class ClineProvider
 
 			const awaitingChildId = parentHistory.awaitingChildId
 
-			await this.updateTaskHistory({
-				...parentHistory,
-				status: "active",
-				awaitingChildId: undefined,
-			})
-
+			// Flip open instances first, so a save they make while the history write
+			// below is in flight cannot write "delegated" back.
 			for (const provider of ClineProvider.activeInstances) {
 				const open = provider.getCurrentTask()
 
 				if (open?.taskId === parentTaskId) {
 					open.setHistoryStatus("active")
 				}
+			}
+
+			const detach = (item: HistoryItem): HistoryItem => ({
+				...item,
+				status: "active",
+				awaitingChildId: undefined,
+			})
+
+			if (this.taskHistoryStore.get(parentTaskId)) {
+				// Read-and-write in one store lock: a concurrent delete of the parent (for
+				// example a batch delete of parent and child) makes this throw instead of
+				// writing the deleted parent back.
+				await this.taskHistoryStore.atomicReadAndUpdate(parentTaskId, detach)
+				this.recentTasksCache = undefined
+
+				const updatedItem = this.taskHistoryStore.get(parentTaskId)
+
+				if (updatedItem && this.isViewLaunched) {
+					await this.postMessageToWebview({ type: "taskHistoryItemUpdated", taskHistoryItem: updatedItem })
+				}
+			} else {
+				// Legacy globalState-only history: no per-task file to lock on.
+				await this.updateTaskHistory(detach(parentHistory))
 			}
 
 			this.log(
@@ -900,11 +916,8 @@ export class ClineProvider
 		// messages). Both would see the same current task, close it, and each put a
 		// new instance on the stack. Run them one after another instead. Fail forward:
 		// a rejected open must not block the ones queued behind it.
-		const previous = this.historyTaskCreationQueue ?? Promise.resolve()
-		const run = previous.then(
-			() => ClineProvider.prototype.createTaskWithHistoryItemUnlocked.call(this, historyItem, options),
-			() => ClineProvider.prototype.createTaskWithHistoryItemUnlocked.call(this, historyItem, options),
-		)
+		const open = () => this.createTaskWithHistoryItemUnlocked(historyItem, options)
+		const run = this.historyTaskCreationQueue.then(open, open)
 		this.historyTaskCreationQueue = run.then(
 			() => {},
 			() => {},
@@ -3026,7 +3039,7 @@ export class ClineProvider
 				childIds: Array.from(new Set([...(historyItem.childIds ?? []), child.taskId])),
 			})
 
-			await runDelegationTransition(this, parentTaskId, async () => {
+			await runDelegationTransition(parentTaskId, async () => {
 				if (this.taskHistoryStore.get(parentTaskId)) {
 					await this.taskHistoryStore.atomicReadAndUpdate(parentTaskId, delegate)
 					this.recentTasksCache = undefined
@@ -3226,7 +3239,6 @@ export class ClineProvider
 		// Check and write under the per-parent transition lock. Yields false when the
 		// parent no longer awaits the child, otherwise what is needed to reopen it.
 		const handBack = await runDelegationTransition(
-			this,
 			parentTaskId,
 			async (): Promise<
 				false | { updatedHistory: HistoryItem; parentClineMessages: ClineMessage[]; parentApiMessages: any[] }
@@ -3234,9 +3246,11 @@ export class ClineProvider
 				const globalStoragePath = this.contextProxy.globalStorageUri.fsPath
 
 				// 1) Load parent from history and check that it still awaits this child.
+				//    Re-read its file first: it may have been resumed in another window.
 				let historyItem: HistoryItem
 
 				try {
+					await this.taskHistoryStore.refresh(parentTaskId)
 					;({ historyItem } = await this.getTaskWithId(parentTaskId))
 				} catch (error) {
 					if (error instanceof Error && error.message === "Task not found") {
@@ -3255,6 +3269,23 @@ export class ClineProvider
 							`(status=${historyItem.status}, awaitingChildId=${historyItem.awaitingChildId}); not reopening it`,
 					)
 					return false
+				}
+
+				// The parent can be open, still waiting at its resume prompt, in another
+				// panel. Close it there before writing its history, or that instance's
+				// later saves would overwrite the result and two instances would run.
+				for (const provider of ClineProvider.activeInstances) {
+					if (provider !== this && provider.getCurrentTask()?.taskId === parentTaskId) {
+						try {
+							await provider.removeClineFromStack()
+						} catch (error) {
+							this.log(
+								`[reopenParentFromDelegation] Failed to close parent ${parentTaskId} in another panel: ${
+									error instanceof Error ? error.message : String(error)
+								}`,
+							)
+						}
+					}
 				}
 
 				let parentClineMessages: ClineMessage[] = []

@@ -79,6 +79,10 @@ describe("Single-open-task invariant", () => {
 		const updateGlobalState = vi.fn().mockResolvedValue(undefined)
 
 		const provider = {
+			historyTaskCreationQueue: Promise.resolve(),
+			createTaskWithHistoryItemUnlocked(...args: unknown[]) {
+				return (ClineProvider.prototype as any).createTaskWithHistoryItemUnlocked.apply(this, args)
+			},
 			getCurrentTask: vi.fn(() => undefined), // ensure not rehydrating
 			removeClineFromStack,
 			addClineToStack,
@@ -146,6 +150,9 @@ describe("Single-open-task invariant", () => {
 
 		const provider = {
 			historyTaskCreationQueue: Promise.resolve(),
+			createTaskWithHistoryItemUnlocked(...args: unknown[]) {
+				return (ClineProvider.prototype as any).createTaskWithHistoryItemUnlocked.apply(this, args)
+			},
 			getCurrentTask: vi.fn(() => stack[stack.length - 1]),
 			removeClineFromStack,
 			addClineToStack,
@@ -211,6 +218,9 @@ describe("Single-open-task invariant", () => {
 	it("keeps serving history opens after one of them fails", async () => {
 		const provider = {
 			historyTaskCreationQueue: Promise.resolve(),
+			createTaskWithHistoryItemUnlocked(...args: unknown[]) {
+				return (ClineProvider.prototype as any).createTaskWithHistoryItemUnlocked.apply(this, args)
+			},
 		} as unknown as ClineProvider
 		const unlocked = vi
 			.spyOn(ClineProvider.prototype as any, "createTaskWithHistoryItemUnlocked")

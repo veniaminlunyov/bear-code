@@ -139,6 +139,7 @@ describe("Nested delegation resume (A → B → C)", () => {
 		// History store backed by historyIndex: child/parent handoff goes through atomicUpdatePair.
 		const taskHistoryStore = {
 			get: vi.fn((id: string) => historyIndex[id]),
+			refresh: vi.fn(async (id: string) => historyIndex[id]),
 			atomicUpdatePair: vi.fn(
 				async (
 					firstId: string,
@@ -324,7 +325,7 @@ describe("Nested delegation resume (A → B → C)", () => {
 				historyIndex[item.id] = item
 				return []
 			}),
-			taskHistoryStore: { get: vi.fn(() => undefined) },
+			taskHistoryStore: { get: vi.fn(() => undefined), refresh: vi.fn(async () => undefined) },
 			createTaskWithHistoryItem: vi.fn(async (item: any) => {
 				currentActiveId = item.id
 				return {

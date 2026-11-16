@@ -40,7 +40,7 @@ import { readTaskMessages } from "../core/task-persistence/taskMessages"
 import { readApiMessages, saveApiMessages, saveTaskMessages } from "../core/task-persistence"
 
 /** Store stub with an empty cache: forces the sequential (non-atomic) fallback path. */
-const legacyHistoryStore = { get: () => undefined }
+const legacyHistoryStore = { get: () => undefined, refresh: async () => undefined }
 
 describe("History resume delegation - parent metadata transitions", () => {
 	beforeEach(() => {
@@ -756,6 +756,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 		}
 		const taskHistoryStore = {
 			get: vi.fn((id: string) => records[id]),
+			refresh: vi.fn(async (id: string) => records[id]),
 			atomicUpdatePair: vi.fn(
 				async (firstId: string, secondId: string, firstUpdater: any, secondUpdater: any) => {
 					records[firstId] = firstUpdater({ ...records[firstId] })
@@ -1057,5 +1058,113 @@ describe("History resume delegation - parent metadata transitions", () => {
 			await expect(reopen(provider)).resolves.toBe(true)
 			await vi.waitFor(() => expect(vscode.window.showErrorMessage).toHaveBeenCalledWith("resume failed"))
 		})
+	})
+})
+
+describe("reopenParentFromDelegation across panels", () => {
+	const delegatedParent = {
+		id: "p1",
+		status: "delegated",
+		awaitingChildId: "c1",
+		childIds: ["c1"],
+		ts: 100,
+		task: "Parent",
+		tokensIn: 0,
+		tokensOut: 0,
+		totalCost: 0,
+	}
+
+	const buildProvider = (overrides: Record<string, unknown> = {}) =>
+		({
+			contextProxy: { globalStorageUri: { fsPath: "/storage" } },
+			log: vi.fn(),
+			emit: vi.fn(),
+			getTaskWithId: vi.fn().mockResolvedValue({ historyItem: { ...delegatedParent } }),
+			getCurrentTask: vi.fn(() => ({ taskId: "c1" })),
+			removeClineFromStack: vi.fn().mockResolvedValue(undefined),
+			createTaskWithHistoryItem: vi.fn().mockResolvedValue({
+				taskId: "p1",
+				resumeAfterDelegation: vi.fn().mockResolvedValue(undefined),
+				overwriteClineMessages: vi.fn().mockResolvedValue(undefined),
+				overwriteApiConversationHistory: vi.fn().mockResolvedValue(undefined),
+			}),
+			updateTaskHistory: vi.fn().mockResolvedValue([]),
+			taskHistoryStore: legacyHistoryStore,
+			...overrides,
+		}) as unknown as ClineProvider
+
+	beforeEach(() => {
+		vi.mocked(readTaskMessages).mockResolvedValue([])
+		vi.mocked(readApiMessages).mockResolvedValue([])
+	})
+
+	it("closes the parent where another panel has it open before writing its history", async () => {
+		const order: string[] = []
+		const otherPanel = {
+			getCurrentTask: () => ({ taskId: "p1" }),
+			removeClineFromStack: vi.fn(async () => {
+				order.push("close in other panel")
+			}),
+		}
+		vi.mocked(saveTaskMessages).mockImplementationOnce(async () => {
+			order.push("save parent messages")
+		})
+		const instances = (ClineProvider as any).activeInstances as Set<unknown>
+		instances.add(otherPanel)
+
+		try {
+			const reopened = await (ClineProvider.prototype as any).reopenParentFromDelegation.call(buildProvider(), {
+				parentTaskId: "p1",
+				childTaskId: "c1",
+				completionResultSummary: "done",
+			})
+			expect(reopened).toBe(true)
+		} finally {
+			instances.delete(otherPanel)
+		}
+
+		expect(otherPanel.removeClineFromStack).toHaveBeenCalledTimes(1)
+		expect(order).toEqual(["close in other panel", "save parent messages"])
+	})
+
+	it("serializes a hand-back in one panel with a detach in another", async () => {
+		let record: Record<string, any> = { ...delegatedParent }
+		const store = {
+			get: vi.fn(() => ({ ...record })),
+			refresh: vi.fn(async () => ({ ...record })),
+			atomicReadAndUpdate: vi.fn(async (_id: string, updater: (item: any) => any) => {
+				record = updater({ ...record })
+				return []
+			}),
+		}
+		let releaseDetachWrite!: () => void
+		const detachWriteGate = new Promise<void>((resolve) => {
+			releaseDetachWrite = resolve
+		})
+		store.atomicReadAndUpdate.mockImplementationOnce(async (_id: string, updater: (item: any) => any) => {
+			await detachWriteGate
+			record = updater({ ...record })
+			return []
+		})
+
+		// Panel P resumes the parent by hand; panel C finishes the child at the same time.
+		const panelP = buildProvider({ taskHistoryStore: store, isViewLaunched: false })
+		const panelC = buildProvider({
+			getTaskWithId: vi.fn(async () => ({ historyItem: { ...record } })),
+		})
+
+		const detach = (ClineProvider.prototype as any).detachDelegatedParent.call(panelP, "p1")
+		const handBack = (ClineProvider.prototype as any).reopenParentFromDelegation.call(panelC, {
+			parentTaskId: "p1",
+			childTaskId: "c1",
+			completionResultSummary: "late result",
+		})
+
+		releaseDetachWrite()
+
+		await expect(detach).resolves.toEqual({ detached: true, awaitingChildId: "c1" })
+		// The hand-back waited for the detach and then saw an active parent.
+		await expect(handBack).resolves.toBe(false)
+		expect((panelC as any).createTaskWithHistoryItem).not.toHaveBeenCalled()
 	})
 })
