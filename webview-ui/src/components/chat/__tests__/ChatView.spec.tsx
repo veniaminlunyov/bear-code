@@ -51,8 +51,35 @@ vi.mock("../ChatRow", () => ({
 	},
 }))
 
+const mockTaskHeaderState = vi.hoisted(() => ({
+	renders: [] as Array<{ taskId?: string; aggregatedCost?: number }>,
+}))
+
+vi.mock("../TaskHeader", () => ({
+	default: function MockTaskHeader({ task, aggregatedCost }: { task: ClineMessage; aggregatedCost?: number }) {
+		mockTaskHeaderState.renders.push({ taskId: task.text, aggregatedCost })
+
+		return (
+			<div
+				data-aggregated-cost={aggregatedCost ?? ""}
+				data-task-id={task.text}
+				data-task-ts={task.ts}
+				data-testid="task-header"
+			/>
+		)
+	},
+}))
+
 vi.mock("../AutoApproveMenu", () => ({
 	default: () => null,
+}))
+
+const mockVirtuosoState = vi.hoisted(() => ({
+	lastConfig: null as {
+		computeItemKey?: (index: number, item: ClineMessage) => React.Key
+		defaultItemHeight?: number
+		increaseViewportBy?: number | { top?: number; bottom?: number }
+	} | null,
 }))
 
 // Mock react-virtuoso to render items directly without virtualization
@@ -61,14 +88,26 @@ vi.mock("react-virtuoso", () => ({
 	Virtuoso: function MockVirtuoso({
 		data,
 		itemContent,
+		computeItemKey,
+		defaultItemHeight,
+		increaseViewportBy,
 	}: {
 		data: ClineMessage[]
 		itemContent: (index: number, item: ClineMessage) => React.ReactNode
+		computeItemKey?: (index: number, item: ClineMessage) => React.Key
+		defaultItemHeight?: number
+		increaseViewportBy?: number | { top?: number; bottom?: number }
 	}) {
+		mockVirtuosoState.lastConfig = {
+			computeItemKey,
+			defaultItemHeight,
+			increaseViewportBy,
+		}
+
 		return (
 			<div data-testid="virtuoso-item-list">
 				{data.map((item, index) => (
-					<div key={item.ts} data-testid={`virtuoso-item-${index}`}>
+					<div key={computeItemKey?.(index, item) ?? item.ts} data-testid={`virtuoso-item-${index}`}>
 						{itemContent(index, item)}
 					</div>
 				))}
@@ -283,6 +322,50 @@ const mockPostMessage = (state: Partial<ExtensionState>) => {
 	)
 }
 
+const dispatchExtensionMessage = async (data: Record<string, unknown>) => {
+	await act(async () => {
+		window.dispatchEvent(new MessageEvent("message", { data }))
+	})
+}
+
+const dispatchTaskState = async (id: string, taskTs: number, childIds: string[] = []) => {
+	await dispatchExtensionMessage({
+		type: "state",
+		state: {
+			version: "1.0.0",
+			taskHistory: [],
+			shouldShowAnnouncement: false,
+			allowedCommands: [],
+			alwaysAllowExecute: false,
+			cloudIsAuthenticated: false,
+			clineMessages: [{ type: "say", say: "task", ts: taskTs, text: id }],
+			currentTaskId: id,
+			currentTaskItem: {
+				id,
+				number: 1,
+				ts: taskTs,
+				task: id,
+				tokensIn: 0,
+				tokensOut: 0,
+				totalCost: 0,
+				childIds,
+			},
+		},
+	})
+}
+
+const dispatchAggregatedCosts = async (taskId: string, totalCost: number) => {
+	await dispatchExtensionMessage({
+		type: "taskWithAggregatedCosts",
+		text: taskId,
+		aggregatedCosts: {
+			totalCost,
+			ownCost: 1,
+			childrenCost: totalCost - 1,
+		},
+	})
+}
+
 const defaultProps: ChatViewProps = {
 	isHidden: false,
 	showAnnouncement: false,
@@ -450,6 +533,107 @@ describe("ChatView - Sound Playing Tests", () => {
 
 		// Should not play sound for completion when resuming from history
 		expect(mockPlayFunction).not.toHaveBeenCalled()
+	})
+})
+
+describe("ChatView - Aggregated Costs Lifecycle", () => {
+	beforeEach(async () => {
+		// Drain window.postMessage events queued by earlier tests so they cannot
+		// land in this test's freshly mounted view.
+		await new Promise((resolve) => setTimeout(resolve, 0))
+		vi.clearAllMocks()
+		mockTaskHeaderState.renders.length = 0
+	})
+
+	it("clears cached aggregated costs when switching tasks", async () => {
+		const { getByTestId } = renderChatView()
+
+		await dispatchTaskState("task-a", 1_000, ["child-a"])
+		await dispatchAggregatedCosts("task-a", 9)
+
+		await waitFor(() => {
+			expect(getByTestId("task-header")).toHaveAttribute("data-aggregated-cost", "9")
+		})
+
+		// Use the same message timestamp to prove task identity, rather than task.ts,
+		// drives the reset.
+		await dispatchTaskState("task-b", 1_000)
+		await waitFor(() => {
+			expect(getByTestId("task-header")).toHaveAttribute("data-task-id", "task-b")
+			expect(getByTestId("task-header")).toHaveAttribute("data-aggregated-cost", "")
+		})
+
+		await dispatchTaskState("task-a", 1_000, ["child-a"])
+		await waitFor(() => {
+			expect(getByTestId("task-header")).toHaveAttribute("data-task-id", "task-a")
+			expect(getByTestId("task-header")).toHaveAttribute("data-aggregated-cost", "")
+		})
+	})
+
+	it("rejects a delayed aggregated-cost response from the previous task", async () => {
+		const { getByTestId } = renderChatView()
+
+		await dispatchTaskState("task-a", 1_001, ["child-a"])
+		await dispatchTaskState("task-b", 2_001)
+		await dispatchAggregatedCosts("task-a", 13)
+
+		await waitFor(() => {
+			expect(getByTestId("task-header")).toHaveAttribute("data-task-id", "task-b")
+			expect(getByTestId("task-header")).toHaveAttribute("data-aggregated-cost", "")
+		})
+
+		mockTaskHeaderState.renders.length = 0
+		await dispatchTaskState("task-a", 1_001, ["child-a"])
+
+		await waitFor(() => {
+			expect(getByTestId("task-header")).toHaveAttribute("data-task-id", "task-a")
+			expect(getByTestId("task-header")).toHaveAttribute("data-aggregated-cost", "")
+		})
+
+		expect(
+			mockTaskHeaderState.renders.some(
+				({ taskId, aggregatedCost }) => taskId === "task-a" && aggregatedCost === 13,
+			),
+		).toBe(false)
+	})
+})
+
+describe("ChatView - Virtualization Configuration", () => {
+	beforeEach(() => {
+		vi.clearAllMocks()
+		mockVirtuosoState.lastConfig = null
+	})
+
+	it("keeps the off-screen render buffer tight for chat rows", async () => {
+		renderChatView()
+
+		const taskTs = Date.now() - 100
+		const rowTs = Date.now()
+
+		mockPostMessage({
+			clineMessages: [
+				{
+					type: "say",
+					say: "task",
+					ts: taskTs,
+					text: "Initial task",
+				},
+				{
+					type: "say",
+					say: "text",
+					ts: rowTs,
+					text: "Visible row",
+				},
+			],
+		})
+
+		await waitFor(() => {
+			expect(mockVirtuosoState.lastConfig).not.toBeNull()
+		})
+
+		expect(mockVirtuosoState.lastConfig?.defaultItemHeight).toBe(180)
+		expect(mockVirtuosoState.lastConfig?.increaseViewportBy).toEqual({ top: 600, bottom: 800 })
+		expect(mockVirtuosoState.lastConfig?.computeItemKey?.(1, { type: "say", ts: rowTs })).toBe(`${rowTs}-1`)
 	})
 })
 

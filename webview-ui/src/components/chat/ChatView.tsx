@@ -1,4 +1,13 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
+import React, {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react"
 import { useDeepCompareEffect, useEvent } from "react-use"
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso"
 import removeMd from "remove-markdown"
@@ -54,6 +63,14 @@ export interface ChatViewRef {
 }
 
 export const MAX_IMAGES_PER_MESSAGE = 20 // This is the Anthropic limit.
+// Keep the off-screen render buffer tight: large transcripts with a wide buffer
+// pre-render many heavy rows (markdown, diffs, code blocks) and can exhaust the
+// webview's memory, leaving a gray panel.
+const CHAT_DEFAULT_ITEM_HEIGHT = 180
+const CHAT_VIEWPORT_BUFFER = {
+	top: 600,
+	bottom: 800,
+} as const
 
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0
 
@@ -70,6 +87,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	const {
 		clineMessages: messages,
+		currentTaskId,
 		currentTaskItem,
 		currentTaskTodos,
 		taskHistory,
@@ -95,6 +113,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	}, [providerName])
 
 	const messagesRef = useRef(messages)
+	const currentTaskIdRef = useRef(currentTaskId)
+
+	useLayoutEffect(() => {
+		currentTaskIdRef.current = currentTaskId
+	}, [currentTaskId])
 
 	useEffect(() => {
 		messagesRef.current = messages
@@ -479,13 +502,15 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		everVisibleMessagesTsRef.current.clear()
 		setCurrentFollowUpTs(null)
 		setIsCondensing(false)
+		// Only the current task's aggregated costs are kept; drop the previous task's entry.
+		setAggregatedCostsMap(new Map())
 
 		if (autoApproveTimeoutRef.current) {
 			clearTimeout(autoApproveTimeoutRef.current)
 			autoApproveTimeoutRef.current = null
 		}
 		userRespondedRef.current = false
-	}, [task?.ts])
+	}, [task?.ts, currentTaskId])
 
 	const taskTs = task?.ts
 
@@ -895,7 +920,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					// Handle both manual and automatic condensation start
 					// We don't check the task ID because:
 					// 1. There can only be one active task at a time
-					// 2. Task switching resets isCondensing to false (see useEffect with task?.ts dependency)
+					// 2. Task switching resets isCondensing to false (see useEffect with task?.ts / currentTaskId dependency)
 					// 3. For new tasks, currentTaskItem may not be populated yet due to async state updates
 					if (message.text) {
 						setIsCondensing(true)
@@ -919,12 +944,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					playSound("notification")
 					break
 				case "taskWithAggregatedCosts":
-					if (message.text && message.aggregatedCosts) {
-						setAggregatedCostsMap((prev) => {
-							const newMap = new Map(prev)
-							newMap.set(message.text!, message.aggregatedCosts!)
-							return newMap
-						})
+					// Ignore delayed responses for a task that is no longer current.
+					if (message.text && message.text === currentTaskIdRef.current && message.aggregatedCosts) {
+						setAggregatedCostsMap(new Map([[message.text, message.aggregatedCosts]]))
 					}
 					break
 			}
@@ -1484,6 +1506,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		],
 	)
 
+	const computeMessageKey = useCallback(
+		(index: number, messageOrGroup: ClineMessage) => `${messageOrGroup.ts}-${index}`,
+		[],
+	)
+
 	// Function to handle mode switching
 	const switchToNextMode = useCallback(() => {
 		const allModes = getAllModes(customModes)
@@ -1557,6 +1584,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	}
 
 	const areButtonsVisible = showScrollToBottom || primaryButtonText || secondaryButtonText
+	const currentTaskAggregatedCosts = currentTaskId ? aggregatedCostsMap.get(currentTaskId) : undefined
 
 	return (
 		<div
@@ -1583,22 +1611,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						cacheWrites={apiMetrics.totalCacheWrites}
 						cacheReads={apiMetrics.totalCacheReads}
 						totalCost={apiMetrics.totalCost}
-						aggregatedCost={
-							currentTaskItem?.id && aggregatedCostsMap.has(currentTaskItem.id)
-								? aggregatedCostsMap.get(currentTaskItem.id)!.totalCost
-								: undefined
-						}
-						hasSubtasks={
-							!!(
-								currentTaskItem?.id &&
-								aggregatedCostsMap.has(currentTaskItem.id) &&
-								aggregatedCostsMap.get(currentTaskItem.id)!.childrenCost > 0
-							)
-						}
+						aggregatedCost={currentTaskAggregatedCosts?.totalCost}
+						hasSubtasks={(currentTaskAggregatedCosts?.childrenCost ?? 0) > 0}
 						parentTaskId={currentTaskItem?.parentTaskId}
 						costBreakdown={
-							currentTaskItem?.id && aggregatedCostsMap.has(currentTaskItem.id)
-								? getCostBreakdownIfNeeded(aggregatedCostsMap.get(currentTaskItem.id)!, {
+							currentTaskAggregatedCosts
+								? getCostBreakdownIfNeeded(currentTaskAggregatedCosts, {
 										own: t("common:costs.own"),
 										subtasks: t("common:costs.subtasks"),
 									})
@@ -1643,7 +1661,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							ref={virtuosoRef}
 							key={task.ts}
 							className="scrollable grow overflow-y-scroll mb-1"
-							increaseViewportBy={{ top: 3_000, bottom: 1000 }}
+							computeItemKey={computeMessageKey}
+							defaultItemHeight={CHAT_DEFAULT_ITEM_HEIGHT}
+							increaseViewportBy={CHAT_VIEWPORT_BUFFER}
 							data={groupedMessages}
 							itemContent={itemContent}
 							followOutput={followOutputCallback}
