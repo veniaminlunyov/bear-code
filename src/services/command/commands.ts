@@ -1,7 +1,7 @@
 import fs from "fs/promises"
 import * as path from "path"
 import { Dirent } from "fs"
-import matter from "gray-matter"
+import { parseFrontmatter } from "../../utils/frontmatter"
 import { getGlobalBearDirectory, getProjectBearDirectoryForCwd } from "../bear-config"
 import { getBuiltInCommands, getBuiltInCommand } from "./built-in-commands"
 
@@ -220,8 +220,8 @@ async function tryLoadCommand(
 		let commandContent: string
 
 		try {
-			// Try to parse frontmatter with gray-matter
-			parsed = matter(content)
+			// Parse frontmatter without executing code (see parseFrontmatter)
+			parsed = parseFrontmatter(content)
 			description =
 				typeof parsed.data.description === "string" && parsed.data.description.trim()
 					? parsed.data.description.trim()
@@ -305,8 +305,8 @@ async function scanCommandDirectory(
 				let commandContent: string
 
 				try {
-					// Try to parse frontmatter with gray-matter
-					parsed = matter(content)
+					// Parse frontmatter without executing code (see parseFrontmatter)
+					parsed = parseFrontmatter(content)
 					description =
 						typeof parsed.data.description === "string" && parsed.data.description.trim()
 							? parsed.data.description.trim()
