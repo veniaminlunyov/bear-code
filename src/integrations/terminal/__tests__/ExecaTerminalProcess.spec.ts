@@ -17,6 +17,10 @@ vitest.mock("execa", () => {
 	return { execa, ExecaError: class extends Error {} }
 })
 
+vitest.mock("../../../utils/shell", () => ({
+	getShell: vitest.fn(() => "/bin/zsh"),
+}))
+
 vitest.mock("ps-tree", () => ({
 	default: vitest.fn((_: number, cb: any) => cb(null, [])),
 }))
@@ -24,6 +28,7 @@ vitest.mock("ps-tree", () => ({
 import { execa } from "execa"
 import { ExecaTerminalProcess } from "../ExecaTerminalProcess"
 import { BaseTerminal } from "../BaseTerminal"
+import { getShell } from "../../../utils/shell"
 import type { BearTerminal } from "../types"
 
 describe("ExecaTerminalProcess", () => {
@@ -63,7 +68,7 @@ describe("ExecaTerminalProcess", () => {
 			const execaMock = vitest.mocked(execa)
 			expect(execaMock).toHaveBeenCalledWith(
 				expect.objectContaining({
-					shell: true,
+					shell: "/bin/zsh",
 					cwd: "/test/cwd",
 					all: true,
 					env: expect.objectContaining({
@@ -105,15 +110,31 @@ describe("ExecaTerminalProcess", () => {
 			)
 		})
 
-		it("should fall back to shell=true when execaShellPath is undefined", async () => {
-			BaseTerminal.setExecaShellPath(undefined)
+		it.each([
+			["undefined", undefined],
+			["empty", ""],
+		])("resolves the shell through getShell() when execaShellPath is %s", async (_label, shellPath) => {
+			BaseTerminal.setExecaShellPath(shellPath)
+			vitest.mocked(getShell).mockReturnValueOnce("C:\\Program Files\\PowerShell\\7\\pwsh.exe")
 			await terminalProcess.run("echo test")
-			const execaMock = vitest.mocked(execa)
-			expect(execaMock).toHaveBeenCalledWith(
-				expect.objectContaining({
-					shell: true,
-				}),
-			)
+			const calledOptions = vitest.mocked(execa).mock.calls[0][0] as unknown as { shell: unknown }
+			expect(calledOptions.shell).toBe("C:\\Program Files\\PowerShell\\7\\pwsh.exe")
+		})
+
+		it("never passes shell: true, which is a bare cmd.exe on Windows", async () => {
+			BaseTerminal.setExecaShellPath(undefined)
+			vitest.mocked(getShell).mockReturnValueOnce("C:\\Windows\\System32\\cmd.exe")
+			await terminalProcess.run("echo test")
+			const calledOptions = vitest.mocked(execa).mock.calls[0][0] as unknown as { shell: unknown }
+			// A deliberately selected Command Prompt profile is still honoured.
+			expect(calledOptions.shell).toBe("C:\\Windows\\System32\\cmd.exe")
+			expect(calledOptions.shell).not.toBe(true)
+		})
+
+		it("prefers an explicit execaShellPath over getShell()", async () => {
+			BaseTerminal.setExecaShellPath("/bin/bash")
+			await terminalProcess.run("echo test")
+			expect(getShell).not.toHaveBeenCalled()
 		})
 	})
 
