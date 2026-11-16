@@ -186,6 +186,8 @@ export class ClineProvider
 	 * Used by the frontend to reject stale state that arrives out-of-order.
 	 */
 	private clineMessagesSeq = 0
+	/** Serializes createTaskWithHistoryItem so concurrent opens cannot install two instances. */
+	private historyTaskCreationQueue: Promise<void> = Promise.resolve()
 
 	public isViewLaunched = false
 	public settingsImportedAt?: number
@@ -866,10 +868,30 @@ export class ClineProvider
 		}
 	}
 
-	public async createTaskWithHistoryItem(
+	public createTaskWithHistoryItem(
 		historyItem: HistoryItem & { rootTask?: Task; parentTask?: Task },
 		options?: { startTask?: boolean },
-	) {
+	): Promise<Task> {
+		// History opens can arrive concurrently (for example two quick showTaskWithId
+		// messages). Both would see the same current task, close it, and each put a
+		// new instance on the stack. Run them one after another instead. Fail forward:
+		// a rejected open must not block the ones queued behind it.
+		const previous = this.historyTaskCreationQueue ?? Promise.resolve()
+		const run = previous.then(
+			() => ClineProvider.prototype.createTaskWithHistoryItemUnlocked.call(this, historyItem, options),
+			() => ClineProvider.prototype.createTaskWithHistoryItemUnlocked.call(this, historyItem, options),
+		)
+		this.historyTaskCreationQueue = run.then(
+			() => {},
+			() => {},
+		)
+		return run
+	}
+
+	private async createTaskWithHistoryItemUnlocked(
+		historyItem: HistoryItem & { rootTask?: Task; parentTask?: Task },
+		options?: { startTask?: boolean },
+	): Promise<Task> {
 		const isCliRuntime = process.env.BEAR_CLI_RUNTIME === "1"
 		// CLI injects runtime provider settings from command flags/env at startup.
 		// Restoring provider profiles from task history can overwrite those
