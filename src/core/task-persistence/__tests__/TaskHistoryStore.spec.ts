@@ -128,6 +128,36 @@ describe("TaskHistoryStore", () => {
 		})
 	})
 
+	describe("pendingAction", () => {
+		const pendingAction = {
+			kind: "create_subtask" as const,
+			actionId: "call_new",
+			approvalText: '{"tool":"newTask"}',
+			mode: "code",
+			message: "Do it",
+			todos: [],
+		}
+
+		it("survives the task's regular saves and is gone from disk once cleared", async () => {
+			await store.initialize()
+			await store.upsert(makeHistoryItem({ id: "t1" }))
+			await store.atomicReadAndUpdate("t1", (item) => ({ ...item, pendingAction }))
+
+			// A regular save (taskMetadata) does not carry pendingAction.
+			await store.upsert(makeHistoryItem({ id: "t1", tokensIn: 5 }))
+			expect(store.get("t1")).toMatchObject({ tokensIn: 5, pendingAction })
+
+			await store.atomicReadAndUpdate("t1", (item) => ({ ...item, pendingAction: undefined }))
+			const filePath = path.join(tmpDir, "tasks", "t1", GlobalFileNames.historyItem)
+			const onDisk = JSON.parse(await fs.readFile(filePath, "utf8"))
+			expect(onDisk.pendingAction).toBeUndefined()
+
+			// And a later save does not bring it back.
+			await store.upsert(makeHistoryItem({ id: "t1", tokensIn: 6 }))
+			expect(store.get("t1")!.pendingAction).toBeUndefined()
+		})
+	})
+
 	describe("get()", () => {
 		it("returns undefined for non-existent task", async () => {
 			await store.initialize()

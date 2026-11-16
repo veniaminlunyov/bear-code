@@ -116,6 +116,45 @@ describe("Task.ask queued message drain", () => {
 	})
 })
 
+describe("Task.ask manualApprovalOnly", () => {
+	it("waits for the user even when subtasks are auto-approved", async () => {
+		const task = Object.create(Task.prototype) as Task
+		const { MessageQueueService } = await import("../../message-queue/MessageQueueService")
+		Object.assign(task as any, {
+			abort: false,
+			clineMessages: [],
+			messageQueueService: new MessageQueueService(),
+			addToClineMessages: vi.fn(async () => {}),
+			saveClineMessages: vi.fn(async () => {}),
+			updateClineMessage: vi.fn(async () => {}),
+			cancelAutoApprovalTimeout: vi.fn(() => {}),
+			emit: vi.fn(),
+			providerRef: {
+				deref: () => ({
+					getState: async () => ({ autoApprovalEnabled: true, alwaysAllowSubtasks: true }),
+					postMessageToWebview: vi.fn(),
+				}),
+			},
+		})
+		const newTask = JSON.stringify({ tool: "newTask", mode: "Code", content: "x" })
+
+		// Without the option the subtask is auto-approved.
+		await expect(task.ask("tool", newTask, false)).resolves.toMatchObject({ response: "yesButtonClicked" })
+
+		// With it the ask stays pending until the user answers.
+		let settled = false
+		const pending = task.ask("tool", newTask, false, undefined, false, { manualApprovalOnly: true }).then((r) => {
+			settled = true
+			return r
+		})
+		await new Promise((resolve) => setTimeout(resolve, 250))
+		expect(settled).toBe(false)
+
+		task.denyAsk()
+		await expect(pending).resolves.toMatchObject({ response: "noButtonClicked" })
+	})
+})
+
 describe("queuedResponseForAsk", () => {
 	it.each([
 		["tool", JSON.stringify({ tool: "newTask" }), "messageResponse"],

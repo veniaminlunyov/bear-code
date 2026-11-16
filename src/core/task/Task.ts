@@ -31,6 +31,7 @@ import {
 	type ClineAsk,
 	type ToolProgressStatus,
 	type HistoryItem,
+	type PendingTaskAction,
 	type CreateTaskOptions,
 	type ModelInfo,
 	type ClineApiReqCancelReason,
@@ -101,7 +102,7 @@ import { BearProtectedController } from "../protect/BearProtectedController"
 import { type AssistantMessageContent, presentAssistantMessage } from "../assistant-message"
 import { NativeToolCallParser } from "../assistant-message/NativeToolCallParser"
 import { manageContext, willManageContext } from "../context-management"
-import { ClineProvider } from "../webview/ClineProvider"
+import { ClineProvider, PendingActionSettledError } from "../webview/ClineProvider"
 import { MultiSearchReplaceDiffStrategy } from "../diff/strategies/multi-search-replace"
 import {
 	type ApiMessage,
@@ -446,6 +447,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	// (setHistoryStatus), so a later save does not write back a stale status.
 	private initialStatus?: "active" | "delegated" | "completed"
 
+	// Subtask approval this task is waiting for, mirrored from its history item
+	// so it can be asked again after a reload (see PendingTaskAction).
+	private pendingAction?: PendingTaskAction
+
 	// MessageManager for high-level message operations (lazy initialized)
 	private _messageManager?: MessageManager
 
@@ -530,6 +535,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.parentTask = parentTask
 		this.taskNumber = taskNumber
 		this.initialStatus = initialStatus
+		this.pendingAction = historyItem?.pendingAction
 
 		this.assistantMessageParser = undefined
 
@@ -1020,7 +1026,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this.apiConversationHistory.push(messageWithTs)
 		}
 
-		await this.saveApiConversationHistory()
+		const saved = await this.saveApiConversationHistory()
+
+		if (saved && message.role === "user") {
+			await this.settlePendingActionByToolResults(message.content)
+		}
 	}
 
 	// NOTE: We intentionally do NOT mutate stored messages to merge consecutive user turns.
@@ -1100,6 +1110,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const saved = await this.saveApiConversationHistory()
 
 		if (saved) {
+			await this.settlePendingActionByToolResults(userMessage.content)
 			// Clear the pending content since it's now saved
 			this.userMessageContent = []
 		} else {
@@ -1236,6 +1247,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		partial?: boolean,
 		progressStatus?: ToolProgressStatus,
 		isProtected?: boolean,
+		options: { manualApprovalOnly?: boolean } = {},
 	): Promise<{ response: ClineAskResponse; text?: string; images?: string[] }> {
 		// If this Cline instance was aborted by the provider, then the only
 		// thing keeping us alive is a promise still running in the background,
@@ -1332,7 +1344,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Automatically approve if the ask according to the user's settings.
 		const provider = this.providerRef.deref()
 		const state = provider ? await provider.getState() : undefined
-		const approval = await checkAutoApproval({ state, ask: type, text, isProtected })
+		const approval = options.manualApprovalOnly
+			? ({ decision: "ask" } as const)
+			: await checkAutoApproval({ state, ask: type, text, isProtected })
 
 		if (approval.decision === "approve") {
 			this.approveAsk()
@@ -1962,6 +1976,241 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.initialStatus = status
 	}
 
+	public get pendingTaskAction(): PendingTaskAction | undefined {
+		return this.pendingAction
+	}
+
+	/** Mirror a subtask approval the provider just saved for this task. */
+	public setPendingTaskAction(pendingAction: PendingTaskAction): void {
+		this.pendingAction = pendingAction
+	}
+
+	/** Drop the saved subtask approval `actionId`, in memory and in history. */
+	public async settlePendingAction(actionId: string): Promise<void> {
+		if (this.pendingAction?.actionId !== actionId) {
+			return
+		}
+
+		this.pendingAction = undefined
+
+		try {
+			await this.providerRef.deref()?.clearPendingTaskAction(this.taskId, actionId)
+		} catch (error) {
+			// The next open checks for the tool_result and clears it then.
+			console.error(`[Task#settlePendingAction] Failed to clear ${actionId} for ${this.taskId}:`, error)
+		}
+	}
+
+	/** A saved tool_result answers the pending approval of the same tool call. */
+	private async settlePendingActionByToolResults(content: Anthropic.MessageParam["content"]): Promise<void> {
+		const actionId = this.pendingAction?.actionId
+
+		if (
+			actionId &&
+			Array.isArray(content) &&
+			content.some((block) => block.type === "tool_result" && block.tool_use_id === actionId)
+		) {
+			await this.settlePendingAction(actionId)
+		}
+	}
+
+	/**
+	 * Where the saved approval's tool call sits in the API history: the assistant
+	 * message that made it, the user message after it (if the turn already has
+	 * some results), and the other tool calls of that turn still lacking a result.
+	 * Undefined when the tool call is gone or already answered, i.e. the approval
+	 * is stale (messages deleted, checkpoint restored, result already saved).
+	 */
+	private locatePendingActionToolCall(actionId: string):
+		| {
+				historyBeforeResults: ApiMessage[]
+				existingResults: Anthropic.Messages.ContentBlockParam[]
+				interruptedResults: Anthropic.ToolResultBlockParam[]
+		  }
+		| undefined {
+		const history = this.apiConversationHistory
+		const hasResult = history.some(
+			(message) =>
+				message.role === "user" &&
+				Array.isArray(message.content) &&
+				message.content.some((block) => block.type === "tool_result" && block.tool_use_id === actionId),
+		)
+
+		if (hasResult) {
+			return undefined
+		}
+
+		const last = history.at(-1)
+		const assistantIndex = last?.role === "user" ? history.length - 2 : history.length - 1
+		const assistant = history[assistantIndex]
+
+		if (!assistant || assistant.role !== "assistant" || !Array.isArray(assistant.content)) {
+			return undefined
+		}
+
+		const toolUses = assistant.content.filter(
+			(block): block is Anthropic.ToolUseBlockParam => block.type === "tool_use",
+		)
+
+		if (!toolUses.some((block) => sanitizeToolUseId(block.id) === actionId)) {
+			return undefined
+		}
+
+		const existingResults: Anthropic.Messages.ContentBlockParam[] =
+			last?.role === "user"
+				? Array.isArray(last.content)
+					? [...last.content]
+					: [{ type: "text", text: last.content }]
+				: []
+		const answered = new Set(
+			existingResults.flatMap((block) => (block.type === "tool_result" ? [block.tool_use_id] : [])),
+		)
+		const interruptedResults: Anthropic.ToolResultBlockParam[] = toolUses
+			.map((block) => sanitizeToolUseId(block.id))
+			.filter((id) => id !== actionId && !answered.has(id))
+			.map((id) => ({
+				type: "tool_result",
+				tool_use_id: id,
+				content: "Task was interrupted before this tool call could be completed.",
+			}))
+
+		return {
+			historyBeforeResults: history.slice(0, assistantIndex + 1),
+			existingResults,
+			interruptedResults,
+		}
+	}
+
+	/**
+	 * Ask a saved subtask approval again and carry out the answer. The approval is
+	 * always asked by hand, never auto-approved: opening an old task must not
+	 * create or finish a subtask on its own.
+	 */
+	private async resumePendingTaskAction(action: PendingTaskAction): Promise<void> {
+		const provider = this.providerRef.deref()
+
+		if (!provider) {
+			throw new Error(`[Task#resumePendingTaskAction] Provider unavailable for task ${this.taskId}`)
+		}
+
+		const location = this.locatePendingActionToolCall(action.actionId)
+
+		if (!location) {
+			return
+		}
+
+		// Whatever the answer, the turn's results (the ones already saved, the other
+		// tool calls marked interrupted, and this one) go into one user message after
+		// the assistant message with the tool call. The history is only rewritten
+		// once there is an answer, so a reload while waiting loses nothing.
+		const { historyBeforeResults, existingResults, interruptedResults } = location
+		const baseResults = [...existingResults, ...interruptedResults]
+
+		const continueWith = async (result: Anthropic.ToolResultBlockParam) => {
+			await this.settlePendingAction(action.actionId)
+			await this.overwriteApiConversationHistory(historyBeforeResults)
+			await this.initiateTaskLoop([...baseResults, result])
+		}
+
+		let { response, text, images } = await this.ask("tool", action.approvalText, false, undefined, false, {
+			manualApprovalOnly: true,
+		})
+
+		if (response === "yesButtonClicked") {
+			if (action.kind === "create_subtask") {
+				// The delegation flushes these before it closes this task.
+				// (A user message only holds text, image and tool_result blocks.)
+				await this.overwriteApiConversationHistory(historyBeforeResults)
+				this.userMessageContent = baseResults as typeof this.userMessageContent
+				this.assistantMessageSavedToHistory = true
+
+				try {
+					await provider.delegateParentAndOpenChild({
+						parentTaskId: this.taskId,
+						message: action.message,
+						initialTodos: action.todos,
+						mode: action.mode,
+						pendingActionId: action.actionId,
+					})
+				} catch (error) {
+					if (this.abort) {
+						// Failed after closing this task: the provider rolled back, cleared
+						// the approval and reopened the parent as a new instance.
+						return
+					}
+
+					if (error instanceof PendingActionSettledError) {
+						// Answered in another panel: this instance is stale.
+						this.pendingAction = undefined
+
+						if (provider.getCurrentTask() === this) {
+							await provider.removeClineFromStack()
+						}
+
+						return
+					}
+
+					// Failed before anything changed (mode, profile, ...): report it to the
+					// model once instead of asking again on every open.
+					const message = error instanceof Error ? error.message : String(error)
+					this.userMessageContent = []
+					await this.say("error", `Error creating new task:\n${message}`)
+					await continueWith({
+						type: "tool_result",
+						tool_use_id: action.actionId,
+						content: formatResponse.toolError(`Error creating new task: ${message}`),
+					})
+				}
+
+				return
+			}
+
+			const didReopen = await provider.reopenParentFromDelegation({
+				parentTaskId: action.parentTaskId,
+				childTaskId: this.taskId,
+				completionResultSummary: action.result,
+				pendingActionId: action.actionId,
+			})
+
+			if (didReopen) {
+				this.emitFinalTokenUsageUpdate()
+				this.emit(BearCodeEventName.TaskCompleted, this.taskId, this.getTokenUsage(), this.toolUsage)
+				return
+			}
+
+			// The parent no longer waits for this task (deleted, resumed by hand, or
+			// answered elsewhere): finish it as a standalone task.
+			await this.settlePendingAction(action.actionId)
+			;({ response, text, images } = await this.ask("completion_result", "", false))
+
+			if (response === "yesButtonClicked") {
+				this.emitFinalTokenUsageUpdate()
+				this.emit(BearCodeEventName.TaskCompleted, this.taskId, this.getTokenUsage(), this.toolUsage)
+				return
+			}
+
+			await this.say("user_feedback", text ?? "", images)
+			await continueWith({
+				type: "tool_result",
+				tool_use_id: action.actionId,
+				content: formatResponse.toolResult(`<user_message>\n${text}\n</user_message>`, images),
+			})
+			return
+		}
+
+		// Rejected, with or without feedback.
+		if (text || images?.length) {
+			await this.say("user_feedback", text ?? "", images)
+		}
+
+		const denied = text ? formatResponse.toolDeniedWithFeedback(text) : formatResponse.toolDenied()
+		await continueWith({
+			type: "tool_result",
+			tool_use_id: action.actionId,
+			content: formatResponse.toolResult(denied, images),
+		})
+	}
+
 	/**
 	 * The user resumed this task while it was still waiting for a subtask: stop
 	 * waiting. The parent goes back to "active" so a late result from that subtask
@@ -2039,6 +2288,20 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				}
 			}
 
+			// A saved subtask approval is asked again below; drop its old row, which
+			// would otherwise stay in the chat without buttons.
+			if (this.pendingAction) {
+				const approvalText = this.pendingAction.approvalText
+				const staleAskIndex = findLastIndex(
+					modifiedClineMessages,
+					(m) => m.type === "ask" && m.ask === "tool" && !m.isAnswered && m.text === approvalText,
+				)
+
+				if (staleAskIndex !== -1) {
+					modifiedClineMessages.splice(staleAskIndex, 1)
+				}
+			}
+
 			await this.overwriteClineMessages(modifiedClineMessages)
 			this.clineMessages = await this.getSavedClineMessages()
 
@@ -2049,6 +2312,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// This is important in case the user deletes messages without resuming
 			// the task first.
 			this.apiConversationHistory = await this.getSavedApiConversationHistory()
+
+			if (this.pendingAction) {
+				if (this.locatePendingActionToolCall(this.pendingAction.actionId)) {
+					this.isInitialized = true
+					await this.resumePendingTaskAction(this.pendingAction)
+					return
+				}
+
+				// Already answered, or its tool call is gone: nothing to ask again.
+				await this.settlePendingAction(this.pendingAction.actionId)
+			}
 
 			const lastClineMessage = this.clineMessages
 				.slice()

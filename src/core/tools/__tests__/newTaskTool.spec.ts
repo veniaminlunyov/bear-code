@@ -83,6 +83,7 @@ const mockDelegateParentAndOpenChild = vi.fn(
 	},
 )
 const mockCheckpointSave = vi.fn()
+const mockSetPendingTaskAction = vi.fn().mockResolvedValue(undefined)
 
 // Mock the Cline instance and its methods/properties
 const mockCline = {
@@ -102,8 +103,10 @@ const mockCline = {
 			getState: vi.fn(() => ({ customModes: [], mode: "ask" })),
 			handleModeSwitch: vi.fn(),
 			delegateParentAndOpenChild: mockDelegateParentAndOpenChild,
+			setPendingTaskAction: mockSetPendingTaskAction,
 		})),
 	},
+	setPendingTaskAction: vi.fn(),
 }
 
 // Import the class to test AFTER mocks are set up
@@ -387,6 +390,51 @@ describe("newTaskTool", () => {
 			]),
 			"code",
 		)
+	})
+
+	describe("saved approval", () => {
+		it("saves the approval before asking and passes it to the delegation", async () => {
+			const order: string[] = []
+			mockSetPendingTaskAction.mockImplementationOnce(async () => {
+				order.push("save approval")
+			})
+			mockAskApproval.mockImplementationOnce(async () => {
+				order.push("ask")
+				return true
+			})
+
+			await newTaskTool.handle(
+				mockCline as any,
+				withNativeArgs({
+					type: "tool_use",
+					name: "new_task",
+					id: "call_new",
+					params: { mode: "code", message: "do it", todos: "[ ] one" },
+					partial: false,
+				} as ToolUse<"new_task">),
+				{
+					askApproval: mockAskApproval,
+					handleError: mockHandleError,
+					pushToolResult: mockPushToolResult,
+					toolCallId: "call_new",
+				},
+			)
+
+			expect(order).toEqual(["save approval", "ask"])
+			expect(mockSetPendingTaskAction).toHaveBeenCalledWith(
+				"mock-parent-task-id",
+				expect.objectContaining({
+					kind: "create_subtask",
+					actionId: "call_new",
+					mode: "code",
+					message: "do it",
+				}),
+			)
+			expect((mockCline as any).setPendingTaskAction).toHaveBeenCalled()
+			expect(mockDelegateParentAndOpenChild).toHaveBeenCalledWith(
+				expect.objectContaining({ pendingActionId: "call_new" }),
+			)
+		})
 	})
 
 	describe("delegation failures", () => {
