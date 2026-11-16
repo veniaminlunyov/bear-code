@@ -1828,9 +1828,13 @@ export class ClineProvider
 	}
 
 	async postStateToWebview() {
+		// Reserve the sequence number BEFORE the async snapshot is built. Otherwise a
+		// slower, older snapshot (e.g. taken before a delegated child's first message)
+		// can finish last, receive the highest number and overwrite newer messages in
+		// the webview, which then falls back to the Home view.
+		const clineMessagesSeq = ++this.clineMessagesSeq
 		const state = await this.getStateToPostToWebview()
-		this.clineMessagesSeq++
-		state.clineMessagesSeq = this.clineMessagesSeq
+		state.clineMessagesSeq = clineMessagesSeq
 		this.postMessageToWebview({ type: "state", state })
 	}
 
@@ -1843,9 +1847,10 @@ export class ClineProvider
 	 *   `taskHistoryUpdated` / `taskHistoryItemUpdated`.
 	 */
 	async postStateToWebviewWithoutTaskHistory(): Promise<void> {
+		// See postStateToWebview: reserve the sequence number before building the snapshot.
+		const clineMessagesSeq = ++this.clineMessagesSeq
 		const state = await this.getStateToPostToWebview()
-		this.clineMessagesSeq++
-		state.clineMessagesSeq = this.clineMessagesSeq
+		state.clineMessagesSeq = clineMessagesSeq
 		const { taskHistory: _omit, ...rest } = state
 		this.postMessageToWebview({ type: "state", state: rest })
 	}
