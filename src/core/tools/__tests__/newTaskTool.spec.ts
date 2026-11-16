@@ -389,6 +389,54 @@ describe("newTaskTool", () => {
 		)
 	})
 
+	describe("delegation failures", () => {
+		const block = (): ToolUse<"new_task"> =>
+			withNativeArgs({
+				type: "tool_use",
+				name: "new_task",
+				params: { mode: "code", message: "do it", todos: "[ ] one" },
+				partial: false,
+			})
+
+		afterEach(() => {
+			;(mockCline as any).abort = false
+		})
+
+		it("reports the error on the parent when delegation fails before the parent is closed", async () => {
+			const error = new Error("boom")
+			mockDelegateParentAndOpenChild.mockRejectedValueOnce(error)
+
+			await newTaskTool.handle(mockCline as any, block(), {
+				askApproval: mockAskApproval,
+				handleError: mockHandleError,
+				pushToolResult: mockPushToolResult,
+			})
+
+			expect(mockHandleError).toHaveBeenCalledWith("creating new task", error)
+		})
+
+		it("does not report on the parent once delegation has closed it", async () => {
+			const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+			mockDelegateParentAndOpenChild.mockImplementationOnce(async () => {
+				// delegateParentAndOpenChild aborts the parent before creating the child.
+				;(mockCline as any).abort = true
+				throw new Error("child could not be created")
+			})
+
+			await expect(
+				newTaskTool.handle(mockCline as any, block(), {
+					askApproval: mockAskApproval,
+					handleError: mockHandleError,
+					pushToolResult: mockPushToolResult,
+				}),
+			).resolves.toBeUndefined()
+
+			expect(mockHandleError).not.toHaveBeenCalled()
+			expect(mockPushToolResult).not.toHaveBeenCalled()
+			consoleError.mockRestore()
+		})
+	})
+
 	describe("VSCode setting: newTaskRequireTodos", () => {
 		it("should NOT require todos when VSCode setting is disabled (default)", async () => {
 			// Ensure VSCode setting is disabled

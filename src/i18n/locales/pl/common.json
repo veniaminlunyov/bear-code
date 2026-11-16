@@ -59,6 +59,7 @@
 		"mistake_limit_guidance": "To może wskazywać na błąd w procesie myślowym modelu lub niezdolność do prawidłowego użycia narzędzia, co można złagodzić poprzez wskazówki użytkownika (np. \"Spróbuj podzielić zadanie na mniejsze kroki\").",
 		"violated_organization_allowlist": "Nie udało się uruchomić zadania: bieżący profil nie jest kompatybilny z ustawieniami Twojej organizacji",
 		"subtask_delegation_failed": "Nie udało się uruchomić podzadania: nie można zapisać stanu zadania nadrzędnego. Zadanie nadrzędne zostało ponownie otwarte.",
+		"subtask_creation_failed": "Nie można uruchomić podzadania: {{error}}. Zadanie nadrzędne zostało ponownie otwarte.",
 		"condense_failed": "Nie udało się skondensować kontekstu",
 		"condense_not_enough_messages": "Za mało wiadomości do skondensowania kontekstu",
 		"condensed_recently": "Kontekst został niedawno skondensowany; pomijanie tej próby",

@@ -5,6 +5,7 @@ import type { HistoryItem } from "@bear-code/types"
 import { BearCodeEventName } from "@bear-code/types"
 import { ClineProvider } from "../core/webview/ClineProvider"
 import * as ProfileValidatorMod from "../shared/ProfileValidator"
+import * as vscode from "vscode"
 
 const { taskStart } = vi.hoisted(() => ({ taskStart: vi.fn() }))
 
@@ -268,6 +269,42 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 			"deleteTaskWithId:child-1:false",
 			"createTaskWithHistoryItem:parent-1",
 		])
+	})
+
+	it("reopens the parent when the child cannot be created", async () => {
+		const callOrder: string[] = []
+		const createError = new Error("profile not allowed")
+		const restoredParent = { ...parentHistoryItem, status: "active" } as HistoryItem
+		let current: any = makeParentTask()
+
+		const provider = {
+			emit: vi.fn(),
+			getCurrentTask: vi.fn(() => current),
+			removeClineFromStack: vi.fn(async (opts?: { skipDelegationRepair?: boolean }) => {
+				callOrder.push(`removeClineFromStack:${opts?.skipDelegationRepair}`)
+				current = undefined
+			}),
+			createTask: vi.fn().mockRejectedValue(createError),
+			handleModeSwitch: vi.fn().mockResolvedValue(undefined),
+			deleteTaskWithId: vi.fn(),
+			getTaskWithId: vi.fn().mockResolvedValue({ historyItem: restoredParent }),
+			createTaskWithHistoryItem: vi.fn(async (item: HistoryItem) => {
+				callOrder.push(`createTaskWithHistoryItem:${item.id}`)
+			}),
+			log: vi.fn(),
+			isViewLaunched: false,
+			taskHistoryStore: makeStoreStub(),
+		} as unknown as ClineProvider
+		;(provider as any).rollbackFailedDelegation = (ClineProvider.prototype as any).rollbackFailedDelegation
+
+		await expect((ClineProvider.prototype as any).delegateParentAndOpenChild.call(provider, params)).rejects.toBe(
+			createError,
+		)
+
+		// Nothing to delete: no child was created. The parent is reopened.
+		expect((provider as any).deleteTaskWithId).not.toHaveBeenCalled()
+		expect(callOrder).toEqual(["removeClineFromStack:true", "createTaskWithHistoryItem:parent-1"])
+		expect(vscode.window.showErrorMessage).toHaveBeenCalled()
 	})
 })
 
