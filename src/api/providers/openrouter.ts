@@ -11,8 +11,6 @@ import {
 	DEEP_SEEK_DEFAULT_TEMPERATURE,
 } from "@bear-code/types"
 
-import { NativeToolCallParser } from "../../core/assistant-message/NativeToolCallParser"
-
 import type { ApiHandlerOptions } from "../../shared/api"
 
 import {
@@ -358,6 +356,7 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 		// When reasoning_details has displayable content (reasoning.text or reasoning.summary),
 		// we skip yielding the top-level reasoning field to avoid duplicate display.
 		let hasYieldedReasoningFromDetails = false
+		const activeToolCallIds = new Set<string>()
 
 		for await (const chunk of stream) {
 			// OpenRouter returns an error object instead of the OpenAI SDK throwing an error.
@@ -448,6 +447,9 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 				// Emit raw tool call chunks - NativeToolCallParser handles state management
 				if ("tool_calls" in delta && Array.isArray(delta.tool_calls)) {
 					for (const toolCall of delta.tool_calls) {
+						if (toolCall.id) {
+							activeToolCallIds.add(toolCall.id)
+						}
 						yield {
 							type: "tool_call_partial",
 							index: toolCall.index,
@@ -465,11 +467,12 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 
 			// Process finish_reason to emit tool_call_end events
 			// This ensures tool calls are finalized even if the stream doesn't properly close
-			if (finishReason) {
-				const endEvents = NativeToolCallParser.processFinishReason(finishReason)
-				for (const event of endEvents) {
-					yield event
+			// Track ids locally: the shared parser state belongs to the consuming task.
+			if (finishReason === "tool_calls") {
+				for (const id of activeToolCallIds) {
+					yield { type: "tool_call_end", id }
 				}
+				activeToolCallIds.clear()
 			}
 
 			if (chunk.usage) {

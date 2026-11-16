@@ -8,7 +8,7 @@ import delay from "delay"
 import type { ExperimentId } from "@bear-code/types"
 
 import { formatLanguage } from "../../shared/language"
-import { defaultModeSlug, getFullModeDetails } from "../../shared/modes"
+import { getFullModeDetails } from "../../shared/modes"
 import { getApiMetrics } from "../../shared/getApiMetrics"
 import { listFiles } from "../../services/glob/list-files"
 import { TerminalRegistry } from "../../integrations/terminal/TerminalRegistry"
@@ -205,7 +205,6 @@ export async function getEnvironmentDetails(cline: Task, includeFileDetails: boo
 
 	// Add current mode and any mode-specific warnings.
 	const {
-		mode,
 		customModes,
 		customModePrompts,
 		experiments = {} as Record<ExperimentId, boolean>,
@@ -213,7 +212,10 @@ export async function getEnvironmentDetails(cline: Task, includeFileDetails: boo
 		language,
 	} = state ?? {}
 
-	const currentMode = mode ?? defaultModeSlug
+	// Read the task-local mode, not the shared provider mode.
+	// A delegated child task may run in a different mode than its parent, and
+	// another provider (sidebar vs. editor tab) may have switched the global mode.
+	const currentMode = await cline.getTaskMode()
 
 	const modeDetails = await getFullModeDetails(currentMode, customModes, customModePrompts, {
 		cwd: cline.cwd,

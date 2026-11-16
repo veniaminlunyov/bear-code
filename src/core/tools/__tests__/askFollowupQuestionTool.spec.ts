@@ -240,18 +240,19 @@ describe("askFollowupQuestionTool", () => {
 	})
 
 	describe("NativeToolCallParser.createPartialToolUse for ask_followup_question", () => {
+		let scope: object
+
 		beforeEach(() => {
-			NativeToolCallParser.clearAllStreamingToolCalls()
-			NativeToolCallParser.clearRawChunkState()
+			scope = NativeToolCallParser.createScope()
 		})
 
 		it("should build nativeArgs with question and follow_up during streaming", () => {
 			// Start a streaming tool call
-			NativeToolCallParser.startStreamingToolCall("call_123", "ask_followup_question")
+			NativeToolCallParser.startStreamingToolCall("call_123", "ask_followup_question", scope)
 
 			// Simulate streaming JSON chunks
 			const chunk1 = '{"question":"What would you like?","follow_up":[{"text":"Option 1","mode":"code"}'
-			const result1 = NativeToolCallParser.processStreamingChunk("call_123", chunk1)
+			const result1 = NativeToolCallParser.processStreamingChunk("call_123", chunk1, scope)
 
 			expect(result1).not.toBeNull()
 			expect(result1?.name).toBe("ask_followup_question")
@@ -268,14 +269,14 @@ describe("askFollowupQuestionTool", () => {
 		})
 
 		it("should finalize with complete nativeArgs", () => {
-			NativeToolCallParser.startStreamingToolCall("call_456", "ask_followup_question")
+			NativeToolCallParser.startStreamingToolCall("call_456", "ask_followup_question", scope)
 
 			// Add complete JSON
 			const completeJson =
 				'{"question":"Choose an option","follow_up":[{"text":"Yes","mode":"code"},{"text":"No","mode":null}]}'
-			NativeToolCallParser.processStreamingChunk("call_456", completeJson)
+			NativeToolCallParser.processStreamingChunk("call_456", completeJson, scope)
 
-			const result = NativeToolCallParser.finalizeStreamingToolCall("call_456")
+			const result = NativeToolCallParser.finalizeStreamingToolCall("call_456", scope)
 
 			expect(result).not.toBeNull()
 			expect(result?.type).toBe("tool_use")

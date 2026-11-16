@@ -39,6 +39,9 @@ import { ClineProvider } from "../core/webview/ClineProvider"
 import { readTaskMessages } from "../core/task-persistence/taskMessages"
 import { readApiMessages, saveApiMessages, saveTaskMessages } from "../core/task-persistence"
 
+/** Store stub with an empty cache: forces the sequential (non-atomic) fallback path. */
+const legacyHistoryStore = { get: () => undefined }
+
 describe("History resume delegation - parent metadata transitions", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
@@ -79,6 +82,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 			removeClineFromStack,
 			createTaskWithHistoryItem,
 			updateTaskHistory,
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		// Mock persistence reads to return empty arrays
@@ -145,6 +149,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 				overwriteApiConversationHistory: vi.fn().mockResolvedValue(undefined),
 			}),
 			updateTaskHistory: vi.fn().mockResolvedValue([]),
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		// Start with existing messages in history
@@ -228,6 +233,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 				overwriteApiConversationHistory: vi.fn().mockResolvedValue(undefined),
 			}),
 			updateTaskHistory: vi.fn().mockResolvedValue([]),
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		// Include an assistant message with new_task tool_use to exercise the tool_result path
@@ -314,6 +320,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 				overwriteApiConversationHistory: vi.fn().mockResolvedValue(undefined),
 			}),
 			updateTaskHistory: vi.fn().mockResolvedValue([]),
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		// No assistant tool_use in history
@@ -369,6 +376,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 			removeClineFromStack: vi.fn().mockResolvedValue(undefined),
 			createTaskWithHistoryItem: vi.fn().mockResolvedValue(parentInstance),
 			updateTaskHistory: vi.fn().mockResolvedValue([]),
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		vi.mocked(readTaskMessages).mockResolvedValue([])
@@ -413,6 +421,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 				overwriteApiConversationHistory: vi.fn().mockResolvedValue(undefined),
 			}),
 			updateTaskHistory,
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		vi.mocked(readTaskMessages).mockResolvedValue([])
@@ -491,6 +500,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 			removeClineFromStack: vi.fn().mockResolvedValue(undefined),
 			createTaskWithHistoryItem: vi.fn().mockResolvedValue(parentInstance),
 			updateTaskHistory: vi.fn().mockResolvedValue([]),
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		vi.mocked(readTaskMessages).mockResolvedValue([])
@@ -549,6 +559,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 				overwriteApiConversationHistory: vi.fn().mockResolvedValue(undefined),
 			}),
 			updateTaskHistory: vi.fn().mockResolvedValue([]),
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		vi.mocked(readTaskMessages).mockResolvedValue([])
@@ -613,6 +624,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 			removeClineFromStack,
 			createTaskWithHistoryItem,
 			updateTaskHistory,
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		vi.mocked(readTaskMessages).mockResolvedValue([])
@@ -694,6 +706,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 			removeClineFromStack: vi.fn().mockResolvedValue(undefined),
 			createTaskWithHistoryItem: vi.fn().mockResolvedValue(parentInstance),
 			updateTaskHistory,
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		vi.mocked(readTaskMessages).mockResolvedValue([])
@@ -723,6 +736,101 @@ describe("History resume delegation - parent metadata transitions", () => {
 		expect(emitSpy).toHaveBeenCalledWith(BearCodeEventName.TaskDelegationResumed, "parent-rpd04", "child-rpd04")
 	})
 
+	it("reopenParentFromDelegation updates child and parent atomically from the stored records", async () => {
+		const staleParent = {
+			id: "parent-atomic",
+			status: "delegated",
+			delegatedToId: "child-atomic",
+			awaitingChildId: "child-atomic",
+			childIds: ["child-atomic"],
+			ts: 1,
+			task: "Parent",
+			tokensIn: 0,
+			tokensOut: 0,
+			totalCost: 0,
+		}
+		// The stored records changed after the step-1 read (e.g. a concurrent token save).
+		const records: Record<string, any> = {
+			"parent-atomic": { ...staleParent, tokensOut: 42 },
+			"child-atomic": { id: "child-atomic", status: "active", parentTaskId: "parent-atomic", tokensOut: 7 },
+		}
+		const taskHistoryStore = {
+			get: vi.fn((id: string) => records[id]),
+			atomicUpdatePair: vi.fn(
+				async (firstId: string, secondId: string, firstUpdater: any, secondUpdater: any) => {
+					records[firstId] = firstUpdater({ ...records[firstId] })
+					records[secondId] = secondUpdater({ ...records[secondId] })
+					return Object.values(records)
+				},
+			),
+		}
+		const updateTaskHistory = vi.fn().mockResolvedValue([])
+		const removeClineFromStack = vi.fn().mockResolvedValue(undefined)
+		const postMessageToWebview = vi.fn().mockResolvedValue(undefined)
+		const createTaskWithHistoryItem = vi.fn().mockResolvedValue({
+			resumeAfterDelegation: vi.fn().mockResolvedValue(undefined),
+			overwriteClineMessages: vi.fn().mockResolvedValue(undefined),
+			overwriteApiConversationHistory: vi.fn().mockResolvedValue(undefined),
+		})
+
+		const provider = {
+			contextProxy: { globalStorageUri: { fsPath: "/tmp" } },
+			getTaskWithId: vi.fn().mockResolvedValue({ historyItem: staleParent }),
+			emit: vi.fn(),
+			getCurrentTask: vi.fn(() => ({ taskId: "child-atomic" })),
+			removeClineFromStack,
+			createTaskWithHistoryItem,
+			updateTaskHistory,
+			postMessageToWebview,
+			isViewLaunched: true,
+			taskHistoryStore,
+		} as unknown as ClineProvider
+
+		vi.mocked(readTaskMessages).mockResolvedValue([])
+		vi.mocked(readApiMessages).mockResolvedValue([])
+
+		await (ClineProvider.prototype as any).reopenParentFromDelegation.call(provider, {
+			parentTaskId: "parent-atomic",
+			childTaskId: "child-atomic",
+			completionResultSummary: "Atomic done",
+		})
+
+		// Child closed without the generic parent repair (parent is updated atomically instead)
+		expect(removeClineFromStack).toHaveBeenCalledWith({ skipDelegationRepair: true })
+		expect(updateTaskHistory).not.toHaveBeenCalled()
+		expect(taskHistoryStore.atomicUpdatePair).toHaveBeenCalledWith(
+			"child-atomic",
+			"parent-atomic",
+			expect.any(Function),
+			expect.any(Function),
+		)
+		// The child close happens before the completed write
+		expect(removeClineFromStack.mock.invocationCallOrder[0]).toBeLessThan(
+			taskHistoryStore.atomicUpdatePair.mock.invocationCallOrder[0],
+		)
+
+		expect(records["child-atomic"]).toMatchObject({ status: "completed", tokensOut: 7 })
+		expect(records["parent-atomic"]).toMatchObject({
+			status: "active",
+			completedByChildId: "child-atomic",
+			completionResultSummary: "Atomic done",
+			awaitingChildId: undefined,
+			childIds: ["child-atomic"],
+			// Built from the stored record, not the stale step-1 snapshot
+			tokensOut: 42,
+		})
+
+		expect(createTaskWithHistoryItem).toHaveBeenCalledWith(records["parent-atomic"], { startTask: false })
+		expect(postMessageToWebview).toHaveBeenCalledWith({
+			type: "taskHistoryItemUpdated",
+			taskHistoryItem: records["child-atomic"],
+		})
+		expect(postMessageToWebview).toHaveBeenCalledWith({
+			type: "taskHistoryItemUpdated",
+			taskHistoryItem: records["parent-atomic"],
+		})
+	})
+
 	it("handles empty history gracefully when injecting synthetic messages", async () => {
 		const provider = {
 			contextProxy: { globalStorageUri: { fsPath: "/tmp" } },
@@ -748,6 +856,7 @@ describe("History resume delegation - parent metadata transitions", () => {
 				overwriteApiConversationHistory: vi.fn().mockResolvedValue(undefined),
 			}),
 			updateTaskHistory: vi.fn().mockResolvedValue([]),
+			taskHistoryStore: legacyHistoryStore,
 		} as unknown as ClineProvider
 
 		// Mock read failures or empty returns

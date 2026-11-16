@@ -28,6 +28,7 @@ describe("presentAssistantMessage - Unknown Tool Handling", () => {
 			didRejectTool: false,
 			didAlreadyUseTool: false,
 			consecutiveMistakeCount: 0,
+			getTaskMode: vi.fn().mockResolvedValue("code"),
 			clineMessages: [],
 			api: {
 				getModel: () => ({ id: "test-model", info: {} }),

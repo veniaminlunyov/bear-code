@@ -1014,6 +1014,48 @@ describe("ClineProvider", () => {
 		})
 	})
 
+	test.each([
+		["postStateToWebview", (currentProvider: ClineProvider) => currentProvider.postStateToWebview()],
+		[
+			"postStateToWebviewWithoutTaskHistory",
+			(currentProvider: ClineProvider) => currentProvider.postStateToWebviewWithoutTaskHistory(),
+		],
+	])("%s assigns message sequence numbers before asynchronous state construction", async (_methodName, postState) => {
+		let releaseOlderSnapshot!: (state: ExtensionState) => void
+		const olderSnapshot = new Promise<ExtensionState>((resolve) => {
+			releaseOlderSnapshot = resolve
+		})
+		const baseState = await provider.getStateToPostToWebview()
+		const emptyState: ExtensionState = { ...baseState, taskHistory: [], clineMessages: [] }
+		const readyState: ExtensionState = {
+			...baseState,
+			taskHistory: [],
+			clineMessages: [{ ts: 1, type: "say", say: "text", text: "child ready" }],
+		}
+
+		vi.spyOn(provider, "getStateToPostToWebview")
+			.mockReturnValueOnce(olderSnapshot)
+			.mockResolvedValueOnce(readyState)
+		const postMessageSpy = vi.spyOn(provider, "postMessageToWebview").mockResolvedValue(undefined)
+
+		// The older post starts first but its snapshot resolves last.
+		const olderPost = postState(provider)
+		await Promise.resolve()
+		const newerPost = postState(provider)
+		await newerPost
+		releaseOlderSnapshot(emptyState)
+		await olderPost
+
+		const posted = postMessageSpy.mock.calls.map(([message]) => message.state)
+		expect(posted.map((state) => state?.clineMessages)).toEqual([
+			readyState.clineMessages,
+			emptyState.clineMessages,
+		])
+		// The stale snapshot keeps its lower sequence number, so the webview discards its messages.
+		const [newerSeq, olderSeq] = posted.map((state) => state?.clineMessagesSeq ?? 0)
+		expect(olderSeq).toBeLessThan(newerSeq)
+	})
+
 	test("addClineToStack adds multiple Cline instances to the stack", async () => {
 		// Setup Cline instance with auto-mock from the top of the file
 		const mockCline1 = new Task(defaultTaskOptions) // Create a new mocked instance

@@ -19,6 +19,7 @@ describe("skillTool", () => {
 
 		mockTask = {
 			consecutiveMistakeCount: 0,
+			getTaskMode: vi.fn().mockResolvedValue("code"),
 			recordToolError: vi.fn(),
 			didToolFailInCurrentTurn: false,
 			sayAndCreateMissingParamError: vi.fn().mockResolvedValue("Missing parameter error"),
@@ -76,6 +77,30 @@ describe("skillTool", () => {
 		expect(mockCallbacks.pushToolResult).toHaveBeenCalledWith(
 			formatResponse.toolError("Skill 'non-existent' not found. Available skills: create-mcp-server"),
 		)
+	})
+
+	it("resolves skills against the task-local mode, not the provider mode", async () => {
+		const block: ToolUse<"skill"> = {
+			type: "tool_use" as const,
+			name: "skill" as const,
+			params: {},
+			partial: false,
+			nativeArgs: {
+				skill: "non-existent",
+			},
+		}
+		// Provider state still reflects the parent's mode; the delegated child runs in "architect".
+		mockTask.getTaskMode.mockResolvedValue("architect")
+		mockTask.providerRef.deref = vi.fn().mockReturnValue({
+			getState: vi.fn().mockResolvedValue({ mode: "orchestrator" }),
+			getSkillsManager: vi.fn().mockReturnValue(mockSkillsManager),
+		})
+		mockSkillsManager.getSkillContent.mockResolvedValue(null)
+
+		await skillTool.handle(mockTask as Task, block, mockCallbacks)
+
+		expect(mockSkillsManager.getSkillContent).toHaveBeenCalledWith("non-existent", "architect")
+		expect(mockSkillsManager.getSkillsForMode).toHaveBeenCalledWith("architect")
 	})
 
 	it("should handle empty available skills list", async () => {

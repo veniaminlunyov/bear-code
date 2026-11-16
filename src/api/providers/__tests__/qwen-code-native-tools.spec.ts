@@ -28,7 +28,6 @@ vi.mock("openai", () => {
 
 import { promises as fs } from "node:fs"
 import { QwenCodeHandler } from "../qwen-code"
-import { NativeToolCallParser } from "../../../core/assistant-message/NativeToolCallParser"
 import type { ApiHandlerOptions } from "../../../shared/api"
 
 describe("QwenCodeHandler Native Tools", () => {
@@ -70,9 +69,6 @@ describe("QwenCodeHandler Native Tools", () => {
 			apiModelId: "qwen3-coder-plus",
 		}
 		handler = new QwenCodeHandler(mockOptions)
-
-		// Clear NativeToolCallParser state before each test
-		NativeToolCallParser.clearRawChunkState()
 	})
 
 	describe("Native Tool Calling Support", () => {
@@ -280,16 +276,6 @@ describe("QwenCodeHandler Native Tools", () => {
 
 			const chunks = []
 			for await (const chunk of stream) {
-				// Simulate what Task.ts does: when we receive tool_call_partial,
-				// process it through NativeToolCallParser to populate rawChunkTracker
-				if (chunk.type === "tool_call_partial") {
-					NativeToolCallParser.processRawChunk({
-						index: chunk.index,
-						id: chunk.id,
-						name: chunk.name,
-						arguments: chunk.arguments,
-					})
-				}
 				chunks.push(chunk)
 			}
 
@@ -350,14 +336,6 @@ describe("QwenCodeHandler Native Tools", () => {
 
 			const chunks = []
 			for await (const chunk of stream) {
-				if (chunk.type === "tool_call_partial") {
-					NativeToolCallParser.processRawChunk({
-						index: chunk.index,
-						id: chunk.id,
-						name: chunk.name,
-						arguments: chunk.arguments,
-					})
-				}
 				chunks.push(chunk)
 			}
 

@@ -158,24 +158,130 @@ export class TaskHistoryStore {
 	 * updates the in-memory Map, and schedules a debounced index write.
 	 */
 	async upsert(item: HistoryItem): Promise<HistoryItem[]> {
+		return this.withLock(() => this.upsertUnlocked(item))
+	}
+
+	/**
+	 * Upsert body executed without acquiring the lock.
+	 * Must only be called from within a `withLock` callback.
+	 */
+	private async upsertUnlocked(item: HistoryItem): Promise<HistoryItem[]> {
+		const existing = this.cache.get(item.id)
+
+		// Merge: preserve existing metadata unless explicitly overwritten
+		const merged = existing ? { ...existing, ...item } : item
+
+		// Write per-task file (source of truth)
+		await this.writeTaskFile(merged)
+
+		// Update in-memory cache
+		this.cache.set(merged.id, merged)
+
+		// Schedule debounced index write
+		this.scheduleIndexWrite()
+
+		const all = this.getAll()
+
+		// Call onWrite callback inside the lock for serialized write-through
+		if (this.onWrite) {
+			await this.onWrite(all)
+		}
+
+		return all
+	}
+
+	/**
+	 * Read a HistoryItem from the in-memory cache and write back an updated version,
+	 * all within a single lock acquisition so no concurrent writer can interleave
+	 * between the read and the write.
+	 *
+	 * The `updater` receives a deep copy of the current cached item and must return
+	 * the new item synchronously. It must not perform I/O or acquire any other lock.
+	 *
+	 * @throws If the task ID is not present in the cache, or the updater changes the id.
+	 */
+	public atomicReadAndUpdate(taskId: string, updater: (current: HistoryItem) => HistoryItem): Promise<HistoryItem[]> {
 		return this.withLock(async () => {
-			const existing = this.cache.get(item.id)
+			const current = this.cache.get(taskId)
 
-			// Merge: preserve existing metadata unless explicitly overwritten
-			const merged = existing ? { ...existing, ...item } : item
+			if (!current) {
+				throw new Error(`[TaskHistoryStore] atomicReadAndUpdate: task ${taskId} not found in cache`)
+			}
 
-			// Write per-task file (source of truth)
-			await this.writeTaskFile(merged)
+			// Deep-copy so a mutating updater cannot alter cached state before persistence.
+			const updated = updater(structuredClone(current))
 
-			// Update in-memory cache
-			this.cache.set(merged.id, merged)
+			if (updated.id !== taskId) {
+				throw new Error(
+					`[TaskHistoryStore] atomicReadAndUpdate: updater changed task id from ${taskId} to ${updated.id}`,
+				)
+			}
 
-			// Schedule debounced index write
+			return this.upsertUnlocked(updated)
+		})
+	}
+
+	/**
+	 * Atomically update two related HistoryItems (e.g. a delegated child and its
+	 * parent) within a single lock acquisition. Both updaters receive deep copies,
+	 * must be synchronous and must not perform I/O or acquire any other lock.
+	 *
+	 * Both per-task files are written before the in-memory cache is touched, so
+	 * readers never observe a half-updated cache. If the second file write fails
+	 * the first file has already landed on disk (no rollback), but the cache is
+	 * left unchanged and the error is surfaced to the caller.
+	 *
+	 * @throws If either task ID is not present in the cache, or an updater changes the id.
+	 */
+	public atomicUpdatePair(
+		firstId: string,
+		secondId: string,
+		firstUpdater: (current: HistoryItem) => HistoryItem,
+		secondUpdater: (current: HistoryItem) => HistoryItem,
+	): Promise<HistoryItem[]> {
+		return this.withLock(async () => {
+			const first = this.cache.get(firstId)
+
+			if (!first) {
+				throw new Error(`[TaskHistoryStore] atomicUpdatePair: ${firstId} not found in cache`)
+			}
+
+			const second = this.cache.get(secondId)
+
+			if (!second) {
+				throw new Error(`[TaskHistoryStore] atomicUpdatePair: ${secondId} not found in cache`)
+			}
+
+			const updatedFirst = firstUpdater(structuredClone(first))
+			const updatedSecond = secondUpdater(structuredClone(second))
+
+			if (updatedFirst.id !== firstId) {
+				throw new Error(
+					`[TaskHistoryStore] atomicUpdatePair: first updater changed id from ${firstId} to ${updatedFirst.id}`,
+				)
+			}
+
+			if (updatedSecond.id !== secondId) {
+				throw new Error(
+					`[TaskHistoryStore] atomicUpdatePair: second updater changed id from ${secondId} to ${updatedSecond.id}`,
+				)
+			}
+
+			// Merge with existing cache entries, mirroring upsert().
+			const mergedFirst = { ...first, ...updatedFirst }
+			const mergedSecond = { ...second, ...updatedSecond }
+
+			await this.writeTaskFile(mergedFirst)
+			await this.writeTaskFile(mergedSecond)
+
+			// Both disk writes succeeded — now update the cache.
+			this.cache.set(firstId, mergedFirst)
+			this.cache.set(secondId, mergedSecond)
+
 			this.scheduleIndexWrite()
 
 			const all = this.getAll()
 
-			// Call onWrite callback inside the lock for serialized write-through
 			if (this.onWrite) {
 				await this.onWrite(all)
 			}
