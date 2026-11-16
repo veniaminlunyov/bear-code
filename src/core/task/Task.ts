@@ -2419,7 +2419,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Continue task loop - pass empty array to signal no new user content needed
 		// The initiateTaskLoop will handle this by skipping user message addition
-		await this.initiateTaskLoop([])
+		await this.initiateTaskLoop([]).catch((error) => {
+			// Same as startTask: a loop that ends because the task was abandoned
+			// (closed for another delegation, task switch) or cancelled is expected.
+			if (this.abandoned === true || this.abortReason === "user_cancelled") {
+				return
+			}
+			throw error
+		})
 	}
 
 	// Task Loop
@@ -3490,7 +3497,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					// 	this.userMessageContentReady = true
 					// }
 
-					await pWaitFor(() => this.userMessageContentReady)
+					// Also stop waiting when the task is aborted: presentAssistantMessage
+					// returns early for an aborted task and never marks the content ready,
+					// so an abandoned instance (e.g. a parent closed for delegation) would
+					// otherwise poll here forever.
+					await pWaitFor(() => this.userMessageContentReady || this.abort || this.abandoned)
+
+					if (this.abort || this.abandoned) {
+						throw new Error(
+							`[BearCode#recursivelyMakeBearRequests] task ${this.taskId}.${this.instanceId} aborted`,
+						)
+					}
 
 					// If the model did not tool use, then we need to tell it to
 					// either use a tool or attempt_completion.
