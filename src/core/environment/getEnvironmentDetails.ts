@@ -241,18 +241,23 @@ export async function getEnvironmentDetails(cline: Task, includeFileDetails: boo
 			if (maxFiles === 0) {
 				details += "(Workspace files context disabled. Use list_files to explore if needed.)"
 			} else {
-				const [files, didHitLimit] = await listFiles(cline.cwd, true, maxFiles)
-				const { showBearIgnoredFiles = false } = state ?? {}
+				try {
+					const [files, didHitLimit] = await listFiles(cline.cwd, true, maxFiles)
+					const { showBearIgnoredFiles = false } = state ?? {}
 
-				const result = formatResponse.formatFilesList(
-					cline.cwd,
-					files,
-					didHitLimit,
-					cline.bearIgnoreController,
-					showBearIgnoredFiles,
-				)
-
-				details += result
+					details += formatResponse.formatFilesList(
+						cline.cwd,
+						files,
+						didHitLimit,
+						cline.bearIgnoreController,
+						showBearIgnoredFiles,
+					)
+				} catch (error) {
+					// A missing ripgrep binary (e.g. a new VS Code layout) must not fail
+					// every API request; the model can still call list_files itself.
+					console.error("Failed to list workspace files for environment details:", error)
+					details += "(Workspace files could not be listed. Use list_files to explore if needed.)"
+				}
 			}
 		}
 	}
