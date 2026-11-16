@@ -149,6 +149,7 @@
 		"auto_import_failed": "Automatisch importeren van BearCode-instellingen mislukt: {{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "Deze taak is al geopend in een ander BearCode-paneel en wordt daar getoond.",
 		"no_changes": "Geen wijzigingen gevonden.",
 		"clipboard_copy": "Systeemprompt succesvol gekopieerd naar klembord",
 		"history_cleanup": "{{count}} taak/taken met ontbrekende bestanden uit geschiedenis verwijderd.",

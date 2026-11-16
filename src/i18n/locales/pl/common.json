@@ -149,6 +149,7 @@
 		"auto_import_failed": "Nie udało się automatycznie zaimportować ustawień BearCode: {{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "To zadanie jest już otwarte w innym panelu BearCode, więc pokazano je tam.",
 		"no_changes": "Nie znaleziono zmian.",
 		"clipboard_copy": "Komunikat systemowy został pomyślnie skopiowany do schowka",
 		"history_cleanup": "Wyczyszczono {{count}} zadań z brakującymi plikami z historii.",

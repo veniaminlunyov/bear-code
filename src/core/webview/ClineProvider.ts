@@ -1890,12 +1890,40 @@ export class ClineProvider
 
 	async showTaskWithId(id: string) {
 		if (id !== this.getCurrentTask()?.taskId) {
+			// Already open in another panel (sidebar or editor tab): show it there. A second
+			// instance of the same task would write the same files, and delegation would
+			// then have to close one of them under the user.
+			const owner = Array.from(ClineProvider.activeInstances).find(
+				(provider) => provider !== this && provider.getCurrentTask()?.taskId === id,
+			)
+
+			if (owner) {
+				owner.revealView()
+				vscode.window.showInformationMessage(t("common:info.task_open_in_other_panel"))
+				return
+			}
+
 			// Non-current task.
 			const { historyItem } = await this.getTaskWithId(id)
 			await this.createTaskWithHistoryItem(historyItem) // Clears existing task.
 		}
 
 		await this.postMessageToWebview({ type: "action", action: "chatButtonClicked" })
+	}
+
+	/** Bring this provider's panel (editor tab) or view (sidebar) to the front. */
+	public revealView(): void {
+		const view = this.view
+
+		if (!view) {
+			return
+		}
+
+		if ("reveal" in view) {
+			view.reveal(view.viewColumn)
+		} else {
+			view.show(false)
+		}
 	}
 
 	async exportTaskWithId(id: string) {

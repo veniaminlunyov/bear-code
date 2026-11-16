@@ -153,6 +153,7 @@
 		"auto_import_failed": "Ha fallat la importació automàtica de la configuració de BearCode: {{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "Aquesta tasca ja està oberta en un altre panell de BearCode, s'hi ha mostrat.",
 		"no_changes": "No s'han trobat canvis.",
 		"clipboard_copy": "Missatge del sistema copiat correctament al portapapers",
 		"history_cleanup": "S'han netejat {{count}} tasques amb fitxers que falten de l'historial.",

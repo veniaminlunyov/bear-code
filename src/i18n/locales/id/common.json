@@ -149,6 +149,7 @@
 		"auto_import_failed": "Gagal mengimpor pengaturan BearCode secara otomatis: {{error}}"
 	},
 	"info": {
+		"task_open_in_other_panel": "Tugas ini sudah terbuka di panel BearCode lain, jadi ditampilkan di sana.",
 		"no_changes": "Tidak ada perubahan ditemukan.",
 		"clipboard_copy": "System prompt berhasil disalin ke clipboard",
 		"history_cleanup": "Membersihkan {{count}} tugas dengan file yang hilang dari riwayat.",
