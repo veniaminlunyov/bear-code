@@ -58,6 +58,18 @@ function makeStoreStub(
 
 const makeParentTask = () => ({ taskId: "parent-1", emit: vi.fn() }) as any
 
+const handoffContext = {
+	mode: "code",
+	apiConfigName: "parent-profile",
+	apiConfiguration: { apiProvider: "anthropic" },
+}
+
+/** Delegation helpers the provider stubs need (handoff selection is covered separately). */
+const handoffStubs = () => ({
+	resolveHandoffExecutionContext: vi.fn().mockResolvedValue(handoffContext),
+	mirrorExecutionContextToProvider: vi.fn().mockResolvedValue(undefined),
+})
+
 const params = {
 	parentTaskId: "parent-1",
 	message: "Do something",
@@ -74,7 +86,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 		const updateTaskHistory = vi.fn()
 		const removeClineFromStack = vi.fn().mockResolvedValue(undefined)
 		const createTask = vi.fn().mockResolvedValue({ taskId: "child-1", start: childStart })
-		const handleModeSwitch = vi.fn().mockResolvedValue(undefined)
+		const stubs = handoffStubs()
 		const getTaskWithId = vi.fn()
 		const taskHistoryStore = makeStoreStub()
 
@@ -85,7 +97,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 			createTask,
 			getTaskWithId,
 			updateTaskHistory,
-			handleModeSwitch,
+			...stubs,
 			log: vi.fn(),
 			isViewLaunched: false,
 			taskHistoryStore,
@@ -97,11 +109,13 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 
 		// Invariant: parent closed before child creation
 		expect(removeClineFromStack).toHaveBeenCalledTimes(1)
-		// Child task is created with startTask: false and initialStatus: "active"
+		// Child task is created with startTask: false, initialStatus: "active" and the
+		// execution context chosen from the parent.
 		expect(createTask).toHaveBeenCalledWith("Do something", undefined, parentTask, {
 			initialTodos: [],
 			initialStatus: "active",
 			startTask: false,
+			handoffExecutionContext: handoffContext,
 		})
 
 		// Metadata written atomically, not via a separate read + updateTaskHistory.
@@ -126,8 +140,9 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 		// Event emission (provider-level)
 		expect(providerEmit).toHaveBeenCalledWith(BearCodeEventName.TaskDelegated, "parent-1", "child-1")
 
-		// Mode switch
-		expect(handleModeSwitch).toHaveBeenCalledWith("code")
+		// The child's context is chosen from the parent and only mirrored into the UI.
+		expect(stubs.resolveHandoffExecutionContext).toHaveBeenCalledWith(parentTask, "code")
+		expect(stubs.mirrorExecutionContextToProvider).toHaveBeenCalledWith(handoffContext)
 	})
 
 	it("posts taskHistoryItemUpdated to the webview when the view is launched", async () => {
@@ -140,7 +155,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 			getCurrentTask: vi.fn(() => makeParentTask()),
 			removeClineFromStack: vi.fn().mockResolvedValue(undefined),
 			createTask: vi.fn().mockResolvedValue({ taskId: "child-1", start: vi.fn() }),
-			handleModeSwitch: vi.fn().mockResolvedValue(undefined),
+			...handoffStubs(),
 			postMessageToWebview,
 			log: vi.fn(),
 			isViewLaunched: true,
@@ -165,7 +180,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 			getCurrentTask: vi.fn(() => makeParentTask()),
 			removeClineFromStack: vi.fn().mockResolvedValue(undefined),
 			createTask: vi.fn().mockResolvedValue({ taskId: "child-1", start: vi.fn() }),
-			handleModeSwitch: vi.fn().mockResolvedValue(undefined),
+			...handoffStubs(),
 			getTaskWithId,
 			updateTaskHistory,
 			log: vi.fn(),
@@ -207,7 +222,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 			getCurrentTask: vi.fn(() => makeParentTask()),
 			removeClineFromStack: vi.fn().mockResolvedValue(undefined),
 			createTask,
-			handleModeSwitch: vi.fn().mockResolvedValue(undefined),
+			...handoffStubs(),
 			log: vi.fn(),
 			isViewLaunched: false,
 			taskHistoryStore,
@@ -237,7 +252,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 				current = { taskId: "child-1", start: childStart }
 				return current
 			}),
-			handleModeSwitch: vi.fn().mockResolvedValue(undefined),
+			...handoffStubs(),
 			deleteTaskWithId: vi.fn(async (id: string, cascade: boolean) => {
 				callOrder.push(`deleteTaskWithId:${id}:${cascade}`)
 			}),
@@ -278,6 +293,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 		let current: any = makeParentTask()
 
 		const provider = {
+			...handoffStubs(),
 			emit: vi.fn(),
 			getCurrentTask: vi.fn(() => current),
 			removeClineFromStack: vi.fn(async (opts?: { skipDelegationRepair?: boolean }) => {
@@ -349,5 +365,103 @@ describe("ClineProvider.createTask() startTask option", () => {
 		await (ClineProvider.prototype as any).createTask.call(makeProvider(), "task")
 
 		expect(taskStart).toHaveBeenCalledTimes(1)
+	})
+})
+
+describe("ClineProvider delegation execution context", () => {
+	const parentConfig = { apiProvider: "anthropic", apiModelId: "parent-model" }
+	const makeParent = (mode = "orchestrator") =>
+		({
+			getTaskMode: vi.fn().mockResolvedValue(mode),
+			getTaskApiConfigName: vi.fn().mockResolvedValue("parent-profile"),
+			apiConfiguration: parentConfig,
+		}) as any
+
+	const makeProvider = (opts: { locked?: boolean; savedConfigId?: string; profile?: any } = {}) =>
+		({
+			context: { workspaceState: { get: vi.fn(() => opts.locked ?? false) } },
+			providerSettingsManager: {
+				getModeConfigId: vi.fn().mockResolvedValue(opts.savedConfigId),
+				getProfile: vi.fn().mockResolvedValue(opts.profile),
+			},
+			log: vi.fn(),
+		}) as any
+
+	const resolve = (provider: any, parent: any, mode: string) =>
+		(ClineProvider.prototype as any).resolveHandoffExecutionContext.call(provider, parent, mode)
+
+	it("gives the child the profile saved for its mode", async () => {
+		const provider = makeProvider({
+			savedConfigId: "id-code",
+			profile: { id: "id-code", name: "code-profile", apiProvider: "openai", openAiModelId: "m" },
+		})
+
+		await expect(resolve(provider, makeParent(), "code")).resolves.toEqual({
+			mode: "code",
+			apiConfigName: "code-profile",
+			apiConfiguration: { apiProvider: "openai", openAiModelId: "m" },
+		})
+		expect(provider.providerSettingsManager.getProfile).toHaveBeenCalledWith({ id: "id-code" })
+	})
+
+	it("inherits the parent's task-local profile when profiles are locked across modes", async () => {
+		const provider = makeProvider({ locked: true, savedConfigId: "id-code" })
+
+		const context = await resolve(provider, makeParent(), "code")
+
+		expect(context).toEqual({ mode: "code", apiConfigName: "parent-profile", apiConfiguration: parentConfig })
+		expect(context.apiConfiguration).not.toBe(parentConfig)
+		expect(provider.providerSettingsManager.getModeConfigId).not.toHaveBeenCalled()
+	})
+
+	it("falls back to the parent's profile when the saved profile cannot be loaded", async () => {
+		const provider = makeProvider({ savedConfigId: "id-gone" })
+		provider.providerSettingsManager.getProfile.mockRejectedValue(new Error("Config with ID 'id-gone' not found"))
+
+		await expect(resolve(provider, makeParent(), "code")).resolves.toMatchObject({
+			mode: "code",
+			apiConfigName: "parent-profile",
+		})
+	})
+
+	it("mirrors the child's mode and profile into the UI without persisting defaults", async () => {
+		const provider = {
+			updateGlobalState: vi.fn(),
+			emit: vi.fn(),
+			getState: vi.fn().mockResolvedValue({ currentApiConfigName: "parent-profile" }),
+			activateProviderProfile: vi.fn(),
+			log: vi.fn(),
+		} as any
+
+		await (ClineProvider.prototype as any).mirrorExecutionContextToProvider.call(provider, {
+			mode: "code",
+			apiConfigName: "code-profile",
+			apiConfiguration: {},
+		})
+
+		expect(provider.updateGlobalState).toHaveBeenCalledWith("mode", "code")
+		expect(provider.emit).toHaveBeenCalledWith(BearCodeEventName.ModeChanged, "code")
+		expect(provider.activateProviderProfile).toHaveBeenCalledWith(
+			{ name: "code-profile" },
+			{ persistModeConfig: false, persistTaskHistory: false },
+		)
+	})
+
+	it("does not re-activate the profile that is already current", async () => {
+		const provider = {
+			updateGlobalState: vi.fn(),
+			emit: vi.fn(),
+			getState: vi.fn().mockResolvedValue({ currentApiConfigName: "parent-profile" }),
+			activateProviderProfile: vi.fn(),
+			log: vi.fn(),
+		} as any
+
+		await (ClineProvider.prototype as any).mirrorExecutionContextToProvider.call(provider, {
+			mode: "code",
+			apiConfigName: "parent-profile",
+			apiConfiguration: {},
+		})
+
+		expect(provider.activateProviderProfile).not.toHaveBeenCalled()
 	})
 })

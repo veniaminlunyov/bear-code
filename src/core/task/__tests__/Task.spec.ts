@@ -385,6 +385,29 @@ describe("Cline", () => {
 			expect(metadata?.mode).toBe("code")
 		})
 
+		it("runs a delegated child in the handoff mode and profile", async () => {
+			mockProvider.getState = vi.fn().mockResolvedValue({ mode: "ask", currentApiConfigName: "focused" })
+			const childConfig: ProviderSettings = { ...mockApiConfig, apiModelId: "child-model" }
+
+			const task = new Task({
+				provider: mockProvider,
+				apiConfiguration: mockApiConfig,
+				task: "child task",
+				startTask: false,
+				handoffExecutionContext: {
+					mode: "code",
+					apiConfigName: "child-profile",
+					apiConfiguration: childConfig,
+				},
+			})
+
+			// Available synchronously, without reading the provider's state.
+			expect(task.taskMode).toBe("code")
+			expect(task.taskApiConfigName).toBe("child-profile")
+			expect(task.apiConfiguration).toBe(childConfig)
+			expect(mockProvider.getState).not.toHaveBeenCalled()
+		})
+
 		it("does not follow profile changes of the provider", async () => {
 			const task = await makeTask("code")
 			const before = task.apiConfiguration

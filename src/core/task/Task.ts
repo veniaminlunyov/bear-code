@@ -128,6 +128,7 @@ import { AutoApprovalHandler, checkAutoApproval } from "../auto-approval"
 import { MessageManager } from "../message-manager"
 import { validateAndFixToolResultIds } from "./validateToolResultIds"
 import { mergeConsecutiveApiMessages } from "./mergeConsecutiveApiMessages"
+import type { TaskExecutionContext } from "./providerHandoff"
 
 const MAX_EXPONENTIAL_BACKOFF_SECONDS = 600 // 10 minutes
 const DEFAULT_USAGE_COLLECTION_TIMEOUT_MS = 5000 // 5 seconds
@@ -153,6 +154,11 @@ export interface TaskOptions extends CreateTaskOptions {
 	workspacePath?: string
 	/** Initial status for the task's history item (e.g., "active" for child tasks) */
 	initialStatus?: "active" | "delegated" | "completed"
+	/**
+	 * Mode and provider profile for a delegated child, chosen from its parent.
+	 * Takes precedence over `apiConfiguration` and the provider's current mode.
+	 */
+	handoffExecutionContext?: TaskExecutionContext
 }
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
@@ -429,6 +435,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		initialTodos,
 		workspacePath,
 		initialStatus,
+		handoffExecutionContext,
 	}: TaskOptions) {
 		super()
 
@@ -476,7 +483,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			console.error("Failed to initialize BearIgnoreController:", error)
 		})
 
-		this.apiConfiguration = apiConfiguration
+		this.apiConfiguration = handoffExecutionContext?.apiConfiguration ?? apiConfiguration
 		this.api = buildApiHandler(this.apiConfiguration)
 		this.autoApprovalHandler = new AutoApprovalHandler()
 
@@ -535,7 +542,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			{ leading: true, trailing: true, maxWait: this.TOKEN_USAGE_EMIT_INTERVAL_MS },
 		)
 
-		if (historyItem) {
+		if (handoffExecutionContext) {
+			// A delegated child runs in the mode and profile its parent chose for it,
+			// independent of what the provider's shared state says right now.
+			this._taskMode = handoffExecutionContext.mode
+			this._taskApiConfigName = handoffExecutionContext.apiConfigName
+			this.taskModeReady = Promise.resolve()
+			this.taskApiConfigReady = Promise.resolve()
+		} else if (historyItem) {
 			this._taskMode = historyItem.mode || defaultModeSlug
 			this._taskApiConfigName = historyItem.apiConfigName
 			this.taskModeReady = Promise.resolve()
