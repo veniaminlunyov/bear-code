@@ -1,4 +1,4 @@
-import { Task } from "../Task"
+import { Task, queuedResponseForAsk } from "../Task"
 
 // Keep this test focused: if a queued message arrives while Task.ask() is blocked,
 // it should be consumed and used to fulfill the ask.
@@ -68,5 +68,65 @@ describe("Task.ask queued message drain", () => {
 		expect(result.text).toBeUndefined()
 		expect((task as any).messageQueueService.isEmpty()).toBe(false)
 		expect((task as any).messageQueueService.messages[0]?.text).toBe("1+1=?")
+	})
+
+	const makeTask = async () => {
+		const task = Object.create(Task.prototype) as Task
+		;(task as any).abort = false
+		;(task as any).clineMessages = []
+		;(task as any).askResponse = undefined
+		;(task as any).askResponseText = undefined
+		;(task as any).askResponseImages = undefined
+		;(task as any).lastMessageTs = undefined
+
+		const { MessageQueueService } = await import("../../message-queue/MessageQueueService")
+		;(task as any).messageQueueService = new MessageQueueService()
+		;(task as any).addToClineMessages = vi.fn(async () => {})
+		;(task as any).saveClineMessages = vi.fn(async () => {})
+		;(task as any).updateClineMessage = vi.fn(async () => {})
+		;(task as any).cancelAutoApprovalTimeout = vi.fn(() => {})
+		;(task as any).checkpointSave = vi.fn(async () => {})
+		;(task as any).emit = vi.fn()
+		;(task as any).providerRef = { deref: () => undefined }
+		return task
+	}
+
+	it.each(["newTask", "finishTask"])(
+		"rejects a %s approval with the queued text as feedback instead of approving it",
+		async (tool) => {
+			const task = await makeTask()
+			// Queued before the ask appears (typed while the model was still streaming).
+			;(task as any).messageQueueService.addMessage("wait, not yet")
+
+			const result = await task.ask("tool", JSON.stringify({ tool, mode: "code", content: "x" }), false)
+
+			expect(result.response).toBe("messageResponse")
+			expect(result.text).toBe("wait, not yet")
+		},
+	)
+
+	it("still approves other tool asks with the queued text as feedback", async () => {
+		const task = await makeTask()
+		;(task as any).messageQueueService.addMessage("looks good")
+
+		const result = await task.ask("tool", JSON.stringify({ tool: "editedExistingFile", path: "a.ts" }), false)
+
+		expect(result.response).toBe("yesButtonClicked")
+		expect(result.text).toBe("looks good")
+	})
+})
+
+describe("queuedResponseForAsk", () => {
+	it.each([
+		["tool", JSON.stringify({ tool: "newTask" }), "messageResponse"],
+		["tool", JSON.stringify({ tool: "finishTask" }), "messageResponse"],
+		["tool", JSON.stringify({ tool: "readFile" }), "yesButtonClicked"],
+		["tool", "not json", "yesButtonClicked"],
+		["command", "ls", "yesButtonClicked"],
+		["use_mcp_server", "{}", "yesButtonClicked"],
+		["followup", "Q?", "messageResponse"],
+		["completion_result", "", "messageResponse"],
+	] as const)("%s %s → %s", (type, text, expected) => {
+		expect(queuedResponseForAsk(type, text)).toBe(expected)
 	})
 })

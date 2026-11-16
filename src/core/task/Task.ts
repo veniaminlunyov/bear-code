@@ -161,6 +161,38 @@ export interface TaskOptions extends CreateTaskOptions {
 	handoffExecutionContext?: TaskExecutionContext
 }
 
+/**
+ * How a message the user queued while the task was busy answers the ask it
+ * lands on.
+ *
+ * For tool, command and MCP approvals a queued message approves the action and
+ * is passed along as feedback, which is the long-standing behaviour users rely
+ * on to keep a run going. Creating or finishing a subtask is different: it hands
+ * control to another task, so typed text must never stand in for that decision.
+ * There it rejects the action and the text goes back to the model as feedback.
+ */
+export function queuedResponseForAsk(type: ClineAsk, text?: string): ClineAskResponse {
+	if (type === "tool") {
+		try {
+			const tool = JSON.parse(text || "{}") as { tool?: string }
+
+			if (tool.tool === "newTask" || tool.tool === "finishTask") {
+				return "messageResponse"
+			}
+		} catch {
+			// Not a JSON tool payload: treat it like any other tool approval.
+		}
+
+		return "yesButtonClicked"
+	}
+
+	if (type === "command" || type === "use_mcp_server") {
+		return "yesButtonClicked"
+	}
+
+	return "messageResponse"
+}
+
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	readonly taskId: string
 	readonly rootTaskId?: string
@@ -1367,16 +1399,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const message = this.messageQueueService.dequeueMessage()
 
 			if (message) {
-				// Check if this is a tool approval ask that needs to be handled.
-				if (type === "tool" || type === "command" || type === "use_mcp_server") {
-					// For tool approvals, we need to approve first, then send
-					// the message if there's text/images.
-					this.handleWebviewAskResponse("yesButtonClicked", message.text, message.images)
-				} else {
-					// For other ask types (like followup or command_output), fulfill the ask
-					// directly.
-					this.handleWebviewAskResponse("messageResponse", message.text, message.images)
-				}
+				this.handleWebviewAskResponse(queuedResponseForAsk(type, text), message.text, message.images)
 			}
 		}
 
@@ -1393,13 +1416,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				if (shouldDrainQueuedMessageForAsk && !this.messageQueueService.isEmpty()) {
 					const message = this.messageQueueService.dequeueMessage()
 					if (message) {
-						// If this is a tool approval ask, we need to approve first (yesButtonClicked)
-						// and include any queued text/images.
-						if (type === "tool" || type === "command" || type === "use_mcp_server") {
-							this.handleWebviewAskResponse("yesButtonClicked", message.text, message.images)
-						} else {
-							this.handleWebviewAskResponse("messageResponse", message.text, message.images)
-						}
+						this.handleWebviewAskResponse(queuedResponseForAsk(type, text), message.text, message.images)
 					}
 				}
 
