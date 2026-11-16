@@ -91,6 +91,7 @@ describe("getEnvironmentDetails", () => {
 			cwd: mockCwd,
 			taskId: mockTaskId,
 			didEditFile: false,
+			getTaskMode: vi.fn().mockResolvedValue("code"),
 			fileContextTracker: {
 				getAndClearRecentlyModifiedFiles: vi.fn().mockReturnValue([]),
 			} as unknown as FileContextTracker,
@@ -443,5 +444,28 @@ describe("getEnvironmentDetails", () => {
 		await getEnvironmentDetails(mockCline as Task)
 
 		expect(getGitStatus).toHaveBeenCalledWith(mockCwd, 5)
+	})
+
+	// A delegated child task may run in a different mode than the shared provider
+	// state (which can still reflect the parent's mode).
+	it("uses the task-local mode in the Current Mode block, not the provider mode", async () => {
+		mockState.mode = "orchestrator"
+		;(mockCline.getTaskMode as Mock).mockResolvedValue("architect")
+		;(getFullModeDetails as Mock).mockResolvedValue({
+			name: "Architect",
+			roleDefinition: "You design software.",
+			customInstructions: "",
+		})
+
+		const result = await getEnvironmentDetails(mockCline as Task)
+
+		expect(result).toContain("<slug>architect</slug>")
+		expect(result).not.toContain("<slug>orchestrator</slug>")
+		expect(getFullModeDetails).toHaveBeenCalledWith(
+			"architect",
+			[],
+			undefined,
+			expect.objectContaining({ cwd: mockCwd }),
+		)
 	})
 })

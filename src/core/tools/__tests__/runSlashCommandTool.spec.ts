@@ -20,6 +20,7 @@ describe("runSlashCommandTool", () => {
 
 		mockTask = {
 			consecutiveMistakeCount: 0,
+			getTaskMode: vi.fn().mockResolvedValue("code"),
 			recordToolError: vi.fn(),
 			sayAndCreateMissingParamError: vi.fn().mockResolvedValue("Missing parameter error"),
 			ask: vi.fn().mockResolvedValue({}),
@@ -104,12 +105,14 @@ describe("runSlashCommandTool", () => {
 			instructions: "Use skill workflow",
 		})
 
+		// Provider state still reflects another task's mode; skills resolve against the task's mode.
+		mockTask.getTaskMode.mockResolvedValue("architect")
 		mockTask.providerRef.deref = vi.fn().mockReturnValue({
 			getState: vi.fn().mockResolvedValue({
 				experiments: {
 					runSlashCommand: true,
 				},
-				mode: "code",
+				mode: "orchestrator",
 			}),
 			getSkillsManager: vi.fn().mockReturnValue({
 				getSkillContent,
@@ -120,7 +123,7 @@ describe("runSlashCommandTool", () => {
 
 		await runSlashCommandTool.handle(mockTask as Task, block, mockCallbacks)
 
-		expect(getSkillContent).toHaveBeenCalledWith("skill-only", "code")
+		expect(getSkillContent).toHaveBeenCalledWith("skill-only", "architect")
 		expect(mockCallbacks.askApproval).toHaveBeenCalledWith(
 			"tool",
 			JSON.stringify({

@@ -46,6 +46,7 @@ describe("presentAssistantMessage - Custom Tool Recording", () => {
 			didRejectTool: false,
 			didAlreadyUseTool: false,
 			consecutiveMistakeCount: 0,
+			getTaskMode: vi.fn().mockResolvedValue("code"),
 			clineMessages: [],
 			api: {
 				getModel: () => ({ id: "test-model", info: {} }),
@@ -108,6 +109,67 @@ describe("presentAssistantMessage - Custom Tool Recording", () => {
 
 			// Should record as "custom_tool", not "my_custom_tool"
 			expect(mockTask.recordToolUsage).toHaveBeenCalledWith("custom_tool")
+		})
+	})
+
+	describe("Task-local mode (delegated child)", () => {
+		// The provider's shared state still says "orchestrator" (the parent's mode),
+		// while the delegated child task runs in "architect".
+		beforeEach(() => {
+			mockTask.providerRef = {
+				deref: () => ({
+					getState: vi.fn().mockResolvedValue({
+						mode: "orchestrator",
+						customModes: [],
+						experiments: { customTools: true },
+					}),
+				}),
+			}
+			mockTask.getTaskMode = vi.fn().mockResolvedValue("architect")
+		})
+
+		it("validates tools against the task-local mode, not the provider mode", async () => {
+			mockTask.assistantMessageContent = [
+				{
+					type: "tool_use",
+					id: "call_task_mode",
+					name: "read_file",
+					params: { path: "test.ts" },
+					nativeArgs: { path: "test.ts" },
+					partial: false,
+				},
+			]
+
+			await presentAssistantMessage(mockTask)
+
+			const calls = vi.mocked(validateToolUse).mock.calls
+			expect(calls.length).toBeGreaterThan(0)
+			expect(calls[0][0]).toBe("read_file")
+			expect(calls[0][1]).toBe("architect")
+		})
+
+		it("passes the task-local mode to customTool.execute", async () => {
+			const execute = vi.fn().mockResolvedValue("result")
+			vi.mocked(customToolRegistry.has).mockReturnValue(true)
+			vi.mocked(customToolRegistry.get).mockReturnValue({
+				name: "my_custom_tool",
+				description: "A custom tool",
+				execute,
+			})
+			mockTask.assistantMessageContent = [
+				{
+					type: "tool_use",
+					id: "call_custom_task_mode",
+					name: "my_custom_tool",
+					params: { value: "test" },
+					partial: false,
+				},
+			]
+
+			await presentAssistantMessage(mockTask)
+
+			expect(execute).toHaveBeenCalledOnce()
+			expect(execute.mock.calls[0][1]).toEqual({ mode: "architect", task: mockTask })
 		})
 	})
 
