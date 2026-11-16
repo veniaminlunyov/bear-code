@@ -143,6 +143,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "De subtaak waarop deze taak wachtte, is nog geopend in een ander venster. Het resultaat wordt niet meer aan deze taak teruggegeven.",
 		"no_terminal_content": "Geen terminalinhoud geselecteerd",
 		"missing_task_files": "De bestanden van deze taak ontbreken. Wil je deze uit de takenlijst verwijderen?",
 		"auto_import_failed": "Automatisch importeren van BearCode-instellingen mislukt: {{error}}"

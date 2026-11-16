@@ -244,8 +244,8 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 		const provider = {
 			emit: vi.fn(),
 			getCurrentTask: vi.fn(() => current),
-			removeClineFromStack: vi.fn(async (opts?: { skipDelegationRepair?: boolean }) => {
-				callOrder.push(`removeClineFromStack:${opts?.skipDelegationRepair}`)
+			removeClineFromStack: vi.fn(async () => {
+				callOrder.push("removeClineFromStack")
 				current = undefined
 			}),
 			createTask: vi.fn(async () => {
@@ -279,8 +279,8 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 		)
 		// Parent close, child close, child delete (no cascade), parent restore.
 		expect(callOrder).toEqual([
-			"removeClineFromStack:true",
-			"removeClineFromStack:true",
+			"removeClineFromStack",
+			"removeClineFromStack",
 			"deleteTaskWithId:child-1:false",
 			"createTaskWithHistoryItem:parent-1",
 		])
@@ -296,8 +296,8 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 			...handoffStubs(),
 			emit: vi.fn(),
 			getCurrentTask: vi.fn(() => current),
-			removeClineFromStack: vi.fn(async (opts?: { skipDelegationRepair?: boolean }) => {
-				callOrder.push(`removeClineFromStack:${opts?.skipDelegationRepair}`)
+			removeClineFromStack: vi.fn(async () => {
+				callOrder.push("removeClineFromStack")
 				current = undefined
 			}),
 			createTask: vi.fn().mockRejectedValue(createError),
@@ -319,7 +319,7 @@ describe("ClineProvider.delegateParentAndOpenChild()", () => {
 
 		// Nothing to delete: no child was created. The parent is reopened.
 		expect((provider as any).deleteTaskWithId).not.toHaveBeenCalled()
-		expect(callOrder).toEqual(["removeClineFromStack:true", "createTaskWithHistoryItem:parent-1"])
+		expect(callOrder).toEqual(["removeClineFromStack", "createTaskWithHistoryItem:parent-1"])
 		expect(vscode.window.showErrorMessage).toHaveBeenCalled()
 	})
 })

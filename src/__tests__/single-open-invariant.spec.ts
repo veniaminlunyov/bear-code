@@ -79,6 +79,10 @@ describe("Single-open-task invariant", () => {
 		const updateGlobalState = vi.fn().mockResolvedValue(undefined)
 
 		const provider = {
+			historyTaskCreationQueue: Promise.resolve(),
+			createTaskWithHistoryItemUnlocked(...args: unknown[]) {
+				return (ClineProvider.prototype as any).createTaskWithHistoryItemUnlocked.apply(this, args)
+			},
 			getCurrentTask: vi.fn(() => undefined), // ensure not rehydrating
 			removeClineFromStack,
 			addClineToStack,
@@ -126,6 +130,109 @@ describe("Single-open-task invariant", () => {
 		expect(task).toBeTruthy()
 		expect(removeClineFromStack).toHaveBeenCalledTimes(1)
 		expect(addClineToStack).toHaveBeenCalledTimes(1)
+	})
+
+	it("serializes concurrent history opens so only one instance ends up on the stack", async () => {
+		const stack: any[] = [{ taskId: "previous", instanceId: "prev" }]
+		let releaseFirstClose!: () => void
+		const firstCloseGate = new Promise<void>((resolve) => {
+			releaseFirstClose = resolve
+		})
+		const removeClineFromStack = vi.fn(async () => {
+			if (removeClineFromStack.mock.calls.length === 1) {
+				await firstCloseGate
+			}
+			stack.pop()
+		})
+		const addClineToStack = vi.fn(async (task: any) => {
+			stack.push(task)
+		})
+
+		const provider = {
+			historyTaskCreationQueue: Promise.resolve(),
+			createTaskWithHistoryItemUnlocked(...args: unknown[]) {
+				return (ClineProvider.prototype as any).createTaskWithHistoryItemUnlocked.apply(this, args)
+			},
+			getCurrentTask: vi.fn(() => stack[stack.length - 1]),
+			removeClineFromStack,
+			addClineToStack,
+			updateGlobalState: vi.fn().mockResolvedValue(undefined),
+			log: vi.fn(),
+			customModesManager: { getCustomModes: vi.fn().mockResolvedValue([]) },
+			providerSettingsManager: {
+				getModeConfigId: vi.fn().mockResolvedValue(undefined),
+				listConfig: vi.fn().mockResolvedValue([]),
+			},
+			getState: vi.fn().mockResolvedValue({
+				apiConfiguration: { apiProvider: "anthropic", consecutiveMistakeLimit: 0 },
+				enableCheckpoints: true,
+				checkpointTimeout: 60,
+				experiments: {},
+				cloudUserInfo: null,
+				taskSyncEnabled: false,
+			}),
+			getPendingEditOperation: vi.fn().mockReturnValue(undefined),
+			clearPendingEditOperation: vi.fn(),
+			context: { extension: { packageJSON: {} }, globalStorageUri: { fsPath: "/tmp" } },
+			contextProxy: {
+				extensionUri: {},
+				getValue: vi.fn(),
+				setValue: vi.fn(),
+				setProviderSettings: vi.fn(),
+				getProviderSettings: vi.fn(() => ({})),
+			},
+			postStateToWebview: vi.fn(),
+		} as unknown as ClineProvider
+
+		const historyItem = {
+			id: "hist-concurrent",
+			number: 1,
+			ts: Date.now(),
+			task: "Task",
+			tokensIn: 0,
+			tokensOut: 0,
+			totalCost: 0,
+			workspace: "/tmp",
+		}
+
+		// Two quick clicks on two different tasks in the history list.
+		const first = (ClineProvider.prototype as any).createTaskWithHistoryItem.call(provider, historyItem)
+		const second = (ClineProvider.prototype as any).createTaskWithHistoryItem.call(provider, {
+			...historyItem,
+			id: "hist-concurrent-2",
+		})
+
+		// The second open waits until the first has finished closing the previous task.
+		await vi.waitFor(() => expect(removeClineFromStack).toHaveBeenCalledTimes(1))
+		expect(addClineToStack).not.toHaveBeenCalled()
+
+		releaseFirstClose()
+		const [firstTask, secondTask] = await Promise.all([first, second])
+
+		// The second open saw the first instance as current and closed it.
+		expect(firstTask).not.toBe(secondTask)
+		expect(removeClineFromStack).toHaveBeenCalledTimes(2)
+		expect(stack).toEqual([secondTask])
+	})
+
+	it("keeps serving history opens after one of them fails", async () => {
+		const provider = {
+			historyTaskCreationQueue: Promise.resolve(),
+			createTaskWithHistoryItemUnlocked(...args: unknown[]) {
+				return (ClineProvider.prototype as any).createTaskWithHistoryItemUnlocked.apply(this, args)
+			},
+		} as unknown as ClineProvider
+		const unlocked = vi
+			.spyOn(ClineProvider.prototype as any, "createTaskWithHistoryItemUnlocked")
+			.mockRejectedValueOnce(new Error("boom"))
+			.mockResolvedValueOnce({ taskId: "ok" })
+
+		const failed = (ClineProvider.prototype as any).createTaskWithHistoryItem.call(provider, { id: "a" })
+		const next = (ClineProvider.prototype as any).createTaskWithHistoryItem.call(provider, { id: "b" })
+
+		await expect(failed).rejects.toThrow("boom")
+		await expect(next).resolves.toEqual({ taskId: "ok" })
+		expect(unlocked).toHaveBeenCalledTimes(2)
 	})
 
 	it("IPC StartNewTask path closes current before new task", async () => {

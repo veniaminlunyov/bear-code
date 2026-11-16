@@ -143,6 +143,7 @@
 		"manual_url_auth_error": "Authentifizierung fehlgeschlagen"
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "Die Unteraufgabe, auf die diese Aufgabe gewartet hat, ist noch in einem anderen Fenster geöffnet. Ihr Ergebnis wird nicht mehr an diese Aufgabe zurückgegeben.",
 		"no_terminal_content": "Kein Terminal-Inhalt ausgewählt",
 		"missing_task_files": "Die Dateien dieser Aufgabe fehlen. Möchtest du sie aus der Aufgabenliste entfernen?",
 		"auto_import_failed": "Fehler beim automatischen Import der BearCode-Einstellungen: {{error}}"

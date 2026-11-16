@@ -143,6 +143,7 @@
 		}
 	},
 	"warnings": {
+		"delegated_subtask_still_running": "La sous-tâche attendue par cette tâche est encore ouverte dans une autre fenêtre. Son résultat ne sera plus renvoyé à cette tâche.",
 		"no_terminal_content": "Aucun contenu de terminal sélectionné",
 		"missing_task_files": "Les fichiers de cette tâche sont introuvables. Souhaitez-vous la supprimer de la liste des tâches ?",
 		"auto_import_failed": "Échec de l'importation automatique des paramètres BearCode : {{error}}"
