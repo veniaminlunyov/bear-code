@@ -499,7 +499,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.messageQueueStateChangedHandler = () => {
 			this.emit(BearCodeEventName.TaskUserMessage, this.taskId)
 			this.emit(BearCodeEventName.QueuedMessagesUpdated, this.taskId, this.messageQueueService.messages)
-			this.providerRef.deref()?.postStateToWebviewWithoutTaskHistory()
+			void this.providerRef
+				.deref()
+				?.postStateToWebviewThrottled()
+				.catch((error) => {
+					console.error("[Task#messageQueueStateChangedHandler] postStateToWebviewThrottled failed:", error)
+				})
 		}
 
 		this.messageQueueService.on("stateChanged", this.messageQueueStateChangedHandler)
@@ -1144,9 +1149,23 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private async addToClineMessages(message: ClineMessage) {
 		this.clineMessages.push(message)
 		const provider = this.providerRef.deref()
-		// Avoid resending large, mostly-static fields (notably taskHistory) on every chat message update.
-		// taskHistory is maintained in-memory in the webview and updated via taskHistoryItemUpdated.
-		await provider?.postStateToWebviewWithoutTaskHistory()
+		// Full-state pushes are throttled: each one serializes the whole transcript, and posting one
+		// per message on long tasks can exhaust the webview's memory (gray screen).
+		// Unanswered asks must reach the webview before Message listeners can respond against its state.
+		const requiresImmediateState =
+			message.partial === true || (message.type === "ask" && message.isAnswered !== true)
+		try {
+			await provider?.postStateToWebviewThrottled()
+		} catch (error) {
+			console.error("[Task#addToClineMessages] postStateToWebviewThrottled failed:", error)
+		}
+		if (requiresImmediateState) {
+			try {
+				await provider?.flushPostStateToWebviewThrottled()
+			} catch (error) {
+				console.error("[Task#addToClineMessages] flushPostStateToWebviewThrottled failed:", error)
+			}
+		}
 		this.emit(BearCodeEventName.Message, { action: "created", message })
 		await this.saveClineMessages()
 	}
@@ -2225,6 +2244,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Force final token usage update before abort event
 		this.emitFinalTokenUsageUpdate()
+
+		try {
+			await this.providerRef.deref()?.flushPostStateToWebviewThrottled()
+		} catch (error) {
+			console.error(
+				`[Task#abortTask] flushPostStateToWebviewThrottled failed for ${this.taskId}.${this.instanceId}:`,
+				error,
+			)
+		}
 
 		this.emit(BearCodeEventName.TaskAborted)
 
