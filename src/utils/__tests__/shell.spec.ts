@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import * as vscode from "vscode"
+import { existsSync } from "fs"
 import { userInfo } from "os"
 import { getShell } from "../shell"
 
@@ -13,6 +14,11 @@ vi.mock("vscode", () => ({
 // Mock the os module
 vi.mock("os", () => ({
 	userInfo: vi.fn(() => ({ shell: null })),
+}))
+
+// getWindowsShellFromVSCode probes for PowerShell 7 (pwsh.exe).
+vi.mock("fs", () => ({
+	existsSync: vi.fn(() => false),
 }))
 
 // Mock path module for testing
@@ -57,6 +63,8 @@ describe("Shell Detection Tests", () => {
 
 		// Reset userInfo mock to default
 		vi.mocked(userInfo).mockReturnValue({ shell: null } as any)
+		// Default: PowerShell 7 is not installed.
+		vi.mocked(existsSync).mockReturnValue(false)
 	})
 
 	afterEach(() => {
@@ -173,23 +181,33 @@ describe("Shell Detection Tests", () => {
 			expect(getShell()).toBe("C:\\Windows\\System32\\cmd.exe")
 		})
 
-		it("respects userInfo() if no VS Code config is available and shell is allowed", () => {
+		it("defaults to PowerShell 7 when no profile is configured and pwsh.exe is installed", () => {
 			vscode.workspace.getConfiguration = () => ({ get: () => undefined }) as any
-			vi.mocked(userInfo).mockReturnValue({ shell: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" } as any)
+			vi.mocked(existsSync).mockReturnValue(true)
+			process.env.COMSPEC = "C:\\Windows\\System32\\cmd.exe"
 
 			expect(getShell()).toBe("C:\\Program Files\\PowerShell\\7\\pwsh.exe")
 		})
 
-		it("falls back to safe shell when userInfo() returns non-allowlisted shell", () => {
+		it("defaults to Windows PowerShell 5.1 when no profile is configured and PowerShell 7 is absent", () => {
 			vscode.workspace.getConfiguration = () => ({ get: () => undefined }) as any
-			vi.mocked(userInfo).mockReturnValue({ shell: "C:\\Custom\\PowerShell.exe" } as any)
+			process.env.COMSPEC = "C:\\Windows\\System32\\cmd.exe"
+
+			expect(getShell()).toBe("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe")
+		})
+
+		it("falls back to safe shell when the configured profile path is non-allowlisted", () => {
+			mockVsCodeConfig("windows", "Custom", {
+				Custom: { path: "C:\\Custom\\evil.exe" },
+			})
 
 			expect(getShell()).toBe("C:\\Windows\\System32\\cmd.exe")
 		})
 
-		it("falls back to safe shell when COMSPEC is non-allowlisted", () => {
-			vscode.workspace.getConfiguration = () => ({ get: () => undefined }) as any
-			process.env.COMSPEC = "D:\\CustomCmd\\cmd.exe"
+		it("uses cmd.exe when a Command Prompt profile is explicitly configured", () => {
+			mockVsCodeConfig("windows", "Command Prompt", {
+				"Command Prompt": { path: "C:\\Windows\\System32\\cmd.exe" },
+			})
 
 			expect(getShell()).toBe("C:\\Windows\\System32\\cmd.exe")
 		})
