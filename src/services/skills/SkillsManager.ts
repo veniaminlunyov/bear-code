@@ -2,6 +2,7 @@ import * as fs from "fs/promises"
 import * as path from "path"
 import * as vscode from "vscode"
 import matter from "gray-matter"
+import { parseFrontmatter } from "../../utils/frontmatter"
 
 import type { ClineProvider } from "../../core/webview/ClineProvider"
 import {
@@ -106,8 +107,8 @@ export class SkillsManager {
 		try {
 			const fileContent = await fs.readFile(skillMdPath, "utf-8")
 
-			// Use gray-matter to parse frontmatter
-			const { data: frontmatter, content: body } = matter(fileContent)
+			// Parse frontmatter without executing code (see parseFrontmatter)
+			const { data: frontmatter, content: body } = parseFrontmatter(fileContent)
 
 			// Validate required fields (only name and description for now)
 			if (!frontmatter.name || typeof frontmatter.name !== "string") {
@@ -279,7 +280,7 @@ export class SkillsManager {
 
 		// Read skill content from disk
 		const fileContent = await fs.readFile(skill.path, "utf-8")
-		const { content: body } = matter(fileContent)
+		const { content: body } = parseFrontmatter(fileContent)
 
 		return {
 			...skill,
@@ -545,7 +546,7 @@ Add your skill instructions here.
 
 		// Read the current SKILL.md file
 		const fileContent = await fs.readFile(skill.path, "utf-8")
-		const { data: frontmatter, content: body } = matter(fileContent)
+		const { data: frontmatter, content: body } = parseFrontmatter(fileContent)
 
 		// Update the frontmatter with new modeSlugs
 		if (newModeSlugs && newModeSlugs.length > 0) {
