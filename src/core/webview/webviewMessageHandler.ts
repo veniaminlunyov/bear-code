@@ -64,7 +64,7 @@ import { openMention } from "../mentions"
 import { resolveImageMentions } from "../mentions/resolveImageMentions"
 import { BearIgnoreController } from "../ignore/BearIgnoreController"
 import { getWorkspacePath } from "../../utils/path"
-import { isPathOutsideWorkspace } from "../../utils/pathUtils"
+import { isPathOutsideWorkspace, decodeUntrustedPathToStable, isRealPathOutsideWorkspace } from "../../utils/pathUtils"
 import { Mode, defaultModeSlug } from "../../shared/modes"
 import { getModels, flushModels } from "../../api/providers/fetchers/modelCache"
 import { GetModelsOptions } from "../../shared/api"
@@ -1109,13 +1109,51 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 				}
 			}
 			break
-		case "openFile":
-			let filePath: string = message.text!
+		case "openFile": {
+			const rawPath = message.text || ""
+			if (!rawPath) {
+				break
+			}
+			// Links in task markdown come from model output, so markdown-sourced
+			// requests (tagged by the webview with fromMarkdown) must stay inside
+			// the workspace. First-party callers (modes, slash-command settings)
+			// may open global config files outside it and keep the old behavior.
+			const fromMarkdown = message.values?.fromMarkdown === true
+			const rejectOutsideWorkspace = () => {
+				void vscode.window.showErrorMessage(
+					t("common:errors.cannot_access_path", {
+						path: rawPath,
+						error: t("common:errors.path_outside_workspace"),
+					}),
+				)
+			}
+			let filePath = rawPath
+			if (fromMarkdown) {
+				// openFile decodes again after this check, so decode to a fixed
+				// point here or `%2e%2e/` would escape after validation.
+				const decoded = decodeUntrustedPathToStable(rawPath)
+				if (decoded === null) {
+					rejectOutsideWorkspace()
+					break
+				}
+				filePath = decoded
+			}
 			if (!path.isAbsolute(filePath)) {
 				filePath = resolveWorkspaceConfigPath(getCurrentCwd(), filePath)
 			}
-			openFile(filePath, message.values as { create?: boolean; content?: string; line?: number })
+			// Lexical check first, then the real path so a symlink inside the
+			// workspace cannot point outside it.
+			if (fromMarkdown && (isPathOutsideWorkspace(filePath) || (await isRealPathOutsideWorkspace(filePath)))) {
+				rejectOutsideWorkspace()
+				break
+			}
+			const { line } = (message.values ?? {}) as { line?: number }
+			const options = fromMarkdown
+				? { line }
+				: (message.values as { create?: boolean; content?: string; line?: number })
+			openFile(filePath, options)
 			break
+		}
 		case "readFileContent": {
 			const relPath = message.text || ""
 			if (!relPath) {

@@ -6,7 +6,6 @@
  */
 
 import { z } from "zod"
-import { zodToJsonSchema } from "zod-to-json-schema"
 
 import { toolGroups, deprecatedToolGroups } from "./tool.js"
 import { groupOptionsSchema, modeConfigSchema } from "./mode.js"
@@ -45,9 +44,9 @@ const bearmodesZodSchema = z
  * Includes metadata fields ($id, title, description).
  */
 export function generateBearmodesJsonSchema(): Record<string, unknown> {
-	const jsonSchema = zodToJsonSchema(bearmodesZodSchema, {
-		$refStrategy: "none",
-		target: "jsonSchema7",
+	const jsonSchema = z.toJSONSchema(bearmodesZodSchema, {
+		target: "draft-7",
+		io: "output",
 	}) as Record<string, unknown>
 
 	jsonSchema["$id"] = "https://github.com/veniaminlunyov/bear-code/blob/main/schemas/bearmodes.json"

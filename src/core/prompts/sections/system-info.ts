@@ -3,17 +3,30 @@ import osName from "os-name"
 
 import { getShell } from "../../../utils/shell"
 
-export function getSystemInfoSection(cwd: string): string {
-	// Try to get detailed OS name, fall back to basic info if it fails
-	let osInfo: string
+/**
+ * Describes the host operating system for the system prompt.
+ *
+ * Windows bypasses `os-name`: its `windows-release` dependency runs `wmic`, then PowerShell,
+ * through `execaSync` with no timeout. This section is built for every request, so that call
+ * blocks the extension host for as long as the process runs. `os.version()` reads the product
+ * name without starting a process.
+ */
+function getOsInfo(): string {
+	const fallback = `${os.platform()} ${os.release()}`
+
 	try {
-		osInfo = osName()
-	} catch (error) {
-		// Fallback when os-name fails (e.g., PowerShell not available on Windows)
-		const platform = os.platform()
-		const release = os.release()
-		osInfo = `${platform} ${release}`
+		if (os.platform() === "win32") {
+			return os.version() || fallback
+		}
+
+		return osName()
+	} catch {
+		return fallback
 	}
+}
+
+export function getSystemInfoSection(cwd: string): string {
+	const osInfo = getOsInfo()
 
 	let details = `====
 

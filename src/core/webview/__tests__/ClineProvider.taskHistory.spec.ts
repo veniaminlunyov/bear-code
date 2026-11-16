@@ -157,10 +157,12 @@ vi.mock("../../prompts/system", () => ({
 
 vi.mock("../../../integrations/workspace/WorkspaceTracker", () => {
 	return {
-		default: vi.fn().mockImplementation(() => ({
-			initializeFilePaths: vi.fn(),
-			dispose: vi.fn(),
-		})),
+		default: vi.fn().mockImplementation(function () {
+			return {
+				initializeFilePaths: vi.fn(),
+				dispose: vi.fn(),
+			}
+		}),
 	}
 })
 
@@ -331,6 +333,39 @@ describe("ClineProvider Task History Synchronization", () => {
 	const findCallsByType = (calls: any[][], type: string) => {
 		return calls.filter((call) => call[0]?.type === type)
 	}
+
+	it("uses per-task files without registering a globalState write-through callback", () => {
+		expect((provider.taskHistoryStore as any).onWrite).toBeUndefined()
+	})
+
+	it("does not write task history to globalState after a history mutation", async () => {
+		vi.mocked(mockContext.globalState.update).mockClear()
+		vi.useFakeTimers()
+
+		try {
+			await provider.updateTaskHistory(createHistoryItem({ id: "file-backed-task", task: "File-backed task" }), {
+				broadcast: false,
+			})
+			// The former write-through was debounced by 5s; make sure nothing fires later either.
+			await vi.advanceTimersByTimeAsync(10_000)
+		} finally {
+			vi.useRealTimers()
+		}
+
+		expect(mockContext.globalState.update).not.toHaveBeenCalledWith("taskHistory", expect.anything())
+	})
+
+	it("does not write task history to globalState during disposal", async () => {
+		await provider.updateTaskHistory(
+			createHistoryItem({ id: "disposed-file-backed-task", task: "Disposed file-backed task" }),
+			{ broadcast: false },
+		)
+		vi.mocked(mockContext.globalState.update).mockClear()
+
+		await provider.dispose()
+
+		expect(mockContext.globalState.update).not.toHaveBeenCalledWith("taskHistory", expect.anything())
+	})
 
 	describe("updateTaskHistory", () => {
 		it("broadcasts task history update by default", async () => {

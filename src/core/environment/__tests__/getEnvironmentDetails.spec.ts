@@ -180,6 +180,18 @@ describe("getEnvironmentDetails", () => {
 		)
 	})
 
+	it("should still return details when the workspace cannot be listed", async () => {
+		;(listFiles as Mock).mockRejectedValue(new Error("Could not find ripgrep binary"))
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+
+		const result = await getEnvironmentDetails(mockCline as Task, true)
+
+		expect(result).toContain("# Current Workspace Directory")
+		expect(result).toContain("Workspace files could not be listed")
+		expect(formatResponse.formatFilesList).not.toHaveBeenCalled()
+		consoleError.mockRestore()
+	})
+
 	it("should not include file details when includeFileDetails is false", async () => {
 		await getEnvironmentDetails(mockCline as Task, false)
 		expect(listFiles).not.toHaveBeenCalled()

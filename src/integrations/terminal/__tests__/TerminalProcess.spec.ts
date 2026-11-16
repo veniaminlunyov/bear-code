@@ -58,6 +58,27 @@ describe("TerminalProcess", () => {
 	})
 
 	describe("run", () => {
+		it("rejects the command promise when terminal process startup rejects", async () => {
+			const startupError = new Error("terminal startup failed")
+			const runSpy = vi.spyOn(TerminalProcess.prototype, "run").mockRejectedValueOnce(startupError)
+			const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined)
+
+			try {
+				const commandPromise = mockTerminalInfo.runCommand("test command", {
+					onLine: vi.fn(),
+					onCompleted: vi.fn(),
+					onShellExecutionStarted: vi.fn(),
+					onShellExecutionComplete: vi.fn(),
+				})
+
+				await expect(commandPromise).rejects.toThrow("terminal startup failed")
+				expect(runSpy).toHaveBeenCalledWith("test command")
+			} finally {
+				runSpy.mockRestore()
+				consoleErrorSpy.mockRestore()
+			}
+		})
+
 		it("handles shell integration commands correctly", async () => {
 			let lines: string[] = []
 
@@ -172,6 +193,42 @@ describe("TerminalProcess", () => {
 			await completePromise
 			expect(terminalProcess.isHot).toBe(false)
 		})
+
+		it("completes cleanly when shell execution completes before the stream arrives", async () => {
+			vi.useFakeTimers()
+			const consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {})
+
+			try {
+				const completedOutputs: string[] = []
+				const continueSpy = vi.fn()
+				const noShellIntegrationSpy = vi.fn()
+				terminalProcess.on("completed", (output) => completedOutputs.push(output ?? ""))
+				terminalProcess.on("continue", continueSpy)
+				terminalProcess.on("no_shell_integration", noShellIntegrationSpy)
+				mockTerminalInfo.busy = true
+
+				// The end event beats the start event: completion is signalled after
+				// run() registered its listeners but before any stream_available.
+				setTimeout(() => terminalProcess.emit("shell_execution_complete", { exitCode: 0 }), 0)
+
+				const runPromise = terminalProcess.run("true")
+				await vi.advanceTimersByTimeAsync(0)
+				await runPromise
+
+				expect(completedOutputs).toEqual([""])
+				expect(continueSpy).toHaveBeenCalledTimes(1)
+				expect(terminalProcess.isHot).toBe(false)
+				expect(mockTerminalInfo.busy).toBe(false)
+
+				// The stream timeout must have been cancelled rather than firing later.
+				await vi.advanceTimersByTimeAsync(Terminal.getShellIntegrationTimeout() + 1_000)
+				expect(noShellIntegrationSpy).not.toHaveBeenCalled()
+				expect(completedOutputs).toEqual([""])
+			} finally {
+				consoleInfoSpy.mockRestore()
+				vi.useRealTimers()
+			}
+		})
 	})
 
 	describe("continue", () => {
@@ -183,6 +240,108 @@ describe("TerminalProcess", () => {
 
 			expect(continueSpy).toHaveBeenCalled()
 			expect(terminalProcess["isListening"]).toBe(false)
+		})
+
+		it("marks the process as moved to the background", () => {
+			expect(terminalProcess.movedToBackground).toBe(false)
+
+			terminalProcess.continue()
+
+			expect(terminalProcess.movedToBackground).toBe(true)
+		})
+	})
+
+	describe("abort", () => {
+		// These mirror the private constants in TerminalProcess.ts
+		// (ABORT_RETRY_DELAY_MS and CTRL_C_SEND_LIMIT); update both together.
+		const RETRY_DELAY_MS = 500
+		const MAX_ATTEMPTS = 3
+
+		beforeEach(() => {
+			vi.useFakeTimers()
+			// abort() runs against the terminal's current process; mirror that wiring
+			// so the reuse guard (terminal.process === this) lets the retry proceed.
+			mockTerminalInfo.process = terminalProcess
+		})
+
+		afterEach(() => {
+			vi.runOnlyPendingTimers()
+			vi.useRealTimers()
+		})
+
+		it("sends a single Ctrl+C when the process exits right away", async () => {
+			mockTerminalInfo.busy = false
+
+			terminalProcess.abort()
+
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(1)
+			expect(mockTerminal.sendText).toHaveBeenCalledWith("\x03")
+
+			await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * MAX_ATTEMPTS)
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(1)
+		})
+
+		it("re-sends Ctrl+C up to the bounded maximum while the process stays busy", async () => {
+			mockTerminalInfo.busy = true
+
+			terminalProcess.abort()
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(1)
+
+			await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * (MAX_ATTEMPTS + 2))
+
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(MAX_ATTEMPTS)
+			expect(mockTerminal.sendText).toHaveBeenCalledWith("\x03")
+		})
+
+		it("stops re-sending Ctrl+C once the process exits mid-retry", async () => {
+			mockTerminalInfo.busy = true
+
+			terminalProcess.abort()
+			await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS)
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(2)
+
+			// Drive the real completion path (clears busy and terminal.process).
+			mockTerminalInfo.shellExecutionComplete({ exitCode: 0 })
+			await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * MAX_ATTEMPTS)
+
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(2)
+		})
+
+		it("stops re-sending Ctrl+C if the terminal is reused for a different process", async () => {
+			mockTerminalInfo.busy = true
+
+			terminalProcess.abort()
+			await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS)
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(2)
+
+			// The terminal is now running a new command; it must not be interrupted.
+			mockTerminalInfo.process = new TestTerminalProcess(mockTerminalInfo)
+			await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * MAX_ATTEMPTS)
+
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(2)
+		})
+
+		it("does nothing when the process is no longer listening", async () => {
+			terminalProcess["isListening"] = false
+
+			terminalProcess.abort()
+			await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * MAX_ATTEMPTS)
+
+			expect(mockTerminal.sendText).not.toHaveBeenCalled()
+		})
+
+		it("does not start overlapping retry loops when abort() is called repeatedly", async () => {
+			mockTerminalInfo.busy = true
+
+			terminalProcess.abort()
+			terminalProcess.abort()
+
+			// Each call sends its own immediate Ctrl+C, but only one retry loop runs.
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(2)
+
+			await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * (MAX_ATTEMPTS + 2))
+
+			expect(mockTerminal.sendText).toHaveBeenCalledTimes(2 + (MAX_ATTEMPTS - 1))
 		})
 	})
 

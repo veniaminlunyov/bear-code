@@ -434,7 +434,7 @@
 		"@aws-sdk/credential-providers": "^3.922.0",
 		"@google/genai": "^1.29.1",
 		"@lmstudio/sdk": "^1.1.1",
-		"@mistralai/mistralai": "^1.9.18",
+		"@mistralai/mistralai": "^1.15.1",
 		"@modelcontextprotocol/sdk": "1.12.0",
 		"@qdrant/js-client-rest": "^1.14.0",
 		"@bear-code/core": "workspace:^",
@@ -481,8 +481,6 @@
 		"pretty-bytes": "^7.0.0",
 		"proper-lockfile": "^4.1.2",
 		"ps-tree": "^1.2.0",
-		"puppeteer-chromium-resolver": "^24.0.0",
-		"puppeteer-core": "^23.4.0",
 		"reconnecting-eventsource": "^1.6.4",
 		"safe-stable-stringify": "^2.5.0",
 		"sambanova-ai-provider": "^1.2.2",
@@ -493,7 +491,6 @@
 		"shell-quote": "^1.8.2",
 		"simple-git": "^4.0.2",
 		"sound-play": "^1.1.0",
-		"stream-json": "^1.8.0",
 		"string-similarity": "^4.0.4",
 		"strip-ansi": "^7.1.0",
 		"strip-bom": "^5.0.0",
@@ -508,7 +505,7 @@
 		"workerpool": "^9.2.0",
 		"yaml": "^2.8.0",
 		"zhipu-ai-provider": "^0.2.2",
-		"zod": "3.25.76"
+		"zod": "4.6.7"
 	},
 	"devDependencies": {
 		"@ai-sdk/openai-compatible": "^2.0.28",
@@ -530,7 +527,6 @@
 		"@types/ps-tree": "^1.1.6",
 		"@types/semver-compare": "^1.0.3",
 		"@types/shell-quote": "^1.7.5",
-		"@types/stream-json": "^1.7.8",
 		"@types/string-similarity": "^4.0.2",
 		"@types/tmp": "^0.2.6",
 		"@types/turndown": "^5.0.5",
@@ -547,7 +543,6 @@
 		"rimraf": "^6.0.1",
 		"tsup": "^8.4.0",
 		"tsx": "^4.19.3",
-		"vitest": "^3.2.6",
-		"zod-to-ts": "^1.2.0"
+		"vitest": "catalog:"
 	}
 }

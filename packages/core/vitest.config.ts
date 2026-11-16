@@ -3,7 +3,7 @@ import { realpathSync } from "fs"
 
 import path from "path"
 
-import { defineConfig } from "vitest/config"
+import { configDefaults, defineConfig } from "vitest/config"
 
 export default defineConfig({
 	server: {
@@ -20,6 +20,8 @@ export default defineConfig({
 	},
 	test: {
 		globals: true,
+		// vitest 4 no longer excludes build output by default.
+		exclude: [...configDefaults.exclude, "**/dist/**"],
 		environment: "node",
 		watch: false,
 	},

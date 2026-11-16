@@ -28,6 +28,14 @@ interface ExecuteCommandParams {
 	timeout?: number | null
 }
 
+/**
+ * Grace period before a foreground command may trigger a `command_output` ask
+ * (the "Proceed While Running" / "Kill Command" controls). Short commands that
+ * emit output and exit within this window never show the controls; the ask only
+ * fires when the command is still running once the delay elapses.
+ */
+export const COMMAND_OUTPUT_ASK_DELAY_MS = 5_000
+
 export function resolveAgentTimeoutMs(timeoutSeconds: number | null | undefined): number {
 	const requestedAgentTimeout = typeof timeoutSeconds === "number" && timeoutSeconds > 0 ? timeoutSeconds * 1000 : 0
 
@@ -277,11 +285,69 @@ export async function executeCommandInTerminal(
 	// Track when onCompleted callback finishes to avoid race condition.
 	// The callback is async but Terminal/ExecaTerminal don't await it, so we track completion
 	// explicitly to ensure persistedResult is set before we use it.
-	let onCompletedPromise: Promise<void> | undefined
+	// `completionStarted` is set synchronously when the process emits "completed",
+	// which always happens before it emits "continue", so the main path can tell
+	// a finished command apart from one that was moved to the background.
+	let completionStarted = false
 	let resolveOnCompleted: (() => void) | undefined
-	onCompletedPromise = new Promise((resolve) => {
+	const onCompletedPromise = new Promise<void>((resolve) => {
 		resolveOnCompleted = resolve
 	})
+
+	// Delay the `command_output` ask so short foreground commands that emit
+	// output and exit normally never flash the Proceed/Kill controls. The ask
+	// only fires if the command is still running COMMAND_OUTPUT_ASK_DELAY_MS
+	// after execution started. The anchor is re-based in onShellExecutionStarted
+	// (falling back to the pre-runCommand timestamp when that event never fires)
+	// so shell integration startup on cold terminals does not eat the grace period.
+	let commandStartedAt = 0
+	let commandOutputAskTimer: NodeJS.Timeout | undefined
+	let commandOutputAskDisabled = false
+
+	const canAskForCommandOutput = () =>
+		!runInBackground && !hasAskedForCommandOutput && !completionStarted && !commandOutputAskDisabled
+
+	const askForCommandOutput = async (process: BearTerminalProcess): Promise<void> => {
+		if (!canAskForCommandOutput()) {
+			return
+		}
+
+		// Mark that we've asked to prevent multiple concurrent asks
+		hasAskedForCommandOutput = true
+
+		try {
+			const { response, text, images } = await task.ask("command_output", "")
+			runInBackground = true
+
+			// Only a typed message releases the tool early. command_output is a
+			// non-blocking ask that is auto-approved right away, so continuing on
+			// any answer would hand control back to the model while the command
+			// is still running; "Proceed While Running" continues the process
+			// through handleTerminalOperation instead.
+			if (response === "messageResponse") {
+				message = { text, images }
+				process.continue()
+			}
+		} catch (_error) {
+			// Silently handle ask errors (e.g., "Current ask promise was ignored")
+		}
+	}
+
+	const scheduleCommandOutputAsk = (process: BearTerminalProcess): void => {
+		if (!canAskForCommandOutput() || commandOutputAskTimer) {
+			return
+		}
+
+		const remainingDelay = COMMAND_OUTPUT_ASK_DELAY_MS - (Date.now() - commandStartedAt)
+
+		commandOutputAskTimer = setTimeout(
+			() => {
+				commandOutputAskTimer = undefined
+				void askForCommandOutput(process)
+			},
+			Math.max(remainingDelay, 0),
+		)
+	}
 
 	const callbacks: BearTerminalCallbacks = {
 		onLine: async (lines: string, process: BearTerminalProcess) => {
@@ -301,55 +367,58 @@ export async function executeCommandInTerminal(
 			const status: CommandExecutionStatus = { executionId, status: "output", output: compressedOutput }
 			provider?.postMessageToWebview({ type: "commandExecutionStatus", text: JSON.stringify(status) })
 			schedulePartialCommandOutputUpdate()
-
-			if (runInBackground || hasAskedForCommandOutput) {
-				return
-			}
-
-			// Mark that we've asked to prevent multiple concurrent asks
-			hasAskedForCommandOutput = true
-
-			try {
-				const { response, text, images } = await task.ask("command_output", "")
-				runInBackground = true
-
-				if (response === "messageResponse") {
-					message = { text, images }
-					process.continue()
-				}
-			} catch (_error) {
-				// Silently handle ask errors (e.g., "Current ask promise was ignored")
-			}
+			scheduleCommandOutputAsk(process)
 		},
 		onCompleted: async (output: string | undefined) => {
+			completionStarted = true
+			clearTimeout(commandOutputAskTimer)
+			commandOutputAskTimer = undefined
+
 			try {
 				clearTimeout(pendingCommandOutputEmitTimer)
 				pendingCommandOutputEmitTimer = undefined
 
 				// Finalize interceptor and get persisted result.
 				// We await finalize() to ensure the artifact file is fully flushed
-				// before we advertise the artifact_id to the LLM.
-				if (interceptor) {
-					persistedResult = await interceptor.finalize()
+				// before we advertise the artifact_id to the LLM. A failure here must
+				// not turn a finished command into a "still running" result.
+				try {
+					if (interceptor) {
+						persistedResult = await interceptor.finalize()
+					}
+				} catch (error) {
+					console.error("[ExecuteCommandTool] interceptor.finalize() failed:", error)
 				}
 
 				// Continue using compressed output for UI display
 				result = Terminal.compressTerminalOutput(output ?? "")
 				latestCompressedOutput = result
+				completed = true
 
 				// Preserve order: wait for queued partial updates, then emit the final
 				// non-partial command_output update.
 				await commandOutputSayChain
 				await queueCommandOutputMessage(result, false, true)
-				completed = true
 			} finally {
 				// Signal that onCompleted has finished, so the main code can safely use persistedResult
 				resolveOnCompleted?.()
 			}
 		},
-		onShellExecutionStarted: (pid: number | undefined) => {
+		onShellExecutionStarted: (pid: number | undefined, process: BearTerminalProcess) => {
 			const status: CommandExecutionStatus = { executionId, status: "started", pid, command }
 			provider?.postMessageToWebview({ type: "commandExecutionStatus", text: JSON.stringify(status) })
+
+			// Re-anchor the ask delay to the actual execution start so waiting for
+			// shell integration does not count against the grace period.
+			commandStartedAt = Date.now()
+
+			// Output should not precede this event, but if it did, reschedule the
+			// pending ask against the corrected anchor.
+			if (commandOutputAskTimer) {
+				clearTimeout(commandOutputAskTimer)
+				commandOutputAskTimer = undefined
+				scheduleCommandOutputAsk(process)
+			}
 		},
 		onShellExecutionComplete: (details: ExitCodeDetails) => {
 			const status: CommandExecutionStatus = { executionId, status: "exited", exitCode: details.exitCode }
@@ -369,6 +438,8 @@ export async function executeCommandInTerminal(
 		workingDir = terminal.getCurrentWorkingDirectory()
 	}
 
+	// Fallback anchor for providers that never fire onShellExecutionStarted.
+	commandStartedAt = Date.now()
 	const process = terminal.runCommand(command, callbacks)
 	task.terminalProcess = process
 
@@ -390,6 +461,8 @@ export async function executeCommandInTerminal(
 				new Promise<void>((resolve) => {
 					agentTimeoutId = setTimeout(() => {
 						runInBackground = true
+						clearTimeout(commandOutputAskTimer)
+						commandOutputAskTimer = undefined
 						process.continue()
 						task.supersedePendingAsk()
 						resolve()
@@ -430,6 +503,11 @@ export async function executeCommandInTerminal(
 		clearTimeout(agentTimeoutId)
 		clearTimeout(userTimeoutId)
 		clearTimeout(pendingCommandOutputEmitTimer)
+		// Once the tool stops waiting on the process, a delayed ask must not
+		// fire into a later step of the conversation.
+		commandOutputAskDisabled = true
+		clearTimeout(commandOutputAskTimer)
+		commandOutputAskTimer = undefined
 		task.terminalProcess = undefined
 	}
 
@@ -444,10 +522,14 @@ export async function executeCommandInTerminal(
 	// grouping command_output messages despite any gaps anyways).
 	await delay(50)
 
-	// Wait for onCompleted callback to finish if shell execution completed.
-	// This ensures persistedResult is set before we try to use it, fixing the race
-	// condition where exitDetails is set (sync) before the async onCompleted finishes.
-	if (exitDetails && onCompletedPromise) {
+	// Wait for the async onCompleted callback to finish whenever the command
+	// completed, so `completed`, `result` and `persistedResult` are set before we
+	// read them. Gating this on exitDetails missed completions that carry no exit
+	// details (stream timeout, missing shell integration markers), which were then
+	// reported to the model as "still running". Skip the wait when the process was
+	// moved to the background (agent timeout, "Proceed While Running"): onCompleted
+	// only fires once the command really ends.
+	if (completionStarted || exitDetails) {
 		await onCompletedPromise
 	}
 

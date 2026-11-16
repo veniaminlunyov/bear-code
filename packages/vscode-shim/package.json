@@ -14,7 +14,7 @@
 		"@bear-code/config-eslint": "workspace:^",
 		"@bear-code/config-typescript": "workspace:^",
 		"@types/node": "^24.1.0",
-		"vitest": "^3.2.6"
+		"vitest": "catalog:"
 	},
 	"dependencies": {}
 }

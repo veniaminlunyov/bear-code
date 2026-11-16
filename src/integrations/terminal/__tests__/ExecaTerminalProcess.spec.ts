@@ -17,6 +17,10 @@ vitest.mock("execa", () => {
 	return { execa, ExecaError: class extends Error {} }
 })
 
+vitest.mock("../../../utils/shell", () => ({
+	getShell: vitest.fn(() => "/bin/zsh"),
+}))
+
 vitest.mock("ps-tree", () => ({
 	default: vitest.fn((_: number, cb: any) => cb(null, [])),
 }))
@@ -24,6 +28,7 @@ vitest.mock("ps-tree", () => ({
 import { execa } from "execa"
 import { ExecaTerminalProcess } from "../ExecaTerminalProcess"
 import { BaseTerminal } from "../BaseTerminal"
+import { getShell } from "../../../utils/shell"
 import type { BearTerminal } from "../types"
 
 describe("ExecaTerminalProcess", () => {
@@ -58,12 +63,21 @@ describe("ExecaTerminalProcess", () => {
 	})
 
 	describe("UTF-8 encoding fix", () => {
-		it("should set LANG and LC_ALL to en_US.UTF-8", async () => {
+		// Clears the locale variables so assertions don't depend on the locale of
+		// the machine (or CI runner) that executes the test.
+		const clearLocaleVariables = () => {
+			delete process.env.LANG
+			delete process.env.LC_ALL
+			delete process.env.LC_CTYPE
+		}
+
+		it("should set LANG and LC_ALL to en_US.UTF-8 when the host has no UTF-8 locale", async () => {
+			clearLocaleVariables()
 			await terminalProcess.run("echo test")
 			const execaMock = vitest.mocked(execa)
 			expect(execaMock).toHaveBeenCalledWith(
 				expect.objectContaining({
-					shell: true,
+					shell: "/bin/zsh",
 					cwd: "/test/cwd",
 					all: true,
 					env: expect.objectContaining({
@@ -72,6 +86,18 @@ describe("ExecaTerminalProcess", () => {
 					}),
 				}),
 			)
+		})
+
+		it("preserves an inherited UTF-8 locale instead of forcing en_US.UTF-8", async () => {
+			process.env.LANG = "en_AU.UTF-8"
+			delete process.env.LC_ALL
+			delete process.env.LC_CTYPE
+			terminalProcess = new ExecaTerminalProcess(mockTerminal)
+			await terminalProcess.run("echo test")
+			const execaMock = vitest.mocked(execa)
+			const calledOptions = execaMock.mock.calls[0][0] as unknown as { env: NodeJS.ProcessEnv }
+			expect(calledOptions.env.LANG).toBe("en_AU.UTF-8")
+			expect(calledOptions.env.LC_ALL).toBeUndefined()
 		})
 
 		it("should preserve existing environment variables", async () => {
@@ -83,7 +109,8 @@ describe("ExecaTerminalProcess", () => {
 			expect(calledOptions.env.EXISTING_VAR).toBe("existing")
 		})
 
-		it("should override existing LANG and LC_ALL values", async () => {
+		it("should override existing non-UTF-8 LANG and LC_ALL values", async () => {
+			// "C" and "POSIX" select ASCII, not UTF-8, so the UTF-8 fallback still applies.
 			process.env.LANG = "C"
 			process.env.LC_ALL = "POSIX"
 			terminalProcess = new ExecaTerminalProcess(mockTerminal)
@@ -105,15 +132,31 @@ describe("ExecaTerminalProcess", () => {
 			)
 		})
 
-		it("should fall back to shell=true when execaShellPath is undefined", async () => {
-			BaseTerminal.setExecaShellPath(undefined)
+		it.each([
+			["undefined", undefined],
+			["empty", ""],
+		])("resolves the shell through getShell() when execaShellPath is %s", async (_label, shellPath) => {
+			BaseTerminal.setExecaShellPath(shellPath)
+			vitest.mocked(getShell).mockReturnValueOnce("C:\\Program Files\\PowerShell\\7\\pwsh.exe")
 			await terminalProcess.run("echo test")
-			const execaMock = vitest.mocked(execa)
-			expect(execaMock).toHaveBeenCalledWith(
-				expect.objectContaining({
-					shell: true,
-				}),
-			)
+			const calledOptions = vitest.mocked(execa).mock.calls[0][0] as unknown as { shell: unknown }
+			expect(calledOptions.shell).toBe("C:\\Program Files\\PowerShell\\7\\pwsh.exe")
+		})
+
+		it("never passes shell: true, which is a bare cmd.exe on Windows", async () => {
+			BaseTerminal.setExecaShellPath(undefined)
+			vitest.mocked(getShell).mockReturnValueOnce("C:\\Windows\\System32\\cmd.exe")
+			await terminalProcess.run("echo test")
+			const calledOptions = vitest.mocked(execa).mock.calls[0][0] as unknown as { shell: unknown }
+			// A deliberately selected Command Prompt profile is still honoured.
+			expect(calledOptions.shell).toBe("C:\\Windows\\System32\\cmd.exe")
+			expect(calledOptions.shell).not.toBe(true)
+		})
+
+		it("prefers an explicit execaShellPath over getShell()", async () => {
+			BaseTerminal.setExecaShellPath("/bin/bash")
+			await terminalProcess.run("echo test")
+			expect(getShell).not.toHaveBeenCalled()
 		})
 	})
 

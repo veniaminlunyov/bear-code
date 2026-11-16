@@ -31,10 +31,12 @@ vi.mock("vscode", () => {
 				dispose: vi.fn(),
 			})),
 		},
-		RelativePattern: vi.fn().mockImplementation((base, pattern) => ({
-			base,
-			pattern,
-		})),
+		RelativePattern: vi.fn().mockImplementation(function (base, pattern) {
+			return {
+				base,
+				pattern,
+			}
+		}),
 		EventEmitter: vi.fn().mockImplementation(() => mockEventEmitter),
 		Disposable: {
 			from: vi.fn(),

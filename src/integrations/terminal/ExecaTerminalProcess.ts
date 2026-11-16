@@ -2,9 +2,11 @@ import { execa, ExecaError } from "execa"
 import psTree from "ps-tree"
 import process from "process"
 
+import { getShell } from "../../utils/shell"
 import type { BearTerminal } from "./types"
 import { BaseTerminal } from "./BaseTerminal"
 import { BaseTerminalProcess } from "./BaseTerminalProcess"
+import { getUtf8LocaleEnv } from "./localeEnv"
 
 export class ExecaTerminalProcess extends BaseTerminalProcess {
 	private terminalRef: WeakRef<BearTerminal>
@@ -40,22 +42,25 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 			this.isHot = true
 
 			this.subprocess = execa({
-				shell: BaseTerminal.getExecaShellPath() || true,
+				// Never `shell: true`: on Windows that is a bare cmd.exe regardless of the
+				// configured terminal profile. getShell() is also what the system prompt
+				// reports, so the model writes commands for the shell that runs them.
+				shell: BaseTerminal.getExecaShellPath() || getShell(),
 				cwd: this.terminal.getCurrentWorkingDirectory(),
 				all: true,
 				// Ignore stdin to ensure non-interactive mode and prevent hanging
 				stdin: "ignore",
 				env: {
 					...process.env,
-					// Ensure UTF-8 encoding for Ruby, CocoaPods, etc.
-					LANG: "en_US.UTF-8",
-					LC_ALL: "en_US.UTF-8",
+					// Keep the host locale when it already is UTF-8 (e.g. en_AU.UTF-8), otherwise
+					// fall back to en_US.UTF-8 so tools such as Ruby and CocoaPods still emit UTF-8.
+					...getUtf8LocaleEnv(),
 				},
 			})`${command}`
 
 			this.pid = this.subprocess.pid
 
-			// When using shell: true, the PID is for the shell, not the actual command
+			// The PID is for the shell, not the actual command
 			// Find the actual command PID after a small delay
 			if (this.pid) {
 				this.pidUpdatePromise = new Promise<void>((resolve) => {
@@ -154,6 +159,7 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 	}
 
 	public override continue() {
+		this.movedToBackground = true
 		this.isListening = false
 		this.removeAllListeners("line")
 		this.emit("continue")

@@ -114,7 +114,7 @@ export type BearCliQueueItem = z.infer<typeof bearCliQueueItemSchema>
 
 export const bearCliToolUseSchema = z.object({
 	name: z.string(),
-	input: z.record(z.unknown()).optional(),
+	input: z.record(z.string(), z.unknown()).optional(),
 })
 
 export type BearCliToolUse = z.infer<typeof bearCliToolUseSchema>

@@ -57,23 +57,25 @@ vi.mock("vscode", () => ({
 let taskIdCounter = 0
 
 vi.mock("../../task/Task", () => ({
-	Task: vi.fn().mockImplementation((options) => ({
-		taskId: options.taskId || `test-task-id-${++taskIdCounter}`,
-		saveClineMessages: vi.fn(),
-		clineMessages: [],
-		apiConversationHistory: [],
-		overwriteClineMessages: vi.fn(),
-		overwriteApiConversationHistory: vi.fn(),
-		abortTask: vi.fn(),
-		handleWebviewAskResponse: vi.fn(),
-		getTaskNumber: vi.fn().mockReturnValue(0),
-		setTaskNumber: vi.fn(),
-		setParentTask: vi.fn(),
-		setRootTask: vi.fn(),
-		emit: vi.fn(),
-		parentTask: options.parentTask,
-		updateApiConfiguration: vi.fn(),
-	})),
+	Task: vi.fn().mockImplementation(function (options) {
+		return {
+			taskId: options.taskId || `test-task-id-${++taskIdCounter}`,
+			saveClineMessages: vi.fn(),
+			clineMessages: [],
+			apiConversationHistory: [],
+			overwriteClineMessages: vi.fn(),
+			overwriteApiConversationHistory: vi.fn(),
+			abortTask: vi.fn(),
+			handleWebviewAskResponse: vi.fn(),
+			getTaskNumber: vi.fn().mockReturnValue(0),
+			setTaskNumber: vi.fn(),
+			setParentTask: vi.fn(),
+			setRootTask: vi.fn(),
+			emit: vi.fn(),
+			parentTask: options.parentTask,
+			updateApiConfiguration: vi.fn(),
+		}
+	}),
 }))
 
 vi.mock("../../prompts/sections/custom-instructions")
@@ -89,10 +91,12 @@ vi.mock("../../../api", () => ({
 }))
 
 vi.mock("../../../integrations/workspace/WorkspaceTracker", () => ({
-	default: vi.fn().mockImplementation(() => ({
-		initializeFilePaths: vi.fn(),
-		dispose: vi.fn(),
-	})),
+	default: vi.fn().mockImplementation(function () {
+		return {
+			initializeFilePaths: vi.fn(),
+			dispose: vi.fn(),
+		}
+	}),
 }))
 
 vi.mock("../../diff/strategies/multi-search-replace", () => ({
@@ -172,6 +176,12 @@ describe("ClineProvider - Sticky Mode", () => {
 	let mockOutputChannel: vscode.OutputChannel
 	let mockWebviewView: vscode.WebviewView
 	let mockPostMessage: any
+
+	async function seedTaskHistory(items: HistoryItem[]) {
+		for (const item of items) {
+			await provider.taskHistoryStore.upsert(item)
+		}
+	}
 
 	beforeEach(async () => {
 		vi.clearAllMocks()
@@ -274,8 +284,8 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Get the actual taskId from the mock
 			const taskId = (mockTask as any).taskId || "test-task-id"
 
-			// Mock getGlobalState to return task history
-			vi.spyOn(provider as any, "getGlobalState").mockReturnValue([
+			// Seed the authoritative file-backed task history.
+			await seedTaskHistory([
 				{
 					id: taskId,
 					ts: Date.now(),
@@ -327,8 +337,8 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Add task to provider stack
 			await provider.addClineToStack(mockTask as any)
 
-			// Mock getGlobalState to return task history
-			vi.spyOn(provider as any, "getGlobalState").mockReturnValue([
+			// Seed the authoritative file-backed task history.
+			await seedTaskHistory([
 				{
 					id: mockTask.taskId,
 					ts: Date.now(),
@@ -365,8 +375,8 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Get the actual taskId from the mock
 			const taskId = (mockTask as any).taskId || "test-task-id"
 
-			// Mock getGlobalState to return task history
-			vi.spyOn(provider as any, "getGlobalState").mockReturnValue([
+			// Seed the authoritative file-backed task history.
+			await seedTaskHistory([
 				{
 					id: taskId,
 					ts: Date.now(),
@@ -488,8 +498,8 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Get the actual taskId from the mock
 			const taskId = (mockTask as any).taskId || "test-task-id"
 
-			// Mock getGlobalState to return task history with our task
-			vi.spyOn(provider as any, "getGlobalState").mockReturnValue([
+			// Seed the authoritative file-backed task history.
+			await seedTaskHistory([
 				{
 					id: taskId,
 					ts: Date.now(),
@@ -546,25 +556,23 @@ describe("ClineProvider - Sticky Mode", () => {
 				[parentTaskId]: "architect", // Parent starts with architect mode
 			}
 
-			// Mock getGlobalState to return task history
-			const getGlobalStateMock = vi.spyOn(provider as any, "getGlobalState")
-			getGlobalStateMock.mockImplementation((key) => {
-				if (key === "taskHistory") {
-					return Object.entries(taskModes).map(([id, mode]) => ({
-						id,
-						ts: Date.now(),
-						task: `Task ${id}`,
-						number: 1,
-						tokensIn: 0,
-						tokensOut: 0,
-						cacheWrites: 0,
-						cacheReads: 0,
-						totalCost: 0,
-						mode,
-					}))
-				}
-				// Return empty array for other keys
-				return []
+			// Read task metadata from the authoritative store's test double.
+			vi.spyOn(provider.taskHistoryStore, "get").mockImplementation((id) => {
+				const mode = taskModes[id]
+				return mode === undefined
+					? undefined
+					: {
+							id,
+							ts: Date.now(),
+							task: `Task ${id}`,
+							number: 1,
+							tokensIn: 0,
+							tokensOut: 0,
+							cacheWrites: 0,
+							cacheReads: 0,
+							totalCost: 0,
+							mode,
+						}
 			})
 
 			// Mock updateTaskHistory to track mode changes
@@ -775,8 +783,8 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Add task to provider stack
 			await provider.addClineToStack(mockTask as any)
 
-			// Mock getGlobalState to return task history
-			vi.spyOn(provider as any, "getGlobalState").mockReturnValue([
+			// Seed the authoritative file-backed task history.
+			await seedTaskHistory([
 				{
 					id: mockTask.taskId,
 					ts: Date.now(),
@@ -842,8 +850,8 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Add task to provider stack
 			await provider.addClineToStack(mockTask as any)
 
-			// Mock getGlobalState
-			vi.spyOn(provider as any, "getGlobalState").mockReturnValue([
+			// Seed the authoritative file-backed task history.
+			await seedTaskHistory([
 				{
 					id: mockTask.taskId,
 					ts: Date.now(),
@@ -929,8 +937,8 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Add task to provider stack
 			await provider.addClineToStack(mockTask as any)
 
-			// Mock getGlobalState to return task history
-			vi.spyOn(provider as any, "getGlobalState").mockReturnValue([
+			// Seed the authoritative file-backed task history.
+			await seedTaskHistory([
 				{
 					id: mockTask.taskId,
 					ts: Date.now(),
@@ -985,8 +993,8 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Add task to provider stack
 			await provider.addClineToStack(mockTask as any)
 
-			// Mock getGlobalState
-			vi.spyOn(provider as any, "getGlobalState").mockReturnValue([
+			// Seed the authoritative file-backed task history.
+			await seedTaskHistory([
 				{
 					id: mockTask.taskId,
 					ts: Date.now(),
@@ -1054,8 +1062,8 @@ describe("ClineProvider - Sticky Mode", () => {
 			await provider.addClineToStack(task2 as any)
 			await provider.addClineToStack(task3 as any)
 
-			// Mock getGlobalState to return all tasks
-			vi.spyOn(provider as any, "getGlobalState").mockReturnValue([
+			// Seed the authoritative file-backed task history.
+			await seedTaskHistory([
 				{
 					id: task1.taskId,
 					ts: Date.now(),

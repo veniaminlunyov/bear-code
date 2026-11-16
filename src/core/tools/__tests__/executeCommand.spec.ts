@@ -20,8 +20,15 @@ vitest.mock("../../../integrations/terminal/TerminalRegistry")
 vitest.mock("../../../integrations/terminal/Terminal")
 vitest.mock("../../../integrations/terminal/ExecaTerminal")
 
+// Mock persisted output handling (only used when the provider exposes storage)
+vitest.mock("../../../integrations/terminal/OutputInterceptor")
+vitest.mock("../../../utils/storage")
+
+import { OutputInterceptor } from "../../../integrations/terminal/OutputInterceptor"
+import { getTaskDirectoryPath } from "../../../utils/storage"
+
 // Import the actual executeCommand function (not mocked)
-import { executeCommandInTerminal } from "../ExecuteCommandTool"
+import { COMMAND_OUTPUT_ASK_DELAY_MS, executeCommandInTerminal } from "../ExecuteCommandTool"
 
 // Tests for the executeCommand function
 describe("executeCommand", () => {
@@ -392,6 +399,267 @@ describe("executeCommand", () => {
 			expect(rejected).toBe(false)
 			expect(result).toContain("Process terminated by signal SIGINT")
 			expect(result).toContain("within working directory '/test/project'")
+		})
+	})
+
+	describe("Completion without exit details", () => {
+		it("waits for onCompleted instead of reporting a finished command as still running", async () => {
+			// The final command_output say is slower than the tool's 50ms settle delay.
+			mockTask.say = vitest.fn(() => new Promise<void>((resolve) => setTimeout(resolve, 150)))
+
+			mockTerminal.runCommand.mockImplementation((command: string, callbacks: BearTerminalCallbacks) => {
+				// e.g. the shell integration stream timed out: "completed" is emitted
+				// but there is no shell_execution_complete, so no exit details.
+				setTimeout(() => callbacks.onCompleted("partial output", mockProcess), 0)
+				return mockProcess
+			})
+
+			const [rejected, result] = await executeCommandInTerminal(mockTask, {
+				executionId: "test-123",
+				command: "echo test",
+				terminalShellIntegrationDisabled: false,
+			})
+
+			expect(rejected).toBe(false)
+			expect(result).toContain("Command executed in terminal")
+			expect(result).not.toContain("still running")
+		})
+
+		it("reports the command as finished even if finalizing persisted output fails", async () => {
+			const consoleErrorSpy = vitest.spyOn(console, "error").mockImplementation(() => {})
+			mockProvider.context = { globalStorageUri: { fsPath: "/test/storage" } }
+			vitest.mocked(getTaskDirectoryPath).mockResolvedValue("/test/storage/tasks/test-task-123")
+			// A function, not an arrow: OutputInterceptor is constructed with `new`.
+			vitest.mocked(OutputInterceptor).mockImplementation(function () {
+				return {
+					write: vitest.fn(),
+					finalize: vitest.fn().mockRejectedValue(new Error("disk full")),
+				} as any
+			})
+
+			mockTerminal.runCommand.mockImplementation((command: string, callbacks: BearTerminalCallbacks) => {
+				setTimeout(() => {
+					callbacks.onCompleted("Command output", mockProcess)
+					callbacks.onShellExecutionComplete({ exitCode: 0 }, mockProcess)
+				}, 0)
+				return mockProcess
+			})
+
+			const [rejected, result] = await executeCommandInTerminal(mockTask, {
+				executionId: "test-123",
+				command: "echo test",
+				terminalShellIntegrationDisabled: false,
+			})
+
+			expect(rejected).toBe(false)
+			expect(result).toContain("Exit code: 0")
+			expect(result).not.toContain("still running")
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				"[ExecuteCommandTool] interceptor.finalize() failed:",
+				expect.any(Error),
+			)
+			consoleErrorSpy.mockRestore()
+		})
+
+		it("does not wait for completion when the process was moved to the background", async () => {
+			// The process resolves via continue() (e.g. "Proceed While Running") and
+			// onCompleted never fires while the tool is still running.
+			mockTerminal.runCommand.mockReturnValue(mockProcess)
+
+			const [rejected, result] = await executeCommandInTerminal(mockTask, {
+				executionId: "test-123",
+				command: "npm run dev",
+				terminalShellIntegrationDisabled: false,
+			})
+
+			expect(rejected).toBe(false)
+			expect(result).toContain("still running")
+		})
+	})
+
+	describe("command_output ask", () => {
+		type ControllableProcess = Promise<void> & { continue: any; abort: any }
+
+		let callbacks: BearTerminalCallbacks | undefined
+		let proc: ControllableProcess
+		let resolveProcess: () => void
+
+		const options: ExecuteCommandOptions = {
+			executionId: "test-123",
+			command: "npm run build",
+			terminalShellIntegrationDisabled: false,
+		}
+
+		beforeEach(() => {
+			vitest.useFakeTimers()
+			callbacks = undefined
+
+			const processPromise = new Promise<void>((resolve) => {
+				resolveProcess = resolve
+			})
+
+			proc = Object.assign(processPromise, {
+				continue: vitest.fn(() => resolveProcess()),
+				abort: vitest.fn(),
+			})
+
+			mockTask.ask = vitest.fn().mockResolvedValue({ response: "yesButtonClicked" })
+			mockTask.supersedePendingAsk = vitest.fn()
+
+			mockTerminal.runCommand.mockImplementation((_command: string, cbs: BearTerminalCallbacks) => {
+				callbacks = cbs
+				return proc
+			})
+		})
+
+		afterEach(() => {
+			vitest.useRealTimers()
+		})
+
+		// Returns the tool promise wrapped in an object so awaiting start() waits
+		// for the callbacks to be wired up, not for the tool to finish.
+		const start = async (opts: ExecuteCommandOptions = options) => {
+			const promise = executeCommandInTerminal(mockTask, opts)
+			await vitest.waitFor(() => expect(callbacks).toBeDefined())
+			return { promise }
+		}
+
+		const complete = async (output: string) => {
+			await callbacks!.onCompleted(output, proc as any)
+			callbacks!.onShellExecutionComplete({ exitCode: 0 }, proc as any)
+			resolveProcess()
+			await vitest.advanceTimersByTimeAsync(100)
+		}
+
+		it("does not ask when a short command emits output and finishes within the grace period", async () => {
+			const { promise: toolPromise } = await start()
+
+			callbacks!.onShellExecutionStarted(1234, proc as any)
+			await callbacks!.onLine("hello\n", proc as any)
+			await vitest.advanceTimersByTimeAsync(COMMAND_OUTPUT_ASK_DELAY_MS - 1_000)
+			await complete("hello\n")
+
+			// Well past the original deadline: the cancelled ask must never fire.
+			await vitest.advanceTimersByTimeAsync(COMMAND_OUTPUT_ASK_DELAY_MS * 2)
+
+			const [, result] = await toolPromise
+			expect(mockTask.ask).not.toHaveBeenCalled()
+			expect(result).toContain("Exit code: 0")
+		})
+
+		it("asks once the command is still running after the grace period", async () => {
+			const { promise: toolPromise } = await start()
+
+			callbacks!.onShellExecutionStarted(1234, proc as any)
+			await callbacks!.onLine("compiling...\n", proc as any)
+			await callbacks!.onLine("still compiling...\n", proc as any)
+
+			await vitest.advanceTimersByTimeAsync(COMMAND_OUTPUT_ASK_DELAY_MS - 1)
+			expect(mockTask.ask).not.toHaveBeenCalled()
+
+			await vitest.advanceTimersByTimeAsync(1)
+			expect(mockTask.ask).toHaveBeenCalledTimes(1)
+			expect(mockTask.ask).toHaveBeenCalledWith("command_output", "")
+
+			await complete("done\n")
+			await toolPromise
+		})
+
+		it("keeps waiting for the command when the auto-approved ask resolves", async () => {
+			// command_output is a non-blocking ask that is approved immediately; that
+			// answer must not hand control back to the model mid-command.
+			const { promise: toolPromise } = await start()
+			let toolResolved = false
+			void toolPromise.then(() => {
+				toolResolved = true
+			})
+
+			callbacks!.onShellExecutionStarted(1234, proc as any)
+			await callbacks!.onLine("server starting...\n", proc as any)
+			await vitest.advanceTimersByTimeAsync(COMMAND_OUTPUT_ASK_DELAY_MS + 1_000)
+
+			expect(mockTask.ask).toHaveBeenCalledTimes(1)
+			expect(proc.continue).not.toHaveBeenCalled()
+			expect(toolResolved).toBe(false)
+
+			await complete("server stopped\n")
+
+			const [, result] = await toolPromise
+			expect(result).toContain("Exit code: 0")
+			expect(result).toContain("Command executed in terminal")
+		})
+
+		it("anchors the grace period to the shell execution start", async () => {
+			const { promise: toolPromise } = await start()
+
+			// Shell integration takes a while on a cold terminal.
+			await vitest.advanceTimersByTimeAsync(3_000)
+			callbacks!.onShellExecutionStarted(1234, proc as any)
+			await callbacks!.onLine("output\n", proc as any)
+
+			await vitest.advanceTimersByTimeAsync(COMMAND_OUTPUT_ASK_DELAY_MS - 1)
+			expect(mockTask.ask).not.toHaveBeenCalled()
+
+			await vitest.advanceTimersByTimeAsync(1)
+			expect(mockTask.ask).toHaveBeenCalledTimes(1)
+
+			await complete("output\n")
+			await toolPromise
+		})
+
+		it("reschedules a pending ask when output arrives before the start event", async () => {
+			const { promise: toolPromise } = await start()
+
+			await vitest.advanceTimersByTimeAsync(3_000)
+			await callbacks!.onLine("early output\n", proc as any)
+			await vitest.advanceTimersByTimeAsync(1_000)
+			callbacks!.onShellExecutionStarted(1234, proc as any)
+
+			// The original deadline (runCommand + grace period) passes without an ask.
+			await vitest.advanceTimersByTimeAsync(COMMAND_OUTPUT_ASK_DELAY_MS - 4_000)
+			expect(mockTask.ask).not.toHaveBeenCalled()
+
+			// The re-anchored deadline fires it.
+			await vitest.advanceTimersByTimeAsync(4_000)
+			expect(mockTask.ask).toHaveBeenCalledTimes(1)
+
+			await complete("done\n")
+			await toolPromise
+		})
+
+		it("continues the process and returns the user's message on a typed response", async () => {
+			mockTask.ask = vitest.fn().mockResolvedValue({ response: "messageResponse", text: "check the logs" })
+			const { promise: toolPromise } = await start()
+
+			callbacks!.onShellExecutionStarted(1234, proc as any)
+			await callbacks!.onLine("server starting...\n", proc as any)
+			await vitest.advanceTimersByTimeAsync(COMMAND_OUTPUT_ASK_DELAY_MS)
+			await vitest.advanceTimersByTimeAsync(100)
+
+			const [, result] = await toolPromise
+			expect(proc.continue).toHaveBeenCalled()
+			expect(mockTask.say).toHaveBeenCalledWith("user_feedback", "check the logs", undefined)
+			expect(result).toContain("Command is still running")
+		})
+
+		it("cancels a pending ask when the agent timeout moves the command to the background", async () => {
+			const { promise: toolPromise } = await start({ ...options, agentTimeout: 2_000 })
+
+			callbacks!.onShellExecutionStarted(1234, proc as any)
+			await callbacks!.onLine("server starting...\n", proc as any)
+
+			await vitest.advanceTimersByTimeAsync(2_000)
+			expect(proc.continue).toHaveBeenCalled()
+			expect(mockTask.supersedePendingAsk).toHaveBeenCalled()
+
+			await vitest.advanceTimersByTimeAsync(100)
+			const [, result] = await toolPromise
+			expect(result).toContain("Command is still running")
+
+			// Output keeps arriving in the background; no ask may fire into a later step.
+			await callbacks!.onLine("listening...\n", proc as any)
+			await vitest.advanceTimersByTimeAsync(COMMAND_OUTPUT_ASK_DELAY_MS * 2)
+			expect(mockTask.ask).not.toHaveBeenCalled()
 		})
 	})
 
