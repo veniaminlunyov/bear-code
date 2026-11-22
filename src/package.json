@@ -482,7 +482,7 @@
 		"proper-lockfile": "^4.1.2",
 		"ps-tree": "^1.2.0",
 		"reconnecting-eventsource": "^1.6.4",
-		"safe-stable-stringify": "^2.5.0",
+		"safe-stable-stringify": "^3.0.1",
 		"sambanova-ai-provider": "^1.2.2",
 		"sanitize-filename": "^1.6.3",
 		"say": "^0.16.0",
