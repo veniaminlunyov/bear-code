@@ -25,8 +25,8 @@
 		"@bear-code/core": "workspace:^",
 		"@bear-code/types": "workspace:^",
 		"@bear-code/vscode-shim": "workspace:^",
-		"@trpc/client": "^11.8.1",
-		"@vscode/ripgrep": "^1.15.9",
+		"@trpc/client": "^11.29.5",
+		"@vscode/ripgrep": "^1.18.0",
 		"commander": "^12.1.0",
 		"cross-spawn": "^7.0.6",
 		"execa": "^9.5.2",
@@ -35,7 +35,7 @@
 		"p-wait-for": "^5.0.2",
 		"react": "^19.1.0",
 		"superjson": "^2.2.6",
-		"zustand": "^5.0.0"
+		"zustand": "^5.1.0"
 	},
 	"devDependencies": {
 		"@bear-code/config-eslint": "workspace:^",
@@ -43,7 +43,7 @@
 		"@types/node": "^24.1.0",
 		"@types/react": "^19.1.6",
 		"ink-testing-library": "^4.0.0",
-		"rimraf": "^6.0.1",
+		"rimraf": "^6.1.4",
 		"tsup": "^8.4.0",
 		"vitest": "catalog:"
 	}
